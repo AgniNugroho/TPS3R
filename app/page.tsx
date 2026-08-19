@@ -36,7 +36,7 @@ export default function Home() {
       <nav className="nav-list">{navItems.map((item) => { const Icon = item.icon; const active = activeNav === item.label; return <button key={item.label} className={`nav-item ${active ? "active" : ""}`} onClick={() => { setActiveNav(item.label); setMobileOpen(false); }}><Icon size={18} /><span>{item.label}</span>{item.count && <b>{item.count}</b>}</button>; })}</nav>
       <p className="nav-label secondary-label">LAINNYA</p>
       <nav className="nav-list"><button className="nav-item"><FileText size={18} /><span>Laporan</span></button><button className="nav-item"><MapPin size={18} /><span>Peta wilayah</span></button><button className="nav-item"><Settings2 size={18} /><span>Pengaturan</span></button></nav>
-      <div className="sidebar-bottom"><div className="help-card"><CircleHelp size={19} /><div><strong>Butuh bantuan?</strong><span>Lihat panduan penggunaan</span></div></div><div className="profile-row"><div className="profile-avatar">AR</div><div className="profile-copy"><strong>Adi Rahman</strong><span>Admin Desa</span></div><ChevronDown size={16} /></div></div>
+      <div className="sidebar-bottom"><div className="help-card"><CircleHelp size={19} /><div><strong>Butuh bantuan?</strong><span>Lihat panduan penggunaan</span></div></div><div className="profile-row"><div className="profile-avatar">AR</div><div className="profile-copy"><strong>Agni Nugroho</strong><span>Admin Desa</span></div><ChevronDown size={16} /></div></div>
     </aside>
     {mobileOpen && <button className="scrim" onClick={() => setMobileOpen(false)} aria-label="Tutup menu" />}
     <section className="main-area">
