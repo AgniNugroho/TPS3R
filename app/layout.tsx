@@ -13,7 +13,7 @@ const displayFont = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "DASH-SAMPAH DESA | Desa Lestari",
+  title: "DASH-SAMPAH DESA | Desa Banyubiru",
   description: "Dashboard pengelolaan sampah desa berbasis data.",
 };
 
