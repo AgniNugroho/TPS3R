@@ -1,3 +1,3 @@
-import { createSheetHandlers } from "@/lib/google/route";
+import { createSupabaseHandlers } from "@/lib/supabase/route";
 
-export const { GET } = createSheetHandlers("07_BANK_SAMPAH");
+export const { GET, POST } = createSupabaseHandlers("bank_sampah");
