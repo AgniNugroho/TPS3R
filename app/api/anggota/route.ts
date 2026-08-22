@@ -6,9 +6,9 @@ export async function GET(request: Request) {
   if (unauthorized) return unauthorized;
 
   const { data, error } = await supabase
-    .from("wilayah")
-    .select("id, nama_dusun, kode_wilayah")
-    .order("nama_dusun");
+    .from("anggota")
+    .select("id, nama, alamat, wilayah_id, wilayah(id, nama_dusun)")
+    .order("nama");
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
