@@ -46,3 +46,60 @@ export async function submitPengumpulan(
   return { success: true };
 }
 
+export type UpdatePengumpulanState = { error?: string; success?: boolean } | undefined;
+
+export async function updatePengumpulan(
+  _state: UpdatePengumpulanState,
+  formData: FormData
+): Promise<UpdatePengumpulanState> {
+  const supabase = await createSupabaseServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Sesi login berakhir, silakan login ulang." };
+  }
+
+  const id = Number(formData.get("id"));
+  const tanggal = String(formData.get("tanggal") ?? "");
+  const beratKg = Number(formData.get("berat_kg"));
+  const catatan = String(formData.get("catatan") ?? "").trim();
+
+  if (!Number.isFinite(id) || !tanggal || !Number.isFinite(beratKg) || beratKg <= 0) {
+    return { error: "Lengkapi tanggal dan berat (kg) dengan benar." };
+  }
+
+  const { data, error } = await supabase
+    .from("pengumpulan")
+    .update({ tanggal, berat_kg: beratKg, catatan: catatan || null })
+    .eq("id", id)
+    .eq("petugas_id", user.id)
+    .select("id");
+
+  if (error) {
+    return { error: "Gagal menyimpan perubahan. Coba lagi." };
+  }
+  if (!data || data.length === 0) {
+    return { error: "Data tidak ditemukan atau kamu tidak berhak mengubahnya." };
+  }
+
+  revalidatePath("/pengumpulan");
+  return { success: true };
+}
+
+export async function deletePengumpulan(id: number) {
+  const supabase = await createSupabaseServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  await supabase.from("pengumpulan").delete().eq("id", id).eq("petugas_id", user.id);
+
+  revalidatePath("/pengumpulan");
+}
+

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { logout } from "@/lib/supabase/actions";
-import { DashboardClient } from "@/components/dashboard/DashboardClient";
+import { RingkasanContent } from "@/components/dashboard/RingkasanContent";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const REGION_COLORS = ["teal", "lime", "orange", "blue"];
@@ -48,7 +47,6 @@ export default async function Home() {
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 19 ? "Selamat sore" : "Selamat malam";
-  const todayLabel = now.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
   const last12Months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
@@ -66,7 +64,6 @@ export default async function Home() {
   const monthlyValues = last12Months.map((m) => monthlyTotals.get(m.key) ?? 0);
   const maxMonthly = Math.max(1, ...monthlyValues);
   const monthlyHeights = monthlyValues.map((v) => Math.round((v / maxMonthly) * 100));
-
   const currentMonthTotal = monthlyValues[monthlyValues.length - 1];
   const prevMonthTotal = monthlyValues[monthlyValues.length - 2];
   const trendPercent = prevMonthTotal > 0
@@ -117,10 +114,9 @@ export default async function Home() {
   }));
 
   return (
-    <DashboardClient
+    <RingkasanContent
       greeting={greeting}
       petugasNama={petugasProfile?.nama ?? user.email ?? "Petugas"}
-      todayLabel={todayLabel}
       sampahMasuk={sampahMasuk}
       anggotaTerlayani={anggotaTerlayani}
       monthly={{
@@ -134,7 +130,6 @@ export default async function Home() {
       }}
       regions={regions}
       activities={activities}
-      logoutAction={logout}
     />
   );
 }

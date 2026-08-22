@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PemilahanForm } from "@/components/forms/PemilahanForm";
-import { logout } from "@/lib/supabase/actions";
 
 function currentBulan() {
   const now = new Date();
@@ -36,17 +35,12 @@ export default async function PemilahanPage(props: PageProps<"/pemilahan">) {
   }));
 
   return (
-    <main className="content-wrap">
+    <>
       <div className="page-heading">
         <div>
           <h1>Pemilahan Jenis Sampah</h1>
           <p className="heading-copy">Rekap bulanan hasil pemilahan sampah TPS3R (seluruh desa).</p>
         </div>
-        <form action={logout}>
-          <button type="submit" className="secondary-button">
-            Keluar
-          </button>
-        </form>
       </div>
 
       <form method="get" className="flex items-end gap-3 mb-6">
@@ -60,6 +54,6 @@ export default async function PemilahanPage(props: PageProps<"/pemilahan">) {
       </form>
 
       <PemilahanForm bulan={bulan} kategoriList={kategoriList} />
-    </main>
+    </>
   );
 }

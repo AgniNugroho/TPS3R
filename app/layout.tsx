@@ -13,7 +13,7 @@ const displayFont = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "DASH-SAMPAH DESA | Desa Banyubiru",
+  title: "DASH-SAMPAH DESA | Desa Kalibening",
   description: "Dashboard pengelolaan sampah desa berbasis data.",
 };
 
