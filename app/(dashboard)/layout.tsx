@@ -16,7 +16,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
 
   const { data: petugasProfile } = await supabase
     .from("petugas")
-    .select("nama")
+    .select("nama, role")
     .eq("id", user.id)
     .single();
 
@@ -29,6 +29,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
   return (
     <DashboardShell
       petugasNama={petugasProfile?.nama ?? user.email ?? "Petugas"}
+      role={(petugasProfile?.role as "superadmin" | "petugas") ?? "petugas"}
       todayLabel={todayLabel}
       logoutAction={logout}
     >

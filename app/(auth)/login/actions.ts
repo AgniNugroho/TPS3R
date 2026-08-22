@@ -20,5 +20,5 @@ export async function login(_state: LoginState, formData: FormData): Promise<Log
     return { error: "Email atau password salah." };
   }
 
-  redirect("/pengumpulan");
+  redirect("/");
 }

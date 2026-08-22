@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUserWithRole } from "@/lib/permissions/rbac";
 import { RingkasanContent } from "@/components/dashboard/RingkasanContent";
+import { SuperadminDashboardClient } from "@/components/dashboard/SuperadminDashboardClient";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const REGION_COLORS = ["teal", "lime", "orange", "blue"];
@@ -23,18 +25,68 @@ type PengumpulanRow = {
 };
 
 export default async function Home() {
-  const supabase = await createSupabaseServerClient();
+  const { user, profile, isSuperAdmin } = await getCurrentUserWithRole();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!user || !profile) {
     redirect("/login");
   }
 
-  const [{ data: petugasProfile }, { data: pengumpulanData }, { count: totalAnggota }] = await Promise.all([
-    supabase.from("petugas").select("nama").eq("id", user.id).single(),
+  const supabase = await createSupabaseServerClient();
+
+  // =======================================================
+  // JIKA ROLE ADALAH SUPERADMIN -> TAMPILKAN DASHBOARD ADMIN
+  // =======================================================
+  if (isSuperAdmin) {
+    const startTime = Date.now();
+
+    const [
+      { count: totalPetugas },
+      { count: totalSuperadmin },
+      { count: totalAnggota },
+      { count: totalWilayah },
+      { data: recentPetugasData },
+    ] = await Promise.all([
+      supabase.from("petugas").select("id", { count: "exact", head: true }).eq("role", "petugas"),
+      supabase.from("petugas").select("id", { count: "exact", head: true }).eq("role", "superadmin"),
+      supabase.from("anggota").select("id", { count: "exact", head: true }),
+      supabase.from("wilayah").select("id", { count: "exact", head: true }),
+      supabase
+        .from("petugas")
+        .select("id, nama, email, role, created_at")
+        .order("created_at", { ascending: false })
+        .limit(6),
+    ]);
+
+    const dbLatencyMs = Date.now() - startTime;
+
+    const recentPetugas = (recentPetugasData ?? []).map((p) => ({
+      id: p.id,
+      nama: p.nama,
+      email: p.email,
+      role: p.role ?? "petugas",
+      created_at: p.created_at,
+    }));
+
+    return (
+      <SuperadminDashboardClient
+        profileNama={profile.nama}
+        role="superadmin"
+        counts={{
+          totalPetugas: totalPetugas ?? 0,
+          totalSuperadmin: totalSuperadmin ?? 0,
+          totalAnggota: totalAnggota ?? 0,
+          totalWilayah: totalWilayah ?? 0,
+        }}
+        dbLatencyMs={dbLatencyMs}
+        recentPetugas={recentPetugas}
+      />
+    );
+  }
+
+  // =======================================================
+  // JIKA ROLE ADALAH PETUGAS -> TAMPILKAN DASHBOARD OPERASIONAL
+  // =======================================================
+  const [{ data: pengumpulanData }, { count: totalAnggota }] = await Promise.all([
     supabase
       .from("pengumpulan")
       .select("id, tanggal, berat_kg, created_at, anggota_id, wilayah(nama_dusun)")
@@ -46,7 +98,8 @@ export default async function Home() {
 
   const now = new Date();
   const hour = now.getHours();
-  const greeting = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 19 ? "Selamat sore" : "Selamat malam";
+  const greeting =
+    hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 19 ? "Selamat sore" : "Selamat malam";
 
   const last12Months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
@@ -64,19 +117,22 @@ export default async function Home() {
   const monthlyValues = last12Months.map((m) => monthlyTotals.get(m.key) ?? 0);
   const maxMonthly = Math.max(1, ...monthlyValues);
   const monthlyHeights = monthlyValues.map((v) => Math.round((v / maxMonthly) * 100));
+
   const currentMonthTotal = monthlyValues[monthlyValues.length - 1];
   const prevMonthTotal = monthlyValues[monthlyValues.length - 2];
-  const trendPercent = prevMonthTotal > 0
-    ? Math.round(((currentMonthTotal - prevMonthTotal) / prevMonthTotal) * 100)
-    : currentMonthTotal > 0
+  const trendPercent =
+    prevMonthTotal > 0
+      ? Math.round(((currentMonthTotal - prevMonthTotal) / prevMonthTotal) * 100)
+      : currentMonthTotal > 0
       ? 100
       : 0;
 
   const sampahMasuk = {
     value: formatKg(currentMonthTotal),
-    note: currentMonthTotal > 0 || prevMonthTotal > 0
-      ? `${trendPercent >= 0 ? "+" : ""}${trendPercent}% vs bulan lalu`
-      : "Belum ada data bulan ini",
+    note:
+      currentMonthTotal > 0 || prevMonthTotal > 0
+        ? `${trendPercent >= 0 ? "+" : ""}${trendPercent}% vs bulan lalu`
+        : "Belum ada data bulan ini",
     trend: (trendPercent >= 0 ? "up" : "down") as "up" | "down",
   };
 
@@ -116,7 +172,7 @@ export default async function Home() {
   return (
     <RingkasanContent
       greeting={greeting}
-      petugasNama={petugasProfile?.nama ?? user.email ?? "Petugas"}
+      petugasNama={profile.nama}
       sampahMasuk={sampahMasuk}
       anggotaTerlayani={anggotaTerlayani}
       monthly={{
