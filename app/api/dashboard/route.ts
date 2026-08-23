@@ -43,8 +43,8 @@ export async function GET(request: Request) {
       });
     const regions = Object.entries(incoming.reduce<Record<string, number>>((result, row) => { result[row.asal_sampah] = (result[row.asal_sampah] ?? 0) + Number(row.total_berat_kg || 0); return result; }, {})).map(([name, total_kg]) => ({ name, total_kg })).sort((a, b) => b.total_kg - a.total_kg).slice(0, 4);
     const activities = [
-      ...incoming.map((row) => ({ created_at: row.created_at, title: "Sampah masuk", meta: `${row.asal_sampah} · ${formatActivityDate(row.tanggal, row.created_at)}`, value: `+${row.total_berat_kg} kg`, tone: "teal" })),
-      ...sorting.map((row) => ({ created_at: row.created_at, title: "Sampah dipilah", meta: `Pemilahan · ${formatActivityDate(row.tanggal, row.created_at)}`, value: `+${row.organik_kg + row.anorganik_kg + row.residu_kg} kg`, tone: "lime" })),
+      ...incoming.map((row) => ({ created_at: row.created_at, title: "Sampah Masuk", meta: `${row.asal_sampah} · ${formatActivityDate(row.tanggal, row.created_at)}`, value: `+${row.total_berat_kg} kg`, tone: "teal" })),
+      ...sorting.map((row) => ({ created_at: row.created_at, title: "Sampah Dipilah", meta: `Pemilahan · ${formatActivityDate(row.tanggal, row.created_at)}`, value: `+${row.organik_kg + row.anorganik_kg + row.residu_kg} kg`, tone: "lime" })),
     ].sort((first, second) => second.created_at.localeCompare(first.created_at)).map((activity) => ({ title: activity.title, meta: activity.meta, value: activity.value, tone: activity.tone }));
 
     return NextResponse.json({ ok: true, data: { totalIncoming, utilized: Math.max(0, totalIncoming - residu), residu, sortedTotal, organik, anorganik, recoveryRate: totalIncoming ? ((totalIncoming - residu) / totalIncoming) * 100 : 0, chart, regions, activities, lastUpdated } });
