@@ -10,11 +10,11 @@ const formatNumber = (value: number) => new Intl.NumberFormat("id-ID", { maximum
 const formatUpdatedAt = (value: string | null) => {
   if (!value) return "Belum ada data";
   const elapsedMinutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000));
-  if (elapsedMinutes < 1) return "Baru saja";
-  if (elapsedMinutes < 60) return `${elapsedMinutes} menit lalu`;
+  if (elapsedMinutes < 1) return "BARU SAJA";
+  if (elapsedMinutes < 60) return `${elapsedMinutes} MENIT LALU`;
   const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) return `${elapsedHours} jam lalu`;
-  return `${Math.floor(elapsedHours / 24)} hari lalu`;
+  if (elapsedHours < 24) return `${elapsedHours} JAM LALU`;
+  return `${Math.floor(elapsedHours / 24)} HARI LALU`;
 };
 const compositionGradient = (organik: number, anorganik: number, residu: number) => {
   const total = organik + anorganik + residu;
