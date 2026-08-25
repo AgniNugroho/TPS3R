@@ -37,7 +37,9 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
         console.error(result.error || "Data wilayah gagal dimuat.");
         return;
       }
-      setWilayahRows((result.rows ?? []).filter((row: { status?: string }) => !row.status || row.status.toLowerCase() === "aktif"));
+      setWilayahRows((result.rows ?? [])
+        .filter((row: { status?: string }) => !row.status || row.status.toLowerCase() === "aktif")
+        .sort((a: { dusun: string }, b: { dusun: string }) => a.dusun.localeCompare(b.dusun, "id", { sensitivity: "base" })));
     }).catch((error) => console.error("Data wilayah gagal dimuat.", error));
   }, [mode]);
 
