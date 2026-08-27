@@ -21,6 +21,7 @@ import {
     CheckCircle,
     AlertCircle,
     Info,
+    Phone,
 } from "lucide-react";
 import SidebarSuperAdmin from "@/components/dashboard/SidebarSuperAdmin";
 
@@ -30,24 +31,25 @@ type UserAccount = {
     nama: string;
     peran: string;
     status: string;
-    wilayah_id: string | null;
-    dusun: string;
+    desa_id: string | null;
+    desa_nama: string;
+    nomor_hp?: string;
     created_at: string;
 };
 
-type Wilayah = {
+type Desa = {
     id: string;
     kode: string;
-    dusun: string;
-    rt: string;
-    rw: string;
+    nama: string;
+    kecamatan: string;
+    kabupaten: string;
 };
 
 export default function SuperadminPage() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [localDate, setLocalDate] = useState("");
     const [users, setUsers] = useState<UserAccount[]>([]);
-    const [wilayahList, setWilayahList] = useState<Wilayah[]>([]);
+    const [desaList, setDesaList] = useState<Desa[]>([]);
     
     // UI States
     const [loading, setLoading] = useState(true);
@@ -67,9 +69,10 @@ export default function SuperadminPage() {
     // Form inputs
     const [formNama, setFormNama] = useState("");
     const [formEmail, setFormEmail] = useState("");
+    const [formNomorHp, setFormNomorHp] = useState("");
     const [formPassword, setFormPassword] = useState("");
     const [formPeran, setFormPeran] = useState("Pengelola TPS3R");
-    const [formWilayahId, setFormWilayahId] = useState("");
+    const [formDesaId, setFormDesaId] = useState("");
     const [formStatus, setFormStatus] = useState("Aktif");
 
     // Load dynamic village date
@@ -86,13 +89,13 @@ export default function SuperadminPage() {
         setLoading(true);
         setErrorMessage("");
         try {
-            const [usersRes, wilayahRes] = await Promise.all([
+            const [usersRes, desaRes] = await Promise.all([
                 fetch("/api/superadmin/users"),
-                fetch("/api/wilayah")
+                fetch("/api/desa")
             ]);
 
             const usersData = await usersRes.json();
-            const wilayahData = await wilayahRes.json();
+            const desaData = await desaRes.json();
 
             if (usersData.ok) {
                 setUsers(usersData.users);
@@ -100,8 +103,8 @@ export default function SuperadminPage() {
                 setErrorMessage(usersData.error || "Gagal memuat data pengguna.");
             }
 
-            if (wilayahData.ok) {
-                setWilayahList(wilayahData.rows || []);
+            if (desaData.ok) {
+                setDesaList(desaData.rows || []);
             }
         } catch (err: any) {
             setErrorMessage("Gagal menghubungkan ke server.");
@@ -119,9 +122,10 @@ export default function SuperadminPage() {
         setErrorMessage("");
         setFormNama("");
         setFormEmail("");
+        setFormNomorHp("");
         setFormPassword("");
         setFormPeran("Pengelola TPS3R");
-        setFormWilayahId(wilayahList[0]?.id || "");
+        setFormDesaId(desaList[0]?.id || "");
         setFormStatus("Aktif");
         setModalMode("create");
     };
@@ -131,9 +135,10 @@ export default function SuperadminPage() {
         setSelectedUser(user);
         setFormNama(user.nama);
         setFormEmail(user.email);
+        setFormNomorHp(user.nomor_hp || "");
         setFormPassword(""); // Leave empty for optional change
         setFormPeran(user.peran);
-        setFormWilayahId(user.wilayah_id || "");
+        setFormDesaId(user.desa_id || "");
         setFormStatus(user.status);
         setModalMode("edit");
     };
@@ -164,11 +169,6 @@ export default function SuperadminPage() {
         setErrorMessage("");
         setSubmitting(true);
 
-        const selectedWilayahObj = wilayahList.find(w => w.id === formWilayahId);
-        const dusun = selectedWilayahObj 
-            ? `${selectedWilayahObj.dusun} (RT ${selectedWilayahObj.rt}/RW ${selectedWilayahObj.rw})`
-            : "-";
-
         const payload = {
             id: selectedUser?.id,
             email: formEmail,
@@ -176,8 +176,8 @@ export default function SuperadminPage() {
             nama: formNama,
             peran: formPeran,
             status: formStatus,
-            wilayah_id: formWilayahId || null,
-            dusun: dusun
+            desa_id: formDesaId || null,
+            nomor_hp: formNomorHp
         };
 
         try {
@@ -245,7 +245,7 @@ export default function SuperadminPage() {
         const matchesSearch = 
             user.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
             user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.dusun.toLowerCase().includes(searchQuery.toLowerCase());
+            (user.desa_nama || "").toLowerCase().includes(searchQuery.toLowerCase());
         
         const matchesStatus = statusFilter === "Semua" || user.status === statusFilter;
         const matchesRole = roleFilter === "Semua" || user.peran === roleFilter;
@@ -446,7 +446,7 @@ export default function SuperadminPage() {
                                             <th className="py-3.5 px-4 font-semibold">Nama Pengguna</th>
                                             <th className="py-3.5 px-4 font-semibold">Email</th>
                                             <th className="py-3.5 px-4 font-semibold">Peran</th>
-                                            <th className="py-3.5 px-4 font-semibold">Wilayah Tugas (Dusun)</th>
+                                            <th className="py-3.5 px-4 font-semibold">Wilayah Tugas (Desa)</th>
                                             <th className="py-3.5 px-4 font-semibold">Status</th>
                                             <th className="py-3.5 px-4 font-semibold">Tanggal Daftar</th>
                                             <th className="py-3.5 px-4 font-semibold text-right">Aksi</th>
@@ -456,7 +456,14 @@ export default function SuperadminPage() {
                                         {filteredUsers.map((user) => (
                                             <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
                                                 <td className="py-4 px-4 font-semibold text-gray-800">{user.nama}</td>
-                                                <td className="py-4 px-4 text-gray-600 font-mono text-xs">{user.email}</td>
+                                                <td className="py-4 px-4 text-gray-600 font-mono text-xs">
+                                                    <div>{user.email}</div>
+                                                    {user.nomor_hp && (
+                                                        <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1 font-sans">
+                                                            <Phone size={10} className="text-gray-400" /> {user.nomor_hp}
+                                                        </div>
+                                                    )}
+                                                </td>
                                                 <td className="py-4 px-4">
                                                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold ${
                                                         user.peran === "Superadmin"
@@ -474,7 +481,7 @@ export default function SuperadminPage() {
                                                 <td className="py-4 px-4 text-gray-600">
                                                     <div className="flex items-center gap-1">
                                                         <MapPin size={14} className="text-gray-400 flex-shrink-0" />
-                                                        <span className="truncate max-w-[200px]" title={user.dusun}>{user.dusun}</span>
+                                                        <span className="truncate max-w-[200px]" title={user.desa_nama}>{user.desa_nama}</span>
                                                     </div>
                                                 </td>
                                                 <td className="py-4 px-4">
@@ -606,6 +613,19 @@ export default function SuperadminPage() {
 
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+                                        <Phone size={12} className="text-gray-400" /> Nomor HP / WhatsApp
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Contoh: 08123456789"
+                                        className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all"
+                                        value={formNomorHp}
+                                        onChange={(e) => setFormNomorHp(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
                                         <Lock size={12} className="text-gray-400" /> Password (Kata Sandi)
                                     </label>
                                     <input
@@ -654,22 +674,25 @@ export default function SuperadminPage() {
 
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                        <MapPin size={12} className="text-gray-400" /> Wilayah Tugas Otoritas (Dusun)
+                                        <MapPin size={12} className="text-gray-400" /> Wilayah Tugas Otoritas (Desa)
                                     </label>
                                     <select
-                                        className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all"
-                                        value={formWilayahId}
-                                        onChange={(e) => setFormWilayahId(e.target.value)}
+                                        className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all disabled:opacity-50"
+                                        value={formPeran === "Superadmin" ? "" : formDesaId}
+                                        onChange={(e) => setFormDesaId(e.target.value)}
+                                        disabled={formPeran === "Superadmin"}
                                     >
                                         <option value="">-- Tanpa Otoritas Wilayah Khusus --</option>
-                                        {wilayahList.map((wil) => (
-                                            <option key={wil.id} value={wil.id}>
-                                                {wil.dusun} (RT {wil.rt}/RW {wil.rw}) - Kode: {wil.kode}
+                                        {desaList.map((desa) => (
+                                            <option key={desa.id} value={desa.id}>
+                                                {desa.nama} - Kode: {desa.kode}
                                             </option>
                                         ))}
                                     </select>
                                     <p className="text-[10px] text-gray-400">
-                                        Menentukan wilayah administrasi desa asal pencatatan sampah bagi pengelola.
+                                        {formPeran === "Superadmin" 
+                                            ? "Akun Superadmin secara default memiliki akses ke seluruh desa." 
+                                            : "Menentukan wilayah administrasi desa asal pencatatan sampah bagi pengelola."}
                                     </p>
                                 </div>
                             </div>

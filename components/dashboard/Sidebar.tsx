@@ -13,6 +13,7 @@ import {
     PackageCheck,
     Recycle,
     Settings2,
+    Shield,
     Truck,
     X,
 } from "lucide-react";
@@ -135,6 +136,16 @@ export default function Sidebar({
                         </button>
                         {profileOpen && (
                             <div className="profile-dropdown">
+                                {user?.role === "admin" && (
+                                    <Link
+                                        href="/superadmin"
+                                        className="nav-item"
+                                        onClick={() => setProfileOpen(false)}
+                                    >
+                                        <Shield size={18} />
+                                        <span>Superadmin</span>
+                                    </Link>
+                                )}
                                 <button
                                     className="nav-item"
                                     onClick={handleLogout}
