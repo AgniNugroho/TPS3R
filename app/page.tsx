@@ -14,6 +14,7 @@ import {
     X,
 } from "lucide-react";
 import Sidebar from "@/components/dashboard/Sidebar";
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 
 type DashboardData = {
     totalIncoming: number;
@@ -78,6 +79,7 @@ export default function Home() {
     const [period, setPeriod] = useState("30 hari terakhir");
     const [showActivities, setShowActivities] = useState(false);
     const [dashboard, setDashboard] = useState<DashboardData>(emptyDashboard);
+    const user = useCurrentUser();
     const chartPeriod = period === "1 tahun" ? "year" : "month";
     useEffect(() => {
         fetch(`/api/dashboard?period=${chartPeriod}`)
@@ -183,7 +185,9 @@ export default function Home() {
                                 <span className="live-dot" /> DATA DIPERBARUI{" "}
                                 {formatUpdatedAt(dashboard.lastUpdated)}
                             </p>
-                            <h1>Selamat pagi, Echak.</h1>
+                            <h1>
+                                Selamat pagi, {user?.nama?.split(" ")[0] ?? ""}.
+                            </h1>
                             <p className="heading-copy">
                                 Pantau denyut pengelolaan sampah desa hari ini.
                             </p>
