@@ -7,11 +7,15 @@ type Anggota = {
   id: number;
   nama: string;
   wilayah_id: number | null;
-  wilayah: { id: number; nama_dusun: string }[] | null;
+  wilayah: { id?: number; nama_dusun: string } | { id?: number; nama_dusun: string }[] | null;
 };
 
 function dusunNama(item: Anggota | undefined) {
-  return item?.wilayah?.[0]?.nama_dusun ?? null;
+  if (!item?.wilayah) return null;
+  if (Array.isArray(item.wilayah)) {
+    return item.wilayah[0]?.nama_dusun ?? null;
+  }
+  return item.wilayah.nama_dusun ?? null;
 }
 
 export function PengumpulanForm({ anggotaList }: { anggotaList: Anggota[] }) {

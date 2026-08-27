@@ -12,7 +12,7 @@ type AnggotaQueryRow = {
   wilayah_id: number | null;
   alamat: string | null;
   created_at: string;
-  wilayah: { nama_dusun: string }[] | null;
+  wilayah: { nama_dusun: string } | { nama_dusun: string }[] | null;
 };
 
 export default async function AnggotaPage() {
@@ -27,14 +27,17 @@ export default async function AnggotaPage() {
     supabase.from("wilayah").select("id, nama_dusun").order("nama_dusun"),
   ]);
 
-  const anggotaList: AnggotaItem[] = ((anggotaData ?? []) as AnggotaQueryRow[]).map((a) => ({
-    id: a.id,
-    nama: a.nama,
-    wilayah_id: a.wilayah_id,
-    alamat: a.alamat,
-    created_at: a.created_at,
-    dusunNama: a.wilayah?.[0]?.nama_dusun ?? "Tanpa Dusun",
-  }));
+  const anggotaList: AnggotaItem[] = ((anggotaData ?? []) as AnggotaQueryRow[]).map((a) => {
+    const dusun = Array.isArray(a.wilayah) ? a.wilayah[0]?.nama_dusun : a.wilayah?.nama_dusun;
+    return {
+      id: a.id,
+      nama: a.nama,
+      wilayah_id: a.wilayah_id,
+      alamat: a.alamat,
+      created_at: a.created_at,
+      dusunNama: dusun || "Tanpa Dusun",
+    };
+  });
 
   const wilayahList: WilayahOption[] = (wilayahData ?? []).map((w) => ({
     id: w.id,

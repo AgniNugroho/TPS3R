@@ -21,8 +21,13 @@ type PengumpulanRow = {
   berat_kg: number;
   created_at: string;
   anggota_id: number;
-  wilayah: { nama_dusun: string }[] | null;
+  wilayah: { nama_dusun: string } | { nama_dusun: string }[] | null;
 };
+
+function getDusunNama(wilayah: { nama_dusun: string } | { nama_dusun: string }[] | null | undefined): string {
+  if (!wilayah) return "Tanpa dusun";
+  return Array.isArray(wilayah) ? wilayah[0]?.nama_dusun ?? "Tanpa dusun" : wilayah.nama_dusun ?? "Tanpa dusun";
+}
 
 export default async function Home() {
   const { user, profile, isSuperAdmin } = await getCurrentUserWithRole();
@@ -146,7 +151,7 @@ export default async function Home() {
 
   const regionTotals = new Map<string, number>();
   for (const row of rows) {
-    const name = row.wilayah?.[0]?.nama_dusun ?? "Tanpa dusun";
+    const name = getDusunNama(row.wilayah);
     regionTotals.set(name, (regionTotals.get(name) ?? 0) + Number(row.berat_kg));
   }
   const regionEntries = [...regionTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
@@ -160,7 +165,7 @@ export default async function Home() {
 
   const activities = rows.slice(0, 3).map((row) => ({
     title: "Pengumpulan tercatat",
-    meta: `${row.wilayah?.[0]?.nama_dusun ?? "Tanpa dusun"} · ${new Date(row.created_at).toLocaleString("id-ID", {
+    meta: `${getDusunNama(row.wilayah)} · ${new Date(row.created_at).toLocaleString("id-ID", {
       day: "numeric",
       month: "short",
       hour: "2-digit",

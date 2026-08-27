@@ -9,10 +9,20 @@ type HistoryRow = {
   berat_kg: number;
   catatan: string | null;
   petugas_id: string;
-  anggota: { nama: string }[] | null;
-  wilayah: { nama_dusun: string }[] | null;
-  petugas: { nama: string }[] | null;
+  anggota: { nama: string } | { nama: string }[] | null;
+  wilayah: { nama_dusun: string } | { nama_dusun: string }[] | null;
+  petugas: { nama: string } | { nama: string }[] | null;
 };
+
+function getJoinedName(rel: { nama: string } | { nama: string }[] | null | undefined): string {
+  if (!rel) return "-";
+  return Array.isArray(rel) ? rel[0]?.nama ?? "-" : rel.nama ?? "-";
+}
+
+function getJoinedDusun(rel: { nama_dusun: string } | { nama_dusun: string }[] | null | undefined): string {
+  if (!rel) return "-";
+  return Array.isArray(rel) ? rel[0]?.nama_dusun ?? "-" : rel.nama_dusun ?? "-";
+}
 
 export default async function PengumpulanPage() {
   const supabase = await createSupabaseServerClient();
@@ -40,9 +50,9 @@ export default async function PengumpulanPage() {
     berat_kg: row.berat_kg,
     catatan: row.catatan,
     petugasId: row.petugas_id,
-    anggotaNama: row.anggota?.[0]?.nama ?? "-",
-    dusunNama: row.wilayah?.[0]?.nama_dusun ?? "-",
-    petugasNama: row.petugas?.[0]?.nama ?? "-",
+    anggotaNama: getJoinedName(row.anggota),
+    dusunNama: getJoinedDusun(row.wilayah),
+    petugasNama: getJoinedName(row.petugas),
   }));
 
   return (
