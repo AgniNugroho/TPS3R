@@ -339,7 +339,7 @@ export default function AdminPage() {
                                     size={14}
                                     className={loading ? "animate-spin" : ""}
                                 />{" "}
-                                Refres
+                                Refresh
                             </button>
                         </div>
                     </div>
