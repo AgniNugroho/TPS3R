@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     ChevronDown,
     CircleHelp,
     FileText,
     Gauge,
+    LogOut,
     Leaf,
     MapPin,
     PackageCheck,
@@ -14,6 +17,8 @@ import {
     X,
 } from "lucide-react";
 import Link from "next/link";
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
 const navItems = [
     { label: "Ringkasan", href: "/dashboard", icon: Gauge },
@@ -24,6 +29,12 @@ const navItems = [
     { label: "Residu", href: "/residu", icon: PackageCheck },
 ];
 
+function getInitials(nama: string) {
+    const parts = nama.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
 export default function Sidebar({
     mobileOpen,
     onMobileChange,
@@ -33,6 +44,17 @@ export default function Sidebar({
     onMobileChange: (open: boolean) => void;
     activeLabel?: string;
 }) {
+    const router = useRouter();
+    const user = useCurrentUser();
+    const [profileOpen, setProfileOpen] = useState(false);
+
+    async function handleLogout() {
+        const supabase = getSupabaseBrowserClient();
+        await supabase.auth.signOut();
+        router.replace("/login");
+        router.refresh();
+    }
+
     return (
         <>
             <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
@@ -96,13 +118,32 @@ export default function Sidebar({
                             <span>Lihat panduan penggunaan</span>
                         </div>
                     </div>
-                    <div className="profile-row">
-                        <div className="profile-avatar">AR</div>
-                        <div className="profile-copy">
-                            <strong>Agni Nugroho</strong>
-                            <span>Admin Desa</span>
-                        </div>
-                        <ChevronDown size={16} />
+                    <div className="profile-menu">
+                        <button
+                            className="profile-row"
+                            onClick={() => setProfileOpen((open) => !open)}
+                            aria-expanded={profileOpen}
+                        >
+                            <div className="profile-avatar">
+                                {getInitials(user?.nama ?? "?")}
+                            </div>
+                            <div className="profile-copy">
+                                <strong>{user?.nama ?? "Memuat..."}</strong>
+                                <span>{user?.roleLabel ?? ""}</span>
+                            </div>
+                            <ChevronDown size={16} />
+                        </button>
+                        {profileOpen && (
+                            <div className="profile-dropdown">
+                                <button
+                                    className="nav-item"
+                                    onClick={handleLogout}
+                                >
+                                    <LogOut size={18} />
+                                    <span>Keluar</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </aside>

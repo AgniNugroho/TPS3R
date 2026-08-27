@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSessionContext } from "@/lib/permissions/session";
 
 type WasteInput = {
     tanggal: string;
@@ -47,22 +48,55 @@ const formatActivityDate = (date: string, createdAt: string) => {
 
 export async function GET(request: Request) {
     try {
+        const session = await getSessionContext();
+        if (!session) {
+            return NextResponse.json(
+                {
+                    ok: false,
+                    error: "Anda harus login untuk mengakses data ini.",
+                },
+                { status: 401 },
+            );
+        }
+        if (!session.isAdmin && !session.desaId) {
+            return NextResponse.json({
+                ok: true,
+                totalIncoming: 0,
+                utilized: 0,
+                residu: 0,
+                sortedTotal: 0,
+                organik: 0,
+                anorganik: 0,
+                recoveryRate: 0,
+                chart: [],
+                regions: [],
+                activities: [],
+                lastUpdated: null,
+            });
+        }
+
         const period =
             new URL(request.url).searchParams.get("period") === "year"
                 ? "year"
                 : "month";
         const supabase = getSupabaseServerClient();
+        let incomingQuery = supabase
+            .from("sampah_masuk")
+            .select("tanggal, asal_sampah, total_berat_kg, created_at")
+            .order("created_at", { ascending: false });
+        let sortingQuery = supabase
+            .from("pemilahan_sampah")
+            .select(
+                "tanggal, organik_kg, anorganik_kg, residu_kg, kardus_kg, kaca_kg, besi_kg, anorganik_lainnya_kg, created_at",
+            )
+            .order("created_at", { ascending: false });
+        if (!session.isAdmin) {
+            incomingQuery = incomingQuery.eq("desa_id", session.desaId);
+            sortingQuery = sortingQuery.eq("desa_id", session.desaId);
+        }
         const [incomingResult, sortingResult] = await Promise.all([
-            supabase
-                .from("sampah_masuk")
-                .select("tanggal, asal_sampah, total_berat_kg, created_at")
-                .order("created_at", { ascending: false }),
-            supabase
-                .from("pemilahan_sampah")
-                .select(
-                    "tanggal, organik_kg, anorganik_kg, residu_kg, kardus_kg, kaca_kg, besi_kg, anorganik_lainnya_kg, created_at",
-                )
-                .order("created_at", { ascending: false }),
+            incomingQuery,
+            sortingQuery,
         ]);
         if (incomingResult.error) throw new Error(incomingResult.error.message);
         if (sortingResult.error) throw new Error(sortingResult.error.message);
