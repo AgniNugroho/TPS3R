@@ -1,18 +1,3 @@
-import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/supabase/route-client";
+import { createSupabaseHandlers } from "@/lib/supabase/route";
 
-export async function GET(request: Request) {
-  const { supabase, unauthorized } = await requireUser(request);
-  if (unauthorized) return unauthorized;
-
-  const { data, error } = await supabase
-    .from("wilayah")
-    .select("id, nama_dusun, kode_wilayah")
-    .order("nama_dusun");
-
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true, data });
-}
+export const { GET, POST } = createSupabaseHandlers("wilayah");

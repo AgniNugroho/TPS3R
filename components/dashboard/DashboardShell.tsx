@@ -47,7 +47,6 @@ const petugasNavItems: NavItem[] = [
   { label: "Bank Sampah", icon: Recycle, href: "/bank-sampah" },
   { label: "TPS3R", icon: Boxes, href: "/tps3r" },
   { label: "Residu", icon: PackageCheck, href: "/residu" },
-  { label: "Pengaduan", icon: AlertTriangle, href: "/pengaduan", count: 5 },
 ];
 
 const petugasSecondaryNavItems: SecondaryNavItem[] = [

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { PengumpulanForm } from "@/components/forms/PengumpulanForm";
+import WasteFlowForm from "@/components/forms/WasteFlowForms";
 import { PengumpulanTable, type PengumpulanHistoryRow } from "@/components/tables/PengumpulanTable";
 
 type HistoryRow = {
@@ -35,14 +35,11 @@ export default async function PengumpulanPage() {
     redirect("/login");
   }
 
-  const [{ data: anggotaList }, { data: historyData }] = await Promise.all([
-    supabase.from("anggota").select("id, nama, wilayah_id, wilayah(id, nama_dusun)").order("nama"),
-    supabase
-      .from("pengumpulan")
-      .select("id, tanggal, berat_kg, catatan, petugas_id, anggota(nama), wilayah(nama_dusun), petugas(nama)")
-      .order("created_at", { ascending: false })
-      .limit(20),
-  ]);
+  const { data: historyData } = await supabase
+    .from("pengumpulan")
+    .select("id, tanggal, berat_kg, catatan, petugas_id, anggota(nama), wilayah(nama_dusun), petugas(nama)")
+    .order("created_at", { ascending: false })
+    .limit(20);
 
   const historyRows: PengumpulanHistoryRow[] = ((historyData ?? []) as HistoryRow[]).map((row) => ({
     id: row.id,
@@ -59,15 +56,20 @@ export default async function PengumpulanPage() {
     <>
       <div className="page-heading">
         <div>
-          <h1>Input Pengumpulan Sampah</h1>
-          <p className="heading-copy">Catat total sampah (kg) per anggota/dusun.</p>
+          <p className="eyebrow">INPUT OPERASIONAL</p>
+          <h1>Total Sampah Masuk</h1>
+          <p className="heading-copy">Catat satu total berat dan asal sampah.</p>
         </div>
       </div>
 
-      <PengumpulanForm anggotaList={anggotaList ?? []} />
+      <WasteFlowForm mode="incoming" />
 
-      <h2 className="mt-10 mb-2 font-semibold">Riwayat pengumpulan (20 terbaru)</h2>
-      <PengumpulanTable rows={historyRows} currentPetugasId={user.id} />
+      {historyRows.length > 0 && (
+        <>
+          <h2 className="mt-10 mb-2 font-semibold">Riwayat pengumpulan (20 terbaru)</h2>
+          <PengumpulanTable rows={historyRows} currentPetugasId={user.id} />
+        </>
+      )}
     </>
   );
 }

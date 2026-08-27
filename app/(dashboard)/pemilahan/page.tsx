@@ -1,17 +1,8 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { PemilahanForm } from "@/components/forms/PemilahanForm";
+import WasteFlowForm from "@/components/forms/WasteFlowForms";
 
-function currentBulan() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-export default async function PemilahanPage(props: PageProps<"/pemilahan">) {
-  const searchParams = await props.searchParams;
-  const bulanParam = typeof searchParams.bulan === "string" ? searchParams.bulan : undefined;
-  const bulan = bulanParam && /^\d{4}-\d{2}$/.test(bulanParam) ? bulanParam : currentBulan();
-
+export default async function PemilahanPage() {
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -22,38 +13,19 @@ export default async function PemilahanPage(props: PageProps<"/pemilahan">) {
     redirect("/login");
   }
 
-  const [{ data: jenisSampah }, { data: pemilahanBulanIni }] = await Promise.all([
-    supabase.from("jenis_sampah").select("id, nama").order("nama"),
-    supabase.from("pemilahan").select("jenis_sampah_id, berat_kg").eq("bulan", `${bulan}-01`),
-  ]);
-
-  const beratMap = new Map((pemilahanBulanIni ?? []).map((row) => [row.jenis_sampah_id, row.berat_kg]));
-  const kategoriList = (jenisSampah ?? []).map((row) => ({
-    id: row.id,
-    nama: row.nama,
-    beratKg: beratMap.get(row.id) ?? 0,
-  }));
-
   return (
     <>
       <div className="page-heading">
         <div>
-          <h1>Pemilahan Jenis Sampah</h1>
-          <p className="heading-copy">Rekap bulanan hasil pemilahan sampah TPS3R (seluruh desa).</p>
+          <p className="eyebrow">PROSES MATERIAL</p>
+          <h1>Pilah Sampah</h1>
+          <p className="heading-copy">
+            Pecah sampah masuk menjadi organik, anorganik, dan residu. Anorganik dicatat lagi berdasarkan materialnya.
+          </p>
         </div>
       </div>
 
-      <form method="get" className="flex items-end gap-3 mb-6">
-        <label className="flex flex-col gap-1 text-sm">
-          Bulan
-          <input type="month" name="bulan" defaultValue={bulan} className="border rounded-md px-3 py-2 text-sm" />
-        </label>
-        <button type="submit" className="secondary-button">
-          Muat bulan ini
-        </button>
-      </form>
-
-      <PemilahanForm bulan={bulan} kategoriList={kategoriList} />
+      <WasteFlowForm mode="sorting" />
     </>
   );
 }
