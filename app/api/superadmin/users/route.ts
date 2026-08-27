@@ -7,7 +7,7 @@ export async function GET() {
         const [authRes, dbRes, desaRes] = await Promise.all([
             supabase.auth.admin.listUsers(),
             supabase.from("petugas").select("*"),
-            supabase.from("desa").select("id, nama")
+            supabase.from("desa").select("id, nama"),
         ]);
 
         if (authRes.error) throw authRes.error;
@@ -15,26 +15,30 @@ export async function GET() {
         if (desaRes.error) throw desaRes.error;
 
         const dbPetugasMap = new Map(
-            (dbRes.data ?? []).map(p => [p.user_id, p])
+            (dbRes.data ?? []).map((p) => [p.user_id, p]),
         );
 
         const desaMap = new Map(
-            (desaRes.data ?? []).map(d => [d.id, d.nama])
+            (desaRes.data ?? []).map((d) => [d.id, d.nama]),
         );
 
         // Map auth users, extract custom metadata
         const users = (authRes.data.users ?? []).map((user) => {
             const dbPetugas = dbPetugasMap.get(user.id);
-            const desaId = dbPetugas?.desa_id || user.user_metadata?.desa_id || null;
-            const desaNama = desaId ? (desaMap.get(desaId) || "-") : "-";
+            const desaId =
+                dbPetugas?.desa_id || user.user_metadata?.desa_id || null;
+            const desaNama = desaId ? desaMap.get(desaId) || "-" : "-";
             return {
                 id: user.id,
                 email: user.email,
                 nama: dbPetugas?.nama || user.user_metadata?.nama || "-",
-                peran: dbPetugas 
-                    ? (dbPetugas.role === "admin" ? "Superadmin" : "Pengelola TPS3R") 
-                    : (user.user_metadata?.peran || "Pengelola TPS3R"),
-                status: dbPetugas?.status || user.user_metadata?.status || "Aktif",
+                peran: dbPetugas
+                    ? dbPetugas.role === "admin"
+                        ? "Admin"
+                        : "Pengelola TPS3R"
+                    : user.user_metadata?.peran || "Pengelola TPS3R",
+                status:
+                    dbPetugas?.status || user.user_metadata?.status || "Aktif",
                 desa_id: desaId,
                 desa_nama: desaNama,
                 nomor_hp: dbPetugas?.nomor_hp || "",
@@ -45,7 +49,10 @@ export async function GET() {
         return NextResponse.json({ ok: true, users });
     } catch (error: any) {
         return NextResponse.json(
-            { ok: false, error: error.message || "Gagal memuat daftar pengguna." },
+            {
+                ok: false,
+                error: error.message || "Gagal memuat daftar pengguna.",
+            },
             { status: 500 },
         );
     }
@@ -54,7 +61,8 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { email, password, nama, peran, status, desa_id, nomor_hp } = body;
+        const { email, password, nama, peran, status, desa_id, nomor_hp } =
+            body;
 
         if (!email || !password) {
             return NextResponse.json(
@@ -64,9 +72,9 @@ export async function POST(request: Request) {
         }
 
         const supabase = getSupabaseServerClient();
-        
-        const dbRole = peran === "Superadmin" ? "admin" : "petugas";
-        const targetDesaId = dbRole === "admin" ? null : (desa_id || null);
+
+        const dbRole = peran === "Admin" ? "admin" : "petugas";
+        const targetDesaId = dbRole === "admin" ? null : desa_id || null;
 
         // 1. Create auth user
         const { data, error } = await supabase.auth.admin.createUser({
@@ -88,26 +96,25 @@ export async function POST(request: Request) {
         const { data: listPetugas } = await supabase
             .from("petugas")
             .select("kode");
-        const nextNum = (listPetugas ?? [])
-            .map(p => {
-                const match = p.kode?.match(/^PTG-(\d+)$/);
-                return match ? parseInt(match[1], 10) : 0;
-            })
-            .reduce((max, val) => Math.max(max, val), 0) + 1;
+        const nextNum =
+            (listPetugas ?? [])
+                .map((p) => {
+                    const match = p.kode?.match(/^PTG-(\d+)$/);
+                    return match ? parseInt(match[1], 10) : 0;
+                })
+                .reduce((max, val) => Math.max(max, val), 0) + 1;
         const kode = `PTG-${nextNum}`;
 
         // 4. Insert into petugas table
-        const { error: dbError } = await supabase
-            .from("petugas")
-            .insert({
-                kode,
-                nama: nama || "Pengelola Baru",
-                nomor_hp: nomor_hp || null,
-                status: status || "Aktif",
-                desa_id: targetDesaId,
-                user_id: authUser.id,
-                role: dbRole
-            });
+        const { error: dbError } = await supabase.from("petugas").insert({
+            kode,
+            nama: nama || "Pengelola Baru",
+            nomor_hp: nomor_hp || null,
+            status: status || "Aktif",
+            desa_id: targetDesaId,
+            user_id: authUser.id,
+            role: dbRole,
+        });
 
         if (dbError) {
             // Clean up auth user if DB insert fails
@@ -118,7 +125,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true, user: authUser }, { status: 201 });
     } catch (error: any) {
         return NextResponse.json(
-            { ok: false, error: error.message || "Gagal membuat pengguna baru." },
+            {
+                ok: false,
+                error: error.message || "Gagal membuat pengguna baru.",
+            },
             { status: 500 },
         );
     }
@@ -127,17 +137,21 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
     try {
         const body = await request.json();
-        const { id, email, password, nama, peran, status, desa_id, nomor_hp } = body;
+        const { id, email, password, nama, peran, status, desa_id, nomor_hp } =
+            body;
 
         if (!id) {
             return NextResponse.json(
-                { ok: false, error: "User ID wajib disertakan untuk melakukan update." },
+                {
+                    ok: false,
+                    error: "User ID wajib disertakan untuk melakukan update.",
+                },
                 { status: 400 },
             );
         }
 
-        const dbRole = peran === "Superadmin" ? "admin" : "petugas";
-        const targetDesaId = dbRole === "admin" ? null : (desa_id || null);
+        const dbRole = peran === "Admin" ? "admin" : "petugas";
+        const targetDesaId = dbRole === "admin" ? null : desa_id || null;
 
         const supabase = getSupabaseServerClient();
         const updateData: any = {
@@ -155,7 +169,10 @@ export async function PUT(request: Request) {
             updateData.password = password;
         }
 
-        const { data, error } = await supabase.auth.admin.updateUserById(id, updateData);
+        const { data, error } = await supabase.auth.admin.updateUserById(
+            id,
+            updateData,
+        );
         if (error) throw error;
 
         // Check if petugas row exists
@@ -173,7 +190,7 @@ export async function PUT(request: Request) {
                     nomor_hp: nomor_hp || null,
                     status: status || "Aktif",
                     desa_id: targetDesaId,
-                    role: dbRole
+                    role: dbRole,
                 })
                 .eq("user_id", id);
             if (dbError) throw dbError;
@@ -181,32 +198,34 @@ export async function PUT(request: Request) {
             const { data: listPetugas } = await supabase
                 .from("petugas")
                 .select("kode");
-            const nextNum = (listPetugas ?? [])
-                .map(p => {
-                    const match = p.kode?.match(/^PTG-(\d+)$/);
-                    return match ? parseInt(match[1], 10) : 0;
-                })
-                .reduce((max, val) => Math.max(max, val), 0) + 1;
+            const nextNum =
+                (listPetugas ?? [])
+                    .map((p) => {
+                        const match = p.kode?.match(/^PTG-(\d+)$/);
+                        return match ? parseInt(match[1], 10) : 0;
+                    })
+                    .reduce((max, val) => Math.max(max, val), 0) + 1;
             const kode = `PTG-${nextNum}`;
 
-            const { error: dbError } = await supabase
-                .from("petugas")
-                .insert({
-                    kode,
-                    nama: nama || "Pengelola",
-                    nomor_hp: nomor_hp || null,
-                    status: status || "Aktif",
-                    desa_id: targetDesaId,
-                    user_id: id,
-                    role: dbRole
-                });
+            const { error: dbError } = await supabase.from("petugas").insert({
+                kode,
+                nama: nama || "Pengelola",
+                nomor_hp: nomor_hp || null,
+                status: status || "Aktif",
+                desa_id: targetDesaId,
+                user_id: id,
+                role: dbRole,
+            });
             if (dbError) throw dbError;
         }
 
         return NextResponse.json({ ok: true, user: data.user });
     } catch (error: any) {
         return NextResponse.json(
-            { ok: false, error: error.message || "Gagal memperbarui pengguna." },
+            {
+                ok: false,
+                error: error.message || "Gagal memperbarui pengguna.",
+            },
             { status: 500 },
         );
     }
@@ -219,13 +238,16 @@ export async function DELETE(request: Request) {
 
         if (!id) {
             return NextResponse.json(
-                { ok: false, error: "User ID wajib disertakan untuk menghapus." },
+                {
+                    ok: false,
+                    error: "User ID wajib disertakan untuk menghapus.",
+                },
                 { status: 400 },
             );
         }
 
         const supabase = getSupabaseServerClient();
-        
+
         // Delete from petugas table first
         const { error: dbError } = await supabase
             .from("petugas")

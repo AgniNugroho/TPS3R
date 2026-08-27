@@ -45,25 +45,27 @@ type Desa = {
     kabupaten: string;
 };
 
-export default function SuperadminPage() {
+export default function AdminPage() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [localDate, setLocalDate] = useState("");
     const [users, setUsers] = useState<UserAccount[]>([]);
     const [desaList, setDesaList] = useState<Desa[]>([]);
-    
+
     // UI States
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
-    
+
     // Filters & Search
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("Semua");
     const [roleFilter, setRoleFilter] = useState("Semua");
 
     // Modal Control
-    const [modalMode, setModalMode] = useState<"create" | "edit" | "delete" | null>(null);
+    const [modalMode, setModalMode] = useState<
+        "create" | "edit" | "delete" | null
+    >(null);
     const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
 
     // Form inputs
@@ -80,7 +82,7 @@ export default function SuperadminPage() {
         setLocalDate(
             new Intl.DateTimeFormat("id-ID", {
                 dateStyle: "long",
-            }).format(new Date())
+            }).format(new Date()),
         );
     }, []);
 
@@ -91,7 +93,7 @@ export default function SuperadminPage() {
         try {
             const [usersRes, desaRes] = await Promise.all([
                 fetch("/api/superadmin/users"),
-                fetch("/api/desa")
+                fetch("/api/desa"),
             ]);
 
             const usersData = await usersRes.json();
@@ -100,7 +102,9 @@ export default function SuperadminPage() {
             if (usersData.ok) {
                 setUsers(usersData.users);
             } else {
-                setErrorMessage(usersData.error || "Gagal memuat data pengguna.");
+                setErrorMessage(
+                    usersData.error || "Gagal memuat data pengguna.",
+                );
             }
 
             if (desaData.ok) {
@@ -177,7 +181,7 @@ export default function SuperadminPage() {
             peran: formPeran,
             status: formStatus,
             desa_id: formDesaId || null,
-            nomor_hp: formNomorHp
+            nomor_hp: formNomorHp,
         };
 
         try {
@@ -186,22 +190,22 @@ export default function SuperadminPage() {
                 res = await fetch("/api/superadmin/users", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
                 });
             } else {
                 res = await fetch("/api/superadmin/users", {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
                 });
             }
 
             const data = await res.json();
             if (data.ok) {
                 setSuccessMessage(
-                    modalMode === "create" 
-                        ? "Akun pengelola baru berhasil dibuat!" 
-                        : "Akun pengelola berhasil diperbarui!"
+                    modalMode === "create"
+                        ? "Akun pengelola baru berhasil dibuat!"
+                        : "Akun pengelola berhasil diperbarui!",
                 );
                 closeModal();
                 fetchData();
@@ -222,9 +226,12 @@ export default function SuperadminPage() {
         setSubmitting(true);
 
         try {
-            const res = await fetch(`/api/superadmin/users?id=${selectedUser.id}`, {
-                method: "DELETE"
-            });
+            const res = await fetch(
+                `/api/superadmin/users?id=${selectedUser.id}`,
+                {
+                    method: "DELETE",
+                },
+            );
             const data = await res.json();
             if (data.ok) {
                 setSuccessMessage("Akun pengelola berhasil dihapus!");
@@ -242,12 +249,15 @@ export default function SuperadminPage() {
 
     // Filtered users list
     const filteredUsers = users.filter((user) => {
-        const matchesSearch = 
-            user.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        const matchesSearch =
+            user.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
             user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (user.desa_nama || "").toLowerCase().includes(searchQuery.toLowerCase());
-        
-        const matchesStatus = statusFilter === "Semua" || user.status === statusFilter;
+            (user.desa_nama || "")
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase());
+
+        const matchesStatus =
+            statusFilter === "Semua" || user.status === statusFilter;
         const matchesRole = roleFilter === "Semua" || user.peran === roleFilter;
 
         return matchesSearch && matchesStatus && matchesRole;
@@ -255,9 +265,9 @@ export default function SuperadminPage() {
 
     // Stats calculations
     const totalUsers = users.length;
-    const activeUsers = users.filter(u => u.status === "Aktif").length;
-    const inactiveUsers = users.filter(u => u.status === "Nonaktif").length;
-    const adminCount = users.filter(u => u.peran === "Superadmin").length;
+    const activeUsers = users.filter((u) => u.status === "Aktif").length;
+    const inactiveUsers = users.filter((u) => u.status === "Nonaktif").length;
+    const adminCount = users.filter((u) => u.peran === "Admin").length;
 
     return (
         <main className="app-shell">
@@ -277,12 +287,15 @@ export default function SuperadminPage() {
                         <Menu size={21} />
                     </button>
                     <div className="breadcrumb">
-                        <span>Superadmin</span>
+                        <span>Admin</span>
                         <span className="crumb-slash">/</span>
                         <strong>Kelola Pengguna</strong>
                     </div>
                     <div className="topbar-actions">
-                        <button className="icon-button notification" aria-label="Notifikasi">
+                        <button
+                            className="icon-button notification"
+                            aria-label="Notifikasi"
+                        >
                             <Bell size={19} />
                             <i />
                         </button>
@@ -297,19 +310,36 @@ export default function SuperadminPage() {
                     <div className="page-heading">
                         <div>
                             <p className="eyebrow">
-                                <span className="live-dot" style={{ backgroundColor: "#efaa6d" }} /> PORTAL SUPERADMIN
+                                <span
+                                    className="live-dot"
+                                    style={{ backgroundColor: "#efaa6d" }}
+                                />{" "}
+                                PORTAL ADMIN
                             </p>
                             <h1>Kelola Pengguna TPS3R</h1>
                             <p className="heading-copy">
-                                Manajemen kredensial, peran, dan wilayah tugas untuk pengelola TPS3R Desa Banyubiru.
+                                Manajemen kredensial, peran, dan wilayah tugas
+                                untuk pengelola TPS3R Desa Banyubiru.
                             </p>
                         </div>
                         <div className="heading-actions">
-                            <button className="primary-button" onClick={openCreateModal} style={{ background: "#0b8f82" }}>
+                            <button
+                                className="primary-button"
+                                onClick={openCreateModal}
+                                style={{ background: "#0b8f82" }}
+                            >
                                 <Plus size={16} /> Tambah Pengguna
                             </button>
-                            <button className="secondary-button" onClick={fetchData} title="Muat ulang data">
-                                <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refres
+                            <button
+                                className="secondary-button"
+                                onClick={fetchData}
+                                title="Muat ulang data"
+                            >
+                                <RefreshCw
+                                    size={14}
+                                    className={loading ? "animate-spin" : ""}
+                                />{" "}
+                                Refres
                             </button>
                         </div>
                     </div>
@@ -317,7 +347,10 @@ export default function SuperadminPage() {
                     {/* Success alert banner */}
                     {successMessage && (
                         <div className="flex items-center gap-3 p-4 mb-6 text-sm text-emerald-800 rounded-lg bg-emerald-50 border border-emerald-200 shadow-sm transition-all duration-300">
-                            <CheckCircle size={18} className="text-emerald-600 flex-shrink-0" />
+                            <CheckCircle
+                                size={18}
+                                className="text-emerald-600 flex-shrink-0"
+                            />
                             <span>{successMessage}</span>
                         </div>
                     )}
@@ -328,49 +361,69 @@ export default function SuperadminPage() {
                             <div className="stat-top">
                                 <div>
                                     <p>Total Pengguna</p>
-                                    <h2>{totalUsers}<small>Akun</small></h2>
+                                    <h2>
+                                        {totalUsers}
+                                        <small>Akun</small>
+                                    </h2>
                                 </div>
                                 <div className="stat-icon">
                                     <User size={20} />
                                 </div>
                             </div>
-                            <div className="stat-note">Kredensial terdaftar di sistem</div>
+                            <div className="stat-note">
+                                Kredensial terdaftar di sistem
+                            </div>
                         </article>
                         <article className="stat-card lime">
                             <div className="stat-top">
                                 <div>
                                     <p>Pengelola Aktif</p>
-                                    <h2>{activeUsers}<small>Akun</small></h2>
+                                    <h2>
+                                        {activeUsers}
+                                        <small>Akun</small>
+                                    </h2>
                                 </div>
                                 <div className="stat-icon">
                                     <Activity size={20} />
                                 </div>
                             </div>
-                            <div className="stat-note">Dapat mengakses dashboard</div>
+                            <div className="stat-note">
+                                Dapat mengakses dashboard
+                            </div>
                         </article>
                         <article className="stat-card amber">
                             <div className="stat-top">
                                 <div>
                                     <p>Pengelola Nonaktif</p>
-                                    <h2>{inactiveUsers}<small>Akun</small></h2>
+                                    <h2>
+                                        {inactiveUsers}
+                                        <small>Akun</small>
+                                    </h2>
                                 </div>
                                 <div className="stat-icon">
                                     <X size={20} />
                                 </div>
                             </div>
-                            <div className="stat-note">Hak akses ditangguhkan sementara</div>
+                            <div className="stat-note">
+                                Hak akses ditangguhkan sementara
+                            </div>
                         </article>
                         <article className="stat-card blue">
                             <div className="stat-top">
                                 <div>
-                                    <p>Super Administrator</p>
-                                    <h2>{adminCount}<small>Akun</small></h2>
+                                    <p>Admin</p>
+                                    <h2>
+                                        {adminCount}
+                                        <small>Akun</small>
+                                    </h2>
                                 </div>
                                 <div className="stat-icon">
                                     <Shield size={20} />
                                 </div>
                             </div>
-                            <div className="stat-note">Akses kontrol sistem penuh</div>
+                            <div className="stat-note">
+                                Akses kontrol sistem penuh
+                            </div>
                         </article>
                     </section>
 
@@ -382,7 +435,7 @@ export default function SuperadminPage() {
                             </span>
                             <input
                                 type="text"
-                                placeholder="Cari nama, email, dusun..."
+                                placeholder="Cari nama, email, desa..."
                                 className="w-full pl-10 pr-4 py-2 text-sm bg-[#f4f7f4]/60 border border-[var(--line)] rounded-lg outline-none focus:border-[var(--teal)] focus:bg-white transition-all"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -390,23 +443,33 @@ export default function SuperadminPage() {
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex items-center gap-2">
-                                <label className="text-xs font-semibold text-gray-500">Peran:</label>
+                                <label className="text-xs font-semibold text-gray-500">
+                                    Peran:
+                                </label>
                                 <select
                                     className="px-3 py-1.5 text-xs bg-white border border-[var(--line)] rounded-lg outline-none"
                                     value={roleFilter}
-                                    onChange={(e) => setRoleFilter(e.target.value)}
+                                    onChange={(e) =>
+                                        setRoleFilter(e.target.value)
+                                    }
                                 >
                                     <option value="Semua">Semua</option>
-                                    <option value="Pengelola TPS3R">Pengelola TPS3R</option>
-                                    <option value="Superadmin">Superadmin</option>
+                                    <option value="Pengelola TPS3R">
+                                        Pengelola TPS3R
+                                    </option>
+                                    <option value="Admin">Admin</option>
                                 </select>
                             </div>
                             <div className="flex items-center gap-2">
-                                <label className="text-xs font-semibold text-gray-500">Status:</label>
+                                <label className="text-xs font-semibold text-gray-500">
+                                    Status:
+                                </label>
                                 <select
                                     className="px-3 py-1.5 text-xs bg-white border border-[var(--line)] rounded-lg outline-none"
                                     value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    onChange={(e) =>
+                                        setStatusFilter(e.target.value)
+                                    }
                                 >
                                     <option value="Semua">Semua</option>
                                     <option value="Aktif">Aktif</option>
@@ -420,57 +483,99 @@ export default function SuperadminPage() {
                     <article className="panel">
                         <div className="panel-heading mb-4">
                             <div>
-                                <h3 className="text-base font-bold text-[var(--ink)]">Daftar Pengguna Sistem</h3>
-                                <p className="text-xs text-gray-500">Menampilkan {filteredUsers.length} dari total {totalUsers} akun terdaftar.</p>
+                                <h3 className="text-base font-bold text-[var(--ink)]">
+                                    Daftar Pengguna Sistem
+                                </h3>
+                                <p className="text-xs text-gray-500">
+                                    Menampilkan {filteredUsers.length} dari
+                                    total {totalUsers} akun terdaftar.
+                                </p>
                             </div>
                         </div>
 
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-20 gap-3">
-                                <RefreshCw className="animate-spin text-[var(--teal)]" size={32} />
-                                <p className="text-sm font-medium text-gray-500">Memuat data pengguna...</p>
+                                <RefreshCw
+                                    className="animate-spin text-[var(--teal)]"
+                                    size={32}
+                                />
+                                <p className="text-sm font-medium text-gray-500">
+                                    Memuat data pengguna...
+                                </p>
                             </div>
                         ) : filteredUsers.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-16 text-center">
                                 <div className="p-4 bg-gray-50 text-gray-400 rounded-full mb-4">
                                     <User size={40} />
                                 </div>
-                                <h4 className="text-base font-bold text-gray-700">Tidak ada data ditemukan</h4>
-                                <p className="text-xs text-gray-400 max-w-xs mt-1">Coba cari dengan kata kunci lain atau bersihkan filter pencarian.</p>
+                                <h4 className="text-base font-bold text-gray-700">
+                                    Tidak ada data ditemukan
+                                </h4>
+                                <p className="text-xs text-gray-400 max-w-xs mt-1">
+                                    Coba cari dengan kata kunci lain atau
+                                    bersihkan filter pencarian.
+                                </p>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="border-b border-[var(--line)] text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50/50">
-                                            <th className="py-3.5 px-4 font-semibold">Nama Pengguna</th>
-                                            <th className="py-3.5 px-4 font-semibold">Email</th>
-                                            <th className="py-3.5 px-4 font-semibold">Peran</th>
-                                            <th className="py-3.5 px-4 font-semibold">Wilayah Tugas (Desa)</th>
-                                            <th className="py-3.5 px-4 font-semibold">Status</th>
-                                            <th className="py-3.5 px-4 font-semibold">Tanggal Daftar</th>
-                                            <th className="py-3.5 px-4 font-semibold text-right">Aksi</th>
+                                            <th className="py-3.5 px-4 font-semibold">
+                                                Nama Pengguna
+                                            </th>
+                                            <th className="py-3.5 px-4 font-semibold">
+                                                Email
+                                            </th>
+                                            <th className="py-3.5 px-4 font-semibold">
+                                                Peran
+                                            </th>
+                                            <th className="py-3.5 px-4 font-semibold">
+                                                Wilayah Tugas (Desa)
+                                            </th>
+                                            <th className="py-3.5 px-4 font-semibold">
+                                                Status
+                                            </th>
+                                            <th className="py-3.5 px-4 font-semibold">
+                                                Tanggal Daftar
+                                            </th>
+                                            <th className="py-3.5 px-4 font-semibold text-right">
+                                                Aksi
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 text-sm">
                                         {filteredUsers.map((user) => (
-                                            <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="py-4 px-4 font-semibold text-gray-800">{user.nama}</td>
+                                            <tr
+                                                key={user.id}
+                                                className="hover:bg-gray-50/50 transition-colors"
+                                            >
+                                                <td className="py-4 px-4 font-semibold text-gray-800">
+                                                    {user.nama}
+                                                </td>
                                                 <td className="py-4 px-4 text-gray-600 font-mono text-xs">
                                                     <div>{user.email}</div>
                                                     {user.nomor_hp && (
                                                         <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1 font-sans">
-                                                            <Phone size={10} className="text-gray-400" /> {user.nomor_hp}
+                                                            <Phone
+                                                                size={10}
+                                                                className="text-gray-400"
+                                                            />{" "}
+                                                            {user.nomor_hp}
                                                         </div>
                                                     )}
                                                 </td>
                                                 <td className="py-4 px-4">
-                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold ${
-                                                        user.peran === "Superadmin"
-                                                            ? "bg-amber-50 text-amber-700 border border-amber-100"
-                                                            : "bg-teal-50 text-teal-700 border border-teal-100"
-                                                    }`}>
-                                                        {user.peran === "Superadmin" ? (
+                                                    <span
+                                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold ${
+                                                            user.peran ===
+                                                            "Admin"
+                                                                ? "bg-amber-50 text-amber-700 border border-amber-100"
+                                                                : "bg-teal-50 text-teal-700 border border-teal-100"
+                                                        }`}
+                                                    >
+                                                        {user.peran ===
+                                                        "Admin" ? (
                                                             <Shield size={12} />
                                                         ) : (
                                                             <User size={12} />
@@ -480,41 +585,72 @@ export default function SuperadminPage() {
                                                 </td>
                                                 <td className="py-4 px-4 text-gray-600">
                                                     <div className="flex items-center gap-1">
-                                                        <MapPin size={14} className="text-gray-400 flex-shrink-0" />
-                                                        <span className="truncate max-w-[200px]" title={user.desa_nama}>{user.desa_nama}</span>
+                                                        <MapPin
+                                                            size={14}
+                                                            className="text-gray-400 flex-shrink-0"
+                                                        />
+                                                        <span
+                                                            className="truncate max-w-[200px]"
+                                                            title={
+                                                                user.desa_nama
+                                                            }
+                                                        >
+                                                            {user.desa_nama}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="py-4 px-4">
-                                                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                                        user.status === "Aktif"
-                                                            ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                                                            : "bg-gray-100 text-gray-600 border border-gray-200"
-                                                    }`}>
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${
-                                                            user.status === "Aktif" ? "bg-emerald-500" : "bg-gray-400"
-                                                        }`} />
+                                                    <span
+                                                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                                            user.status ===
+                                                            "Aktif"
+                                                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                                                : "bg-gray-100 text-gray-600 border border-gray-200"
+                                                        }`}
+                                                    >
+                                                        <span
+                                                            className={`w-1.5 h-1.5 rounded-full ${
+                                                                user.status ===
+                                                                "Aktif"
+                                                                    ? "bg-emerald-500"
+                                                                    : "bg-gray-400"
+                                                            }`}
+                                                        />
                                                         {user.status}
                                                     </span>
                                                 </td>
                                                 <td className="py-4 px-4 text-xs text-gray-400">
-                                                    {new Date(user.created_at).toLocaleDateString("id-ID", {
-                                                        year: "numeric",
-                                                        month: "short",
-                                                        day: "numeric",
-                                                    })}
+                                                    {new Date(
+                                                        user.created_at,
+                                                    ).toLocaleDateString(
+                                                        "id-ID",
+                                                        {
+                                                            year: "numeric",
+                                                            month: "short",
+                                                            day: "numeric",
+                                                        },
+                                                    )}
                                                 </td>
                                                 <td className="py-4 px-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button
                                                             className="p-1.5 text-gray-500 hover:text-[var(--teal)] hover:bg-teal-50 rounded-lg transition-all"
-                                                            onClick={() => openEditModal(user)}
+                                                            onClick={() =>
+                                                                openEditModal(
+                                                                    user,
+                                                                )
+                                                            }
                                                             title="Edit Pengguna"
                                                         >
                                                             <Edit3 size={16} />
                                                         </button>
                                                         <button
                                                             className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                                            onClick={() => openDeleteModal(user)}
+                                                            onClick={() =>
+                                                                openDeleteModal(
+                                                                    user,
+                                                                )
+                                                            }
                                                             title="Hapus Pengguna"
                                                         >
                                                             <Trash2 size={16} />
@@ -531,10 +667,10 @@ export default function SuperadminPage() {
 
                     <footer className="footer-note mt-8">
                         <span>
-                            <span className="status-pulse" /> Sesi Superadmin Aktif
+                            <span className="status-pulse" /> Sesi Admin Aktif
                         </span>
                         <span>
-                            Dashboard Superadmin <b>•</b> v1.0.0
+                            Dashboard Admin <b>•</b> v1.0.0
                         </span>
                     </footer>
                 </div>
@@ -556,7 +692,9 @@ export default function SuperadminPage() {
                         <div className="modal-header border-b border-gray-100 p-5 bg-gradient-to-r from-teal-50/50 to-emerald-50/50">
                             <div>
                                 <h2 className="text-lg font-extrabold text-[var(--ink)]">
-                                    {modalMode === "create" ? "Tambah Akun Pengelola" : "Edit Kredensial Pengguna"}
+                                    {modalMode === "create"
+                                        ? "Tambah Akun Pengelola"
+                                        : "Edit Kredensial Pengguna"}
                                 </h2>
                                 <p className="text-xs text-gray-500 mt-1">
                                     {modalMode === "create"
@@ -578,14 +716,21 @@ export default function SuperadminPage() {
                                 {/* Error panel */}
                                 {errorMessage && (
                                     <div className="flex items-start gap-2 p-3.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg text-xs">
-                                        <AlertCircle size={16} className="text-rose-600 flex-shrink-0 mt-0.5" />
+                                        <AlertCircle
+                                            size={16}
+                                            className="text-rose-600 flex-shrink-0 mt-0.5"
+                                        />
                                         <span>{errorMessage}</span>
                                     </div>
                                 )}
 
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                        <User size={12} className="text-gray-400" /> Nama Lengkap
+                                        <User
+                                            size={12}
+                                            className="text-gray-400"
+                                        />{" "}
+                                        Nama Lengkap
                                     </label>
                                     <input
                                         type="text"
@@ -593,13 +738,19 @@ export default function SuperadminPage() {
                                         placeholder="Contoh: Agni Nugroho"
                                         className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all"
                                         value={formNama}
-                                        onChange={(e) => setFormNama(e.target.value)}
+                                        onChange={(e) =>
+                                            setFormNama(e.target.value)
+                                        }
                                     />
                                 </div>
 
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                        <Mail size={12} className="text-gray-400" /> Email Akun (Surel)
+                                        <Mail
+                                            size={12}
+                                            className="text-gray-400"
+                                        />{" "}
+                                        Email Akun (Surel)
                                     </label>
                                     <input
                                         type="email"
@@ -607,38 +758,58 @@ export default function SuperadminPage() {
                                         placeholder="Contoh: agni@desa.go.id"
                                         className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all"
                                         value={formEmail}
-                                        onChange={(e) => setFormEmail(e.target.value)}
+                                        onChange={(e) =>
+                                            setFormEmail(e.target.value)
+                                        }
                                     />
                                 </div>
 
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                        <Phone size={12} className="text-gray-400" /> Nomor HP / WhatsApp
+                                        <Phone
+                                            size={12}
+                                            className="text-gray-400"
+                                        />{" "}
+                                        Nomor HP / WhatsApp
                                     </label>
                                     <input
                                         type="text"
                                         placeholder="Contoh: 08123456789"
                                         className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all"
                                         value={formNomorHp}
-                                        onChange={(e) => setFormNomorHp(e.target.value)}
+                                        onChange={(e) =>
+                                            setFormNomorHp(e.target.value)
+                                        }
                                     />
                                 </div>
 
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                        <Lock size={12} className="text-gray-400" /> Password (Kata Sandi)
+                                        <Lock
+                                            size={12}
+                                            className="text-gray-400"
+                                        />{" "}
+                                        Password (Kata Sandi)
                                     </label>
                                     <input
                                         type="password"
                                         required={modalMode === "create"}
-                                        placeholder={modalMode === "create" ? "Minimal 6 karakter" : "Kosongkan jika tidak diubah"}
+                                        placeholder={
+                                            modalMode === "create"
+                                                ? "Minimal 6 karakter"
+                                                : "Kosongkan jika tidak diubah"
+                                        }
                                         className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all"
                                         value={formPassword}
-                                        onChange={(e) => setFormPassword(e.target.value)}
+                                        onChange={(e) =>
+                                            setFormPassword(e.target.value)
+                                        }
                                     />
                                     {modalMode === "edit" && (
                                         <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-1">
-                                            <Info size={10} /> Biarkan kosong kecuali Anda ingin mereset password akun ini.
+                                            <Info size={10} /> Biarkan kosong
+                                            kecuali Anda ingin mereset password
+                                            akun ini.
                                         </p>
                                     )}
                                 </div>
@@ -646,52 +817,83 @@ export default function SuperadminPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                            <Shield size={12} className="text-gray-400" /> Peran Otoritas
+                                            <Shield
+                                                size={12}
+                                                className="text-gray-400"
+                                            />{" "}
+                                            Peran Otoritas
                                         </label>
                                         <select
                                             className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all"
                                             value={formPeran}
-                                            onChange={(e) => setFormPeran(e.target.value)}
+                                            onChange={(e) =>
+                                                setFormPeran(e.target.value)
+                                            }
                                         >
-                                            <option value="Pengelola TPS3R">Pengelola TPS3R</option>
-                                            <option value="Superadmin">Superadmin</option>
+                                            <option value="Pengelola TPS3R">
+                                                Pengelola TPS3R
+                                            </option>
+                                            <option value="Admin">Admin</option>
                                         </select>
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                            <Activity size={12} className="text-gray-400" /> Status Akun
+                                            <Activity
+                                                size={12}
+                                                className="text-gray-400"
+                                            />{" "}
+                                            Status Akun
                                         </label>
                                         <select
                                             className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all"
                                             value={formStatus}
-                                            onChange={(e) => setFormStatus(e.target.value)}
+                                            onChange={(e) =>
+                                                setFormStatus(e.target.value)
+                                            }
                                         >
                                             <option value="Aktif">Aktif</option>
-                                            <option value="Nonaktif">Nonaktif</option>
+                                            <option value="Nonaktif">
+                                                Nonaktif
+                                            </option>
                                         </select>
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                        <MapPin size={12} className="text-gray-400" /> Wilayah Tugas Otoritas (Desa)
+                                        <MapPin
+                                            size={12}
+                                            className="text-gray-400"
+                                        />{" "}
+                                        Wilayah Tugas Otoritas (Desa)
                                     </label>
                                     <select
                                         className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white transition-all disabled:opacity-50"
-                                        value={formPeran === "Superadmin" ? "" : formDesaId}
-                                        onChange={(e) => setFormDesaId(e.target.value)}
-                                        disabled={formPeran === "Superadmin"}
+                                        value={
+                                            formPeran === "Admin"
+                                                ? ""
+                                                : formDesaId
+                                        }
+                                        onChange={(e) =>
+                                            setFormDesaId(e.target.value)
+                                        }
+                                        disabled={formPeran === "Admin"}
                                     >
-                                        <option value="">-- Tanpa Otoritas Wilayah Khusus --</option>
+                                        <option value="">
+                                            -- Tanpa Otoritas Wilayah Khusus --
+                                        </option>
                                         {desaList.map((desa) => (
-                                            <option key={desa.id} value={desa.id}>
+                                            <option
+                                                key={desa.id}
+                                                value={desa.id}
+                                            >
                                                 {desa.nama} - Kode: {desa.kode}
                                             </option>
                                         ))}
                                     </select>
                                     <p className="text-[10px] text-gray-400">
-                                        {formPeran === "Superadmin" 
-                                            ? "Akun Superadmin secara default memiliki akses ke seluruh desa." 
+                                        {formPeran === "Admin"
+                                            ? "Akun Admin secara default memiliki akses ke seluruh desa."
                                             : "Menentukan wilayah administrasi desa asal pencatatan sampah bagi pengelola."}
                                     </p>
                                 </div>
@@ -713,7 +915,11 @@ export default function SuperadminPage() {
                                 >
                                     {submitting ? (
                                         <>
-                                            <RefreshCw size={14} className="animate-spin" /> Menyimpan...
+                                            <RefreshCw
+                                                size={14}
+                                                className="animate-spin"
+                                            />{" "}
+                                            Menyimpan...
                                         </>
                                     ) : (
                                         "Simpan Akun"
@@ -741,9 +947,16 @@ export default function SuperadminPage() {
                         <div className="modal-header border-b border-gray-100 p-5 bg-rose-50/30">
                             <div>
                                 <h2 className="text-lg font-extrabold text-rose-950 flex items-center gap-2">
-                                    <AlertCircle size={20} className="text-rose-600" /> Hapus Akun Pengguna?
+                                    <AlertCircle
+                                        size={20}
+                                        className="text-rose-600"
+                                    />{" "}
+                                    Hapus Akun Pengguna?
                                 </h2>
-                                <p className="text-xs text-rose-700/80 mt-1">Konfirmasi pembersihan akses kredensial pengguna secara permanen.</p>
+                                <p className="text-xs text-rose-700/80 mt-1">
+                                    Konfirmasi pembersihan akses kredensial
+                                    pengguna secara permanen.
+                                </p>
                             </div>
                             <button
                                 className="icon-button hover:bg-gray-100 rounded-full p-1"
@@ -763,8 +976,12 @@ export default function SuperadminPage() {
                             )}
 
                             <p className="text-sm text-gray-600 leading-relaxed">
-                                Apakah Anda yakin ingin menghapus akun <strong>{selectedUser.nama}</strong> (<code>{selectedUser.email}</code>)? 
-                                Tindakan ini <strong>tidak dapat dibatalkan</strong>. Pengguna ini akan langsung kehilangan akses login ke sistem dashboard.
+                                Apakah Anda yakin ingin menghapus akun{" "}
+                                <strong>{selectedUser.nama}</strong> (
+                                <code>{selectedUser.email}</code>)? Tindakan ini{" "}
+                                <strong>tidak dapat dibatalkan</strong>.
+                                Pengguna ini akan langsung kehilangan akses
+                                login ke sistem dashboard.
                             </p>
                         </div>
 
@@ -785,7 +1002,11 @@ export default function SuperadminPage() {
                             >
                                 {submitting ? (
                                     <>
-                                        <RefreshCw size={14} className="animate-spin" /> Menghapus...
+                                        <RefreshCw
+                                            size={14}
+                                            className="animate-spin"
+                                        />{" "}
+                                        Menghapus...
                                     </>
                                 ) : (
                                     "Ya, Hapus Akun"

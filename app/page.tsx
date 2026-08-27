@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
     ArrowUpRight,
     Bell,
     CalendarDays,
+    ChevronDown,
     Leaf,
     Menu,
     PackageCheck,
@@ -73,22 +75,31 @@ const compositionGradient = (
     return `conic-gradient(#f2a45d 0 ${organikEnd}%, #0b8f82 ${organikEnd}% ${anorganikEnd}%, #72b8d1 ${anorganikEnd}% 100%)`;
 };
 
-export default function Home() {
+function DashboardContent() {
+    const searchParams = useSearchParams();
     const [mobileOpen, setMobileOpen] = useState(false);
     const [localDate, setLocalDate] = useState("");
-    const [period, setPeriod] = useState("30 hari terakhir");
+    const [period, setPeriod] = useState("1 bulan");
+    const [periodOpen, setPeriodOpen] = useState(false);
     const [showActivities, setShowActivities] = useState(false);
     const [dashboard, setDashboard] = useState<DashboardData>(emptyDashboard);
+    const [chartRevision, setChartRevision] = useState(0);
     const user = useCurrentUser();
     const chartPeriod = period === "1 tahun" ? "year" : "month";
     useEffect(() => {
-        fetch(`/api/dashboard?period=${chartPeriod}`)
+        const desaId = searchParams.get("desa_id");
+        const query = new URLSearchParams({ period: chartPeriod });
+        if (desaId) query.set("desa_id", desaId);
+        fetch(`/api/dashboard?${query.toString()}`)
             .then((response) => response.json())
             .then((result) => {
-                if (result.ok) setDashboard(result.data);
+                if (result.ok) {
+                    setDashboard(result.data);
+                    setChartRevision((revision) => revision + 1);
+                }
             })
             .catch(() => undefined);
-    }, [chartPeriod]);
+    }, [chartPeriod, searchParams]);
     useEffect(() => {
         const timer = window.setTimeout(
             () =>
@@ -223,14 +234,38 @@ export default function Home() {
                             <h2>Performa Operasional</h2>
                             <p>Performa pengelolaan dalam periode berjalan</p>
                         </div>
-                        <select
-                            value={period}
-                            onChange={(event) => setPeriod(event.target.value)}
-                            aria-label="Pilih periode"
-                        >
-                            <option>1 bulan</option>
-                            <option>1 tahun</option>
-                        </select>
+                        <div className="period-menu">
+                            <button
+                                className="period-trigger"
+                                onClick={() => setPeriodOpen((open) => !open)}
+                                aria-expanded={periodOpen}
+                                aria-haspopup="menu"
+                                aria-label="Pilih periode"
+                            >
+                                {period}
+                                <ChevronDown
+                                    size={14}
+                                    className={periodOpen ? "chevron-open" : ""}
+                                />
+                            </button>
+                            {periodOpen && (
+                                <div className="period-dropdown" role="menu">
+                                    {["1 bulan", "1 tahun"].map((option) => (
+                                        <button
+                                            key={option}
+                                            className={`period-option ${period === option ? "selected" : ""}`}
+                                            onClick={() => {
+                                                setPeriod(option);
+                                                setPeriodOpen(false);
+                                            }}
+                                            role="menuitem"
+                                        >
+                                            {option}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <section className="dashboard-grid">
                         <article className="panel trend-panel">
@@ -250,6 +285,7 @@ export default function Home() {
                             </div>
                             <div
                                 className="bar-chart"
+                                key={`bar-chart-${chartRevision}`}
                                 aria-label="Grafik volume sampah terkelola"
                             >
                                 <div className="y-axis">
@@ -260,28 +296,35 @@ export default function Home() {
                                     <span>0</span>
                                 </div>
                                 <div className="bars">
-                                    {chartData.map((item) => (
-                                        <div
-                                            className="bar-column"
-                                            key={item.label}
-                                        >
+                                    {chartData.length ? (
+                                        chartData.map((item) => (
                                             <div
-                                                className={`bar ${item.total_kg === maxChart ? "highlight" : ""}`}
-                                                style={{
-                                                    height: `${(item.total_kg / maxChart) * 100}%`,
-                                                }}
+                                                className="bar-column"
+                                                key={item.label}
                                             >
-                                                <span>
-                                                    {item.total_kg === maxChart
-                                                        ? formatNumber(
-                                                              item.total_kg,
-                                                          )
-                                                        : ""}
-                                                </span>
+                                                <div
+                                                    className={`bar ${item.total_kg === maxChart ? "highlight" : ""}`}
+                                                    style={{
+                                                        height: `${(item.total_kg / maxChart) * 100}%`,
+                                                    }}
+                                                >
+                                                    <span>
+                                                        {item.total_kg ===
+                                                        maxChart
+                                                            ? formatNumber(
+                                                                  item.total_kg,
+                                                              )
+                                                            : ""}
+                                                    </span>
+                                                </div>
+                                                <small>{item.label}</small>
                                             </div>
-                                            <small>{item.label}</small>
-                                        </div>
-                                    ))}
+                                        ))
+                                    ) : (
+                                        <p className="chart-empty-state">
+                                            Belum ada data pada desa ini
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                             <div className="chart-legend">
@@ -305,6 +348,7 @@ export default function Home() {
                             <div className="donut-wrap">
                                 <div
                                     className="donut"
+                                    key={`donut-${chartRevision}`}
                                     style={{
                                         background: compositionGradient(
                                             dashboard.organik,
@@ -373,26 +417,38 @@ export default function Home() {
                                     Data SQL <ArrowUpRight size={15} />
                                 </button>
                             </div>
-                            <div className="region-list">
-                                {dashboard.regions.map((region, index) => (
-                                    <Region
-                                        key={region.name}
-                                        name={region.name}
-                                        value={`${formatNumber(region.total_kg)} kg`}
-                                        percent={
-                                            dashboard.totalIncoming
-                                                ? (region.total_kg /
-                                                      dashboard.totalIncoming) *
-                                                  100
-                                                : 0
-                                        }
-                                        color={
-                                            ["teal", "lime", "orange", "blue"][
-                                                index % 4
-                                            ]
-                                        }
-                                    />
-                                ))}
+                            <div
+                                className="region-list"
+                                key={`regions-${chartRevision}`}
+                            >
+                                {dashboard.regions.length ? (
+                                    dashboard.regions.map((region, index) => (
+                                        <Region
+                                            key={region.name}
+                                            name={region.name}
+                                            value={`${formatNumber(region.total_kg)} kg`}
+                                            percent={
+                                                dashboard.totalIncoming
+                                                    ? (region.total_kg /
+                                                          dashboard.totalIncoming) *
+                                                      100
+                                                    : 0
+                                            }
+                                            color={
+                                                [
+                                                    "teal",
+                                                    "lime",
+                                                    "orange",
+                                                    "blue",
+                                                ][index % 4]
+                                            }
+                                        />
+                                    ))
+                                ) : (
+                                    <p className="chart-empty-state">
+                                        Belum ada data wilayah
+                                    </p>
+                                )}
                             </div>
                         </article>
                         <article className="panel activity-panel">
@@ -554,5 +610,13 @@ function ActivityItem({
             </div>
             <b className={tone}>{value}</b>
         </div>
+    );
+}
+
+export default function Home() {
+    return (
+        <Suspense fallback={<main className="app-shell" />}>
+            <DashboardContent />
+        </Suspense>
     );
 }

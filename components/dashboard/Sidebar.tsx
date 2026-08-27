@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     ChevronDown,
@@ -48,6 +48,49 @@ export default function Sidebar({
     const router = useRouter();
     const user = useCurrentUser();
     const [profileOpen, setProfileOpen] = useState(false);
+    const [desaOpen, setDesaOpen] = useState(false);
+    const [selectedDesaId, setSelectedDesaId] = useState("");
+    const [desaList, setDesaList] = useState<
+        Array<{ id: string; nama: string }>
+    >([]);
+
+    useEffect(() => {
+        setSelectedDesaId(
+            new URLSearchParams(window.location.search).get("desa_id") ?? "",
+        );
+    }, []);
+
+    useEffect(() => {
+        if (user?.role !== "admin") return;
+        fetch("/api/desa")
+            .then((response) => response.json())
+            .then((result) => {
+                if (result.ok) {
+                    setDesaList(
+                        (result.rows ?? []).map(
+                            (desa: { id: string; nama: string }) => ({
+                                id: desa.id,
+                                nama: desa.nama,
+                            }),
+                        ),
+                    );
+                }
+            })
+            .catch(() => undefined);
+    }, [user?.role]);
+
+    const selectedDesa = desaList.find((desa) => desa.id === selectedDesaId);
+    const subtitle =
+        user?.role === "admin"
+            ? (selectedDesa?.nama ?? "Semua Desa")
+            : (user?.desaNama ?? "Desa belum terhubung");
+
+    function handleDesaChange(desaId: string) {
+        setSelectedDesaId(desaId);
+        const params = new URLSearchParams();
+        if (desaId) params.set("desa_id", desaId);
+        router.replace(`/dashboard?${params.toString()}`);
+    }
 
     async function handleLogout() {
         const supabase = getSupabaseBrowserClient();
@@ -65,7 +108,9 @@ export default function Sidebar({
                     </div>
                     <div>
                         <p className="brand-name">DASH-SAMPAH</p>
-                        <p className="brand-subtitle">DESA BANYUBIRU</p>
+                        <p className="brand-subtitle">
+                            {subtitle.toUpperCase()}
+                        </p>
                     </div>
                     <button
                         className="icon-button close-menu"
@@ -75,6 +120,59 @@ export default function Sidebar({
                         <X size={18} />
                     </button>
                 </div>
+                {user?.role === "admin" && (
+                    <div className="workspace-menu">
+                        <button
+                            className="workspace-switcher"
+                            onClick={() => setDesaOpen((open) => !open)}
+                            aria-expanded={desaOpen}
+                            aria-haspopup="menu"
+                        >
+                            <div className="village-avatar">
+                                {selectedDesa?.nama
+                                    ?.slice(0, 2)
+                                    .toUpperCase() ?? "SD"}
+                            </div>
+                            <div className="workspace-copy">
+                                <span>PILIH DESA</span>
+                                <strong>
+                                    {selectedDesa?.nama ?? "Semua Desa"}
+                                </strong>
+                            </div>
+                            <ChevronDown
+                                size={16}
+                                className={desaOpen ? "chevron-open" : ""}
+                            />
+                        </button>
+                        {desaOpen && (
+                            <div className="workspace-dropdown" role="menu">
+                                <button
+                                    className={`workspace-option ${!selectedDesaId ? "selected" : ""}`}
+                                    onClick={() => {
+                                        handleDesaChange("");
+                                        setDesaOpen(false);
+                                    }}
+                                    role="menuitem"
+                                >
+                                    Semua Desa
+                                </button>
+                                {desaList.map((desa) => (
+                                    <button
+                                        key={desa.id}
+                                        className={`workspace-option ${desa.id === selectedDesaId ? "selected" : ""}`}
+                                        onClick={() => {
+                                            handleDesaChange(desa.id);
+                                            setDesaOpen(false);
+                                        }}
+                                        role="menuitem"
+                                    >
+                                        {desa.nama}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
                 <p className="nav-label">MENU UTAMA</p>
                 <nav className="nav-list">
                     {navItems.map((item) => {
@@ -132,18 +230,21 @@ export default function Sidebar({
                                 <strong>{user?.nama ?? "Memuat..."}</strong>
                                 <span>{user?.roleLabel ?? ""}</span>
                             </div>
-                            <ChevronDown size={16} />
+                            <ChevronDown
+                                size={16}
+                                className={profileOpen ? "chevron-open" : ""}
+                            />
                         </button>
                         {profileOpen && (
                             <div className="profile-dropdown">
                                 {user?.role === "admin" && (
                                     <Link
-                                        href="/superadmin"
+                                        href="/admin-dashboard"
                                         className="nav-item"
                                         onClick={() => setProfileOpen(false)}
                                     >
                                         <Shield size={18} />
-                                        <span>Superadmin</span>
+                                        <span>Dashboard Admin</span>
                                     </Link>
                                 )}
                                 <button

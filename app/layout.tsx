@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, Plus_Jakarta_Sans } from "next/font/google";
+import ErrorToast from "@/components/ui/ErrorToast";
 import "./globals.css";
 
 const bodyFont = DM_Sans({
@@ -23,7 +24,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             lang="id"
             className={`${bodyFont.variable} ${displayFont.variable} h-full antialiased`}
         >
-            <body className="min-h-full flex flex-col">{children}</body>
+            <body className="min-h-full flex flex-col">
+                {children}
+                <ErrorToast />
+            </body>
         </html>
     );
 }

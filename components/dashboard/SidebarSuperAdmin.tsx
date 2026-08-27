@@ -1,14 +1,17 @@
 "use client";
 
-import {
-    ChevronDown,
-    CircleHelp,
-    Leaf,
-    Users,
-    X,
-    LogOut,
-} from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, CircleHelp, Leaf, Users, X, LogOut } from "lucide-react";
 import Link from "next/link";
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+
+function getInitials(nama: string) {
+    const parts = nama.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
 
 export default function SidebarSuperAdmin({
     mobileOpen,
@@ -19,16 +22,35 @@ export default function SidebarSuperAdmin({
     onMobileChange: (open: boolean) => void;
     activeLabel?: string;
 }) {
+    const router = useRouter();
+    const user = useCurrentUser();
+    const [profileOpen, setProfileOpen] = useState(false);
+
+    async function handleLogout() {
+        const supabase = getSupabaseBrowserClient();
+        await supabase.auth.signOut();
+        router.replace("/login");
+        router.refresh();
+    }
+
     return (
         <>
             <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
                 <div className="brand-row">
-                    <div className="brand-mark" style={{ background: "#efaa6d", color: "#603b20" }}>
+                    <div
+                        className="brand-mark"
+                        style={{ background: "#efaa6d", color: "#603b20" }}
+                    >
                         <Leaf size={21} />
                     </div>
                     <div>
-                        <p className="brand-name">SUPER-ADMIN</p>
-                        <p className="brand-subtitle" style={{ color: "#efc29a" }}>TPS3R BANYUBIRU</p>
+                        <p className="brand-name">DASHBOARD ADMIN</p>
+                        <p
+                            className="brand-subtitle"
+                            style={{ color: "#efc29a" }}
+                        >
+                            TPS3R KEC.DUKUN
+                        </p>
                     </div>
                     <button
                         className="icon-button close-menu"
@@ -39,36 +61,22 @@ export default function SidebarSuperAdmin({
                     </button>
                 </div>
 
-                <div className="workspace-switcher" style={{ borderColor: "rgba(239, 170, 109, 0.3)", background: "rgba(0, 0, 0, 0.15)" }}>
-                    <div className="village-avatar" style={{ background: "#cce77e", color: "#155b4d" }}>SA</div>
-                    <div className="workspace-copy">
-                        <span style={{ color: "#efc29a" }}>AKSES LEVEL</span>
-                        <strong>Super Administrator</strong>
-                    </div>
-                </div>
-
-                <p className="nav-label" style={{ color: "#efc29a" }}>KONTROL SISTEM</p>
+                <p className="nav-label" style={{ color: "#efc29a" }}>
+                    KONTROL SISTEM
+                </p>
                 <nav className="nav-list">
                     <Link
-                        href="/superadmin"
+                        href="/admin-dashboard"
                         className={`nav-item ${activeLabel === "Kelola Pengguna" ? "active" : ""}`}
                         onClick={() => onMobileChange(false)}
-                        style={activeLabel === "Kelola Pengguna" ? { background: "#efaa6d", color: "#603b20" } : {}}
+                        style={
+                            activeLabel === "Kelola Pengguna"
+                                ? { background: "#efaa6d", color: "#603b20" }
+                                : {}
+                        }
                     >
                         <Users size={18} />
                         <span>Kelola Pengguna</span>
-                    </Link>
-                </nav>
-
-                <p className="nav-label secondary-label" style={{ color: "#efc29a" }}>NAVIGASI</p>
-                <nav className="nav-list">
-                    <Link
-                        className="nav-item"
-                        href="/dashboard"
-                        onClick={() => onMobileChange(false)}
-                    >
-                        <LogOut size={18} style={{ transform: "rotate(180deg)" }} />
-                        <span>Kembali ke Operator</span>
                     </Link>
                 </nav>
 
@@ -80,13 +88,57 @@ export default function SidebarSuperAdmin({
                             <span>Akses database & otentikasi penuh</span>
                         </div>
                     </div>
-                    <div className="profile-row">
-                        <div className="profile-avatar" style={{ background: "#efaa6d", color: "#603b20" }}>SA</div>
-                        <div className="profile-copy">
-                            <strong>Administrator</strong>
-                            <span style={{ color: "#efc29a" }}>Superuser</span>
-                        </div>
-                        <ChevronDown size={16} />
+                    <div className="profile-menu">
+                        <button
+                            className="profile-row"
+                            onClick={() => setProfileOpen((open) => !open)}
+                            aria-expanded={profileOpen}
+                        >
+                            <div
+                                className="profile-avatar"
+                                style={{
+                                    background: "#efaa6d",
+                                    color: "#603b20",
+                                }}
+                            >
+                                {getInitials(user?.nama ?? "?")}
+                            </div>
+                            <div className="profile-copy">
+                                <strong>{user?.nama ?? "Memuat..."}</strong>
+                                <span style={{ color: "#efc29a" }}>
+                                    {user?.roleLabel ?? ""}
+                                </span>
+                            </div>
+                            <ChevronDown
+                                size={16}
+                                className={profileOpen ? "chevron-open" : ""}
+                            />
+                        </button>
+                        {profileOpen && (
+                            <div className="profile-dropdown">
+                                <Link
+                                    className="nav-item"
+                                    href="/dashboard"
+                                    onClick={() => {
+                                        setProfileOpen(false);
+                                        onMobileChange(false);
+                                    }}
+                                >
+                                    <LogOut
+                                        size={18}
+                                        style={{ transform: "rotate(180deg)" }}
+                                    />
+                                    <span>Kembali ke Dashboard Utama</span>
+                                </Link>
+                                <button
+                                    className="nav-item"
+                                    onClick={handleLogout}
+                                >
+                                    <LogOut size={18} />
+                                    <span>Keluar</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </aside>

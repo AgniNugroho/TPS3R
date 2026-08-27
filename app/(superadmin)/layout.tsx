@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "SUPERADMIN | Desa Banyubiru",
-    description: "Panel superadmin untuk pengelolaan akun pengelola TPS3R.",
+    title: "ADMIN | Desa Banyubiru",
+    description: "Panel admin untuk pengelolaan akun pengelola TPS3R.",
 };
 
-export default function SuperadminLayout({
+export default function AdminLayout({
     children,
 }: {
     children: React.ReactNode;

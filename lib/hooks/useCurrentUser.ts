@@ -6,6 +6,7 @@ export type CurrentUser = {
     nama: string;
     role: "admin" | "petugas";
     roleLabel: string;
+    desaId: string | null;
     desaNama: string | null;
 };
 
@@ -22,6 +23,7 @@ export function useCurrentUser() {
                         nama: result.nama,
                         role: result.role,
                         roleLabel: result.roleLabel,
+                        desaId: result.desaId,
                         desaNama: result.desaNama,
                     });
                 }

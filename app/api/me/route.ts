@@ -26,7 +26,8 @@ export async function GET() {
         ok: true,
         nama,
         role: session.role,
-        roleLabel: session.isAdmin ? "Admin Desa" : "Petugas Desa",
+        roleLabel: session.isAdmin ? "Admin" : "Petugas Desa",
+        desaId: session.desaId,
         desaNama,
     });
 }

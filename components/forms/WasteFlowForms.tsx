@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { showErrorToast } from "@/components/ui/ErrorToast";
 
 type FormValues = Record<string, string>;
 const initialIncoming: FormValues = {
@@ -127,7 +128,7 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
             ])
                 .then(([incomingResult, sortingResult]) => {
                     if (!incomingResult.ok || !sortingResult.ok) {
-                        console.error(
+                        showErrorToast(
                             incomingResult.error ||
                                 sortingResult.error ||
                                 "Data pemilahan gagal dimuat.",
@@ -147,9 +148,10 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                     );
                 })
                 .catch((error) =>
-                    console.error(
-                        "Data sampah untuk pemilahan gagal dimuat.",
-                        error,
+                    showErrorToast(
+                        error instanceof Error
+                            ? error
+                            : "Data sampah untuk pemilahan gagal dimuat.",
                     ),
                 );
             return;
@@ -158,7 +160,9 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
             .then((response) => response.json())
             .then((result) => {
                 if (!result.ok) {
-                    console.error(result.error || "Data wilayah gagal dimuat.");
+                    showErrorToast(
+                        result.error || "Data wilayah gagal dimuat.",
+                    );
                     return;
                 }
                 setWilayahRows(
@@ -175,9 +179,7 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                         ),
                 );
             })
-            .catch((error) =>
-                console.error("Data wilayah gagal dimuat.", error),
-            );
+            .catch((error) => showErrorToast(error));
     }, [mode]);
 
     async function submit(event: FormEvent<HTMLFormElement>) {
@@ -198,7 +200,7 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                 (row) => row.id === values.sampah_masuk_id,
             );
             if (!selected || total !== Number(selected.total_berat_kg)) {
-                console.error(
+                showErrorToast(
                     `Total pemilahan harus sama dengan ${selected?.total_berat_kg ?? 0} kg.`,
                 );
                 return;
@@ -224,7 +226,7 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
             });
             const result = await response.json();
             if (!result.ok)
-                console.error(result.error || "Data gagal disimpan.");
+                showErrorToast(result.error || "Data gagal disimpan.");
             else {
                 setValues(initialSorting);
                 router.back();
@@ -255,7 +257,7 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
             body: JSON.stringify(payload),
         });
         const result = await response.json();
-        if (!result.ok) console.error(result.error || "Data gagal disimpan.");
+        if (!result.ok) showErrorToast(result.error || "Data gagal disimpan.");
         else {
             setValues(mode === "incoming" ? initialIncoming : initialSorting);
             router.back();

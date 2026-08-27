@@ -75,10 +75,10 @@ export async function GET(request: Request) {
             });
         }
 
+        const requestUrl = new URL(request.url);
         const period =
-            new URL(request.url).searchParams.get("period") === "year"
-                ? "year"
-                : "month";
+            requestUrl.searchParams.get("period") === "year" ? "year" : "month";
+        const selectedDesaId = requestUrl.searchParams.get("desa_id");
         const supabase = getSupabaseServerClient();
         let incomingQuery = supabase
             .from("sampah_masuk")
@@ -90,7 +90,10 @@ export async function GET(request: Request) {
                 "tanggal, organik_kg, anorganik_kg, residu_kg, kardus_kg, kaca_kg, besi_kg, anorganik_lainnya_kg, created_at",
             )
             .order("created_at", { ascending: false });
-        if (!session.isAdmin) {
+        if (session.isAdmin && selectedDesaId) {
+            incomingQuery = incomingQuery.eq("desa_id", selectedDesaId);
+            sortingQuery = sortingQuery.eq("desa_id", selectedDesaId);
+        } else if (!session.isAdmin) {
             incomingQuery = incomingQuery.eq("desa_id", session.desaId);
             sortingQuery = sortingQuery.eq("desa_id", session.desaId);
         }

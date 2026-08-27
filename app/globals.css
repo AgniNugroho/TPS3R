@@ -23,6 +23,62 @@ body {
     color: var(--foreground);
     font-family: var(--font-body), sans-serif;
 }
+.error-toast-stack {
+    position: fixed;
+    z-index: 100;
+    right: 22px;
+    bottom: 22px;
+    width: min(380px, calc(100vw - 32px));
+    display: grid;
+    gap: 10px;
+    pointer-events: none;
+}
+.error-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 13px 12px;
+    color: #8f3029;
+    background: #fff5f3;
+    border: 1px solid #f0c4be;
+    border-left: 4px solid #d9675c;
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(90, 35, 30, 0.16);
+    font-size: 11px;
+    line-height: 1.45;
+    pointer-events: auto;
+    animation: error-toast-in 0.3s ease-out both;
+}
+.error-toast > svg {
+    flex: 0 0 auto;
+    margin-top: 1px;
+}
+.error-toast span {
+    flex: 1;
+    overflow-wrap: anywhere;
+}
+.error-toast-close {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    padding: 1px;
+    border: 0;
+    color: #a45a53;
+    background: transparent;
+}
+.error-toast-close:hover {
+    color: #76251f;
+}
+@keyframes error-toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 button,
 select {
     font: inherit;
@@ -80,14 +136,23 @@ button {
     margin-top: 4px;
 }
 .workspace-switcher {
+    width: 100%;
     padding: 10px 11px;
     border: 1px solid rgba(204, 231, 126, 0.2);
     border-radius: 10px;
     display: flex;
     align-items: center;
     gap: 9px;
-    margin-bottom: 32px;
+    margin-bottom: 0;
     background: rgba(0, 0, 0, 0.09);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.workspace-menu {
+    position: relative;
+    margin-bottom: 32px;
 }
 .village-avatar {
     display: grid;
@@ -118,8 +183,52 @@ button {
     margin-bottom: 2px;
 }
 .workspace-copy strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 12px;
     font-weight: 600;
+}
+.workspace-switcher > svg {
+    flex: 0 0 auto;
+    color: #8bb8aa;
+    transition: transform 0.2s ease;
+}
+.workspace-switcher .chevron-open {
+    transform: rotate(180deg);
+}
+.workspace-dropdown {
+    width: 100%;
+    position: absolute;
+    z-index: 3;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    padding: 5px;
+    background: #0a4440;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(5, 30, 27, 0.35);
+}
+.workspace-option {
+    width: 100%;
+    overflow: hidden;
+    border: 0;
+    border-radius: 7px;
+    padding: 9px 10px;
+    color: #b3d2c7;
+    background: transparent;
+    font: inherit;
+    font-size: 11px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.workspace-option:hover,
+.workspace-option.selected {
+    color: white;
+    background: rgba(255, 255, 255, 0.08);
 }
 .nav-label {
     color: #7eb4a6;
@@ -203,6 +312,13 @@ button {
     text-align: left;
     color: inherit;
     font: inherit;
+}
+.profile-row > svg {
+    color: #8bb8aa;
+    transition: transform 0.2s ease;
+}
+.profile-row .chevron-open {
+    transform: rotate(180deg);
 }
 .profile-menu {
     position: relative;
@@ -480,14 +596,59 @@ button {
     font-size: 11px;
     margin-top: 4px;
 }
-.section-toolbar select {
+.period-menu {
+    position: relative;
+}
+.period-trigger {
+    min-width: 116px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     background: white;
     border: 1px solid var(--line);
     color: #60706a;
-    padding: 8px 28px 8px 10px;
+    padding: 0 10px;
     border-radius: 6px;
     font-size: 10px;
-    outline: none;
+    cursor: pointer;
+}
+.period-trigger > svg {
+    color: #8c9b96;
+    transition: transform 0.2s ease;
+}
+.period-trigger .chevron-open {
+    transform: rotate(180deg);
+}
+.period-dropdown {
+    position: absolute;
+    z-index: 3;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 116px;
+    padding: 5px;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(12, 50, 45, 0.12);
+}
+.period-option {
+    width: 100%;
+    border: 0;
+    border-radius: 5px;
+    padding: 8px 9px;
+    color: #60706a;
+    background: transparent;
+    font: inherit;
+    font-size: 10px;
+    text-align: left;
+    cursor: pointer;
+}
+.period-option:hover,
+.period-option.selected {
+    color: var(--teal);
+    background: #eaf7ef;
 }
 .dashboard-grid,
 .lower-grid {
@@ -575,6 +736,14 @@ button {
     align-items: flex-end;
     gap: 7px;
 }
+.chart-empty-state {
+    align-self: center;
+    width: 100%;
+    color: #9aa6a1;
+    font-size: 10px;
+    text-align: center;
+    animation: empty-chart-reveal 0.45s ease-out both;
+}
 .bar-column {
     height: 100%;
     flex: 1;
@@ -590,6 +759,65 @@ button {
     border-radius: 4px 4px 2px 2px;
     position: relative;
     min-height: 10px;
+    transform-origin: bottom;
+    animation: bar-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.bar-column:nth-child(2) .bar {
+    animation-delay: 0.04s;
+}
+.bar-column:nth-child(3) .bar {
+    animation-delay: 0.08s;
+}
+.bar-column:nth-child(4) .bar {
+    animation-delay: 0.12s;
+}
+.bar-column:nth-child(5) .bar {
+    animation-delay: 0.16s;
+}
+.bar-column:nth-child(6) .bar {
+    animation-delay: 0.2s;
+}
+.bar-column:nth-child(7) .bar {
+    animation-delay: 0.24s;
+}
+.bar-column:nth-child(8) .bar {
+    animation-delay: 0.28s;
+}
+.bar-column:nth-child(9) .bar {
+    animation-delay: 0.32s;
+}
+.bar-column:nth-child(10) .bar {
+    animation-delay: 0.36s;
+}
+.bar-column:nth-child(11) .bar {
+    animation-delay: 0.4s;
+}
+.bar-column:nth-child(12) .bar {
+    animation-delay: 0.44s;
+}
+.bar-column:nth-child(13) .bar {
+    animation-delay: 0.48s;
+}
+.bar-column:nth-child(14) .bar {
+    animation-delay: 0.52s;
+}
+.bar-column:nth-child(15) .bar {
+    animation-delay: 0.56s;
+}
+.bar-column:nth-child(16) .bar {
+    animation-delay: 0.6s;
+}
+.bar-column:nth-child(17) .bar {
+    animation-delay: 0.64s;
+}
+.bar-column:nth-child(18) .bar {
+    animation-delay: 0.68s;
+}
+.bar-column:nth-child(19) .bar {
+    animation-delay: 0.72s;
+}
+.bar-column:nth-child(20) .bar {
+    animation-delay: 0.76s;
 }
 .bar.highlight {
     background: var(--teal);
@@ -660,6 +888,18 @@ button {
     transition:
         background 0.45s ease,
         transform 0.45s ease;
+    --donut-progress: 0deg;
+    -webkit-mask: conic-gradient(
+        from -30deg,
+        #000 0deg var(--donut-progress),
+        transparent var(--donut-progress) 360deg
+    );
+    mask: conic-gradient(
+        from -30deg,
+        #000 0deg var(--donut-progress),
+        transparent var(--donut-progress) 360deg
+    );
+    animation: donut-fill 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .donut:hover {
     transform: rotate(-20deg) scale(1.03);
@@ -765,6 +1005,62 @@ button {
 .progress-fill {
     height: 100%;
     border-radius: inherit;
+    transform-origin: left;
+    animation: progress-fill 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.region-row:nth-child(1) .progress-fill {
+    animation-delay: 0.1s;
+}
+.region-row:nth-child(2) .progress-fill {
+    animation-delay: 0.2s;
+}
+.region-row:nth-child(3) .progress-fill {
+    animation-delay: 0.3s;
+}
+.region-row:nth-child(4) .progress-fill {
+    animation-delay: 0.4s;
+}
+
+@keyframes bar-rise {
+    from {
+        transform: scaleY(0);
+        opacity: 0.35;
+    }
+    to {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+}
+@property --donut-progress {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+@keyframes donut-fill {
+    from {
+        --donut-progress: 0deg;
+    }
+    to {
+        --donut-progress: 360deg;
+    }
+}
+@keyframes progress-fill {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+@keyframes empty-chart-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 .progress-fill.teal {
     background: var(--teal);
