@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
     Activity,
@@ -44,7 +44,7 @@ const emptyForm = {
     desa_id: "",
 };
 
-export default function WilayahPage() {
+function WilayahContent() {
     const searchParams = useSearchParams();
     const selectedDesaId = searchParams.get("desa_id");
     const [wilayahRows, setWilayahRows] = useState<Wilayah[]>([]);
@@ -831,5 +831,13 @@ export default function WilayahPage() {
                 </div>
             )}
         </FormShell>
+    );
+}
+
+export default function WilayahPage() {
+    return (
+        <Suspense fallback={null}>
+            <WilayahContent />
+        </Suspense>
     );
 }

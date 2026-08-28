@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, CalendarDays, Menu } from "lucide-react";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, Suspense, useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 
 export default function FormShell({
@@ -31,11 +31,13 @@ export default function FormShell({
 
     return (
         <main className="app-shell">
-            <Sidebar
-                mobileOpen={mobileOpen}
-                onMobileChange={setMobileOpen}
-                activeLabel={activeLabel ?? title}
-            />
+            <Suspense fallback={null}>
+                <Sidebar
+                    mobileOpen={mobileOpen}
+                    onMobileChange={setMobileOpen}
+                    activeLabel={activeLabel ?? title}
+                />
+            </Suspense>
             <section className="main-area">
                 <header className="topbar">
                     <button

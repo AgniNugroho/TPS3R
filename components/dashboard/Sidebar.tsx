@@ -7,6 +7,7 @@ import {
     CircleHelp,
     FileText,
     Gauge,
+    Landmark,
     LogOut,
     Leaf,
     MapPin,
@@ -25,8 +26,7 @@ const navItems = [
     { label: "Ringkasan", href: "/dashboard", icon: Gauge },
     { label: "Pengumpulan", href: "/pengumpulan", icon: Truck },
     { label: "Pilah Sampah", href: "/pemilahan", icon: Recycle },
-    { label: "Bank Sampah", href: "/bank-sampah", icon: Recycle },
-    { label: "TPS3R", href: "/tps3r", icon: PackageCheck },
+    { label: "Bank Sampah", href: "/bank-sampah", icon: Landmark },
     { label: "Residu", href: "/residu", icon: PackageCheck },
 ];
 

@@ -103,14 +103,6 @@ create table if not exists bank_sampah (
   created_at timestamptz not null default now()
 );
 
-create table if not exists tps3r (
-  id uuid primary key default gen_random_uuid(), tanggal date not null default current_date,
-  petugas_id uuid references petugas(id), sumber_sampah text, berat_masuk_kg numeric(12,2) default 0,
-  organik_kg numeric(12,2) default 0, anorganik_kg numeric(12,2) default 0,
-  sampah_bernilai_kg numeric(12,2) default 0, sampah_diolah_kg numeric(12,2) default 0,
-  residu_kg numeric(12,2) default 0, produk text, foto_url text, created_at timestamptz not null default now()
-);
-
 create table if not exists residu (
   id uuid primary key default gen_random_uuid(), tanggal date not null default current_date,
   lokasi text, sumber text, berat_kg numeric(12,2) default 0, jenis_residu text,
@@ -156,13 +148,11 @@ alter table sampah_masuk add column if not exists desa_id uuid references desa(i
 alter table pemilahan_sampah add column if not exists desa_id uuid references desa(id);
 alter table pengumpulan add column if not exists desa_id uuid references desa(id);
 alter table bank_sampah add column if not exists desa_id uuid references desa(id);
-alter table tps3r add column if not exists desa_id uuid references desa(id);
 alter table residu add column if not exists desa_id uuid references desa(id);
 
 update sampah_masuk s set desa_id = w.desa_id from wilayah w where s.wilayah_id = w.id and s.desa_id is null;
 update pengumpulan g set desa_id = w.desa_id from wilayah w where g.wilayah_id = w.id and g.desa_id is null;
 update bank_sampah b set desa_id = p.desa_id from petugas p where b.petugas_id = p.id and b.desa_id is null;
-update tps3r t set desa_id = p.desa_id from petugas p where t.petugas_id = p.id and t.desa_id is null;
 update residu r set desa_id = p.desa_id from petugas p where r.petugas_id = p.id and r.desa_id is null;
 update pemilahan_sampah ps set desa_id = s.desa_id from sampah_masuk s where ps.sampah_masuk_id = s.id and ps.desa_id is null;
 
@@ -172,7 +162,6 @@ create index if not exists idx_sampah_masuk_desa on sampah_masuk (desa_id);
 create index if not exists idx_pemilahan_sampah_desa on pemilahan_sampah (desa_id);
 create index if not exists idx_pengumpulan_desa on pengumpulan (desa_id);
 create index if not exists idx_bank_sampah_desa on bank_sampah (desa_id);
-create index if not exists idx_tps3r_desa on tps3r (desa_id);
 create index if not exists idx_residu_desa on residu (desa_id);
 
 -- auto-populate desa_id whenever the source reference changes
@@ -218,10 +207,6 @@ drop trigger if exists trg_bank_sampah_desa on bank_sampah;
 create trigger trg_bank_sampah_desa before insert or update of petugas_id on bank_sampah
 for each row execute function set_desa_id_from_petugas();
 
-drop trigger if exists trg_tps3r_desa on tps3r;
-create trigger trg_tps3r_desa before insert or update of petugas_id on tps3r
-for each row execute function set_desa_id_from_petugas();
-
 drop trigger if exists trg_residu_desa on residu;
 create trigger trg_residu_desa before insert or update of petugas_id on residu
 for each row execute function set_desa_id_from_petugas();
@@ -254,7 +239,6 @@ alter table sampah_masuk enable row level security;
 alter table pemilahan_sampah enable row level security;
 alter table pengumpulan enable row level security;
 alter table bank_sampah enable row level security;
-alter table tps3r enable row level security;
 alter table residu enable row level security;
 
 drop policy if exists desa_select on desa;
@@ -289,11 +273,6 @@ create policy pengumpulan_scope on pengumpulan for all
 
 drop policy if exists bank_sampah_scope on bank_sampah;
 create policy bank_sampah_scope on bank_sampah for all
-  using (is_admin() or desa_id = current_desa_id())
-  with check (is_admin() or desa_id = current_desa_id());
-
-drop policy if exists tps3r_scope on tps3r;
-create policy tps3r_scope on tps3r for all
   using (is_admin() or desa_id = current_desa_id())
   with check (is_admin() or desa_id = current_desa_id());
 
