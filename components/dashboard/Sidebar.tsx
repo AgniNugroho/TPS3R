@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
     ChevronDown,
     CircleHelp,
@@ -46,19 +46,15 @@ export default function Sidebar({
     activeLabel?: string;
 }) {
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const user = useCurrentUser();
     const [profileOpen, setProfileOpen] = useState(false);
     const [desaOpen, setDesaOpen] = useState(false);
-    const [selectedDesaId, setSelectedDesaId] = useState("");
     const [desaList, setDesaList] = useState<
         Array<{ id: string; nama: string }>
     >([]);
-
-    useEffect(() => {
-        setSelectedDesaId(
-            new URLSearchParams(window.location.search).get("desa_id") ?? "",
-        );
-    }, []);
+    const selectedDesaId = searchParams.get("desa_id") ?? "";
 
     useEffect(() => {
         if (user?.role !== "admin") return;
@@ -86,10 +82,10 @@ export default function Sidebar({
             : (user?.desaNama ?? "Desa belum terhubung");
 
     function handleDesaChange(desaId: string) {
-        setSelectedDesaId(desaId);
         const params = new URLSearchParams();
         if (desaId) params.set("desa_id", desaId);
-        router.replace(`/dashboard?${params.toString()}`);
+        const query = params.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname);
     }
 
     async function handleLogout() {
@@ -200,10 +196,14 @@ export default function Sidebar({
                         <FileText size={18} />
                         <span>Laporan</span>
                     </Link>
-                    <button className="nav-item">
+                    <Link
+                        className={`nav-item ${activeLabel === "Manajemen Wilayah" ? "active" : ""}`}
+                        href="/wilayah"
+                        onClick={() => onMobileChange(false)}
+                    >
                         <MapPin size={18} />
-                        <span>Peta wilayah</span>
-                    </button>
+                        <span>Manajemen Wilayah</span>
+                    </Link>
                     <button className="nav-item">
                         <Settings2 size={18} />
                         <span>Pengaturan</span>

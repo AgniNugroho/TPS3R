@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, CheckCircle, X } from "lucide-react";
 
-type Toast = {
+type ToastItem = {
     id: number;
     message: string;
+    type: "error" | "success";
+    leaving?: boolean;
 };
 
 const ERROR_EVENT = "dash-sampah:error";
+const SUCCESS_EVENT = "dash-sampah:success";
+const TOAST_EXIT_DURATION = 300;
 
 function getErrorMessage(value: unknown) {
     if (value instanceof Error && value.message) return value.message;
@@ -24,22 +28,43 @@ export function showErrorToast(error: unknown) {
     );
 }
 
-export default function ErrorToast() {
-    const [toasts, setToasts] = useState<Toast[]>([]);
+export function showSuccessToast(message: string) {
+    window.dispatchEvent(
+        new CustomEvent(SUCCESS_EVENT, { detail: { message } }),
+    );
+}
+
+export default function Toast() {
+    const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+    function dismissToast(id: number) {
+        setToasts((current) =>
+            current.map((toast) =>
+                toast.id === id ? { ...toast, leaving: true } : toast,
+            ),
+        );
+        window.setTimeout(() => {
+            setToasts((current) => current.filter((toast) => toast.id !== id));
+        }, TOAST_EXIT_DURATION);
+    }
 
     useEffect(() => {
-        const handleErrorToast = (event: Event) => {
+        const addToast = (event: Event, type: ToastItem["type"]) => {
             const message = getErrorMessage(
                 (event as CustomEvent<{ message?: unknown }>).detail?.message,
             );
             const id = Date.now() + Math.random();
-            setToasts((current) => [...current.slice(-2), { id, message }]);
-            window.setTimeout(() => {
-                setToasts((current) =>
-                    current.filter((toast) => toast.id !== id),
-                );
-            }, 6000);
+            setToasts((current) => [
+                ...current.slice(-2),
+                { id, message, type },
+            ]);
+            window.setTimeout(
+                () => dismissToast(id),
+                6000 - TOAST_EXIT_DURATION,
+            );
         };
+        const handleErrorToast = (event: Event) => addToast(event, "error");
+        const handleSuccessToast = (event: Event) => addToast(event, "success");
         const handleRuntimeError = (event: ErrorEvent) => {
             showErrorToast(event.error ?? event.message);
         };
@@ -49,6 +74,7 @@ export default function ErrorToast() {
         const originalFetch = window.fetch;
 
         window.addEventListener(ERROR_EVENT, handleErrorToast);
+        window.addEventListener(SUCCESS_EVENT, handleSuccessToast);
         window.addEventListener("error", handleRuntimeError);
         window.addEventListener("unhandledrejection", handleUnhandledRejection);
         window.fetch = async (...args) => {
@@ -75,6 +101,7 @@ export default function ErrorToast() {
 
         return () => {
             window.removeEventListener(ERROR_EVENT, handleErrorToast);
+            window.removeEventListener(SUCCESS_EVENT, handleSuccessToast);
             window.removeEventListener("error", handleRuntimeError);
             window.removeEventListener(
                 "unhandledrejection",
@@ -91,16 +118,20 @@ export default function ErrorToast() {
             aria-atomic="false"
         >
             {toasts.map((toast) => (
-                <div className="error-toast" key={toast.id} role="alert">
-                    <AlertCircle size={18} />
+                <div
+                    className={`error-toast ${toast.type === "success" ? "success-toast" : ""} ${toast.leaving ? "toast-leaving" : ""}`}
+                    key={toast.id}
+                    role="alert"
+                >
+                    {toast.type === "success" ? (
+                        <CheckCircle size={18} />
+                    ) : (
+                        <AlertCircle size={18} />
+                    )}
                     <span>{toast.message}</span>
                     <button
                         className="error-toast-close"
-                        onClick={() =>
-                            setToasts((current) =>
-                                current.filter((item) => item.id !== toast.id),
-                            )
-                        }
+                        onClick={() => dismissToast(toast.id)}
                         aria-label="Tutup pesan error"
                     >
                         <X size={15} />

@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { showErrorToast } from "@/components/ui/ErrorToast";
+import { showErrorToast } from "@/components/ui/Toast";
 
 type FormValues = Record<string, string>;
 const initialIncoming: FormValues = {

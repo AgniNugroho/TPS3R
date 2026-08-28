@@ -69,6 +69,23 @@ body {
 .error-toast-close:hover {
     color: #76251f;
 }
+.success-toast {
+    color: #176743;
+    background: #effbf4;
+    border-color: #b8e6ca;
+    border-left-color: #34a86b;
+    box-shadow: 0 12px 30px rgba(22, 103, 67, 0.16);
+}
+.success-toast .error-toast-close {
+    color: #36835d;
+}
+.success-toast .error-toast-close:hover {
+    color: #176743;
+}
+.toast-leaving {
+    pointer-events: none;
+    animation: error-toast-out 0.3s ease-in both;
+}
 @keyframes error-toast-in {
     from {
         opacity: 0;
@@ -77,6 +94,12 @@ body {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+@keyframes error-toast-out {
+    to {
+        opacity: 0;
+        transform: translateY(14px);
     }
 }
 button,
