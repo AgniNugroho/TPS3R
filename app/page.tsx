@@ -157,13 +157,16 @@ function DashboardContent() {
     const chartData = dashboard.chart;
     const maxChart = Math.max(...chartData.map((item) => item.total_kg), 1);
 
-    function handleExport() {
-        exportWorkbook(
+    async function handleExport() {
+        await exportWorkbook(
             [
                 {
                     sheetName: "Ringkasan",
                     rows: [
-                        { indikator: "Sampah Masuk (kg)", nilai: dashboard.totalIncoming },
+                        {
+                            indikator: "Sampah Masuk (kg)",
+                            nilai: dashboard.totalIncoming,
+                        },
                         {
                             indikator: "Sampah Belum Terpilah (kg)",
                             nilai: Math.max(
@@ -207,8 +210,7 @@ function DashboardContent() {
                     rows: dashboard.chart,
                     columns: [
                         {
-                            header:
-                                period === "1 tahun" ? "Bulan" : "Tanggal",
+                            header: period === "1 tahun" ? "Bulan" : "Tanggal",
                             accessor: (row) => row.label,
                         },
                         {
