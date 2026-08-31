@@ -424,8 +424,7 @@ function ResiduContent() {
                                             )}
                                             <td className="py-4 px-4">
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                                                    {residu.jenis_residu ||
-                                                        "-"}
+                                                    {residu.jenis_residu || "-"}
                                                 </span>
                                             </td>
                                             <td className="py-4 px-4 text-right text-gray-600 whitespace-nowrap">
@@ -535,8 +534,7 @@ function ResiduContent() {
                                             onChange={(event) =>
                                                 setForm({
                                                     ...form,
-                                                    tanggal:
-                                                        event.target.value,
+                                                    tanggal: event.target.value,
                                                 })
                                             }
                                         />
@@ -569,7 +567,6 @@ function ResiduContent() {
                                             Lokasi
                                         </span>
                                         <input
-                                            required
                                             className="w-full px-3.5 py-2.5 text-sm bg-[#f4f7f4]/40 border border-gray-200 rounded-lg focus:border-[var(--teal)] outline-none focus:bg-white"
                                             placeholder="Mis. TPS3R Dusun 1"
                                             value={form.lokasi}
@@ -647,14 +644,11 @@ function ResiduContent() {
                                             onChange={(event) =>
                                                 setForm({
                                                     ...form,
-                                                    desa_id:
-                                                        event.target.value,
+                                                    desa_id: event.target.value,
                                                 })
                                             }
                                         >
-                                            <option value="">
-                                                Pilih desa
-                                            </option>
+                                            <option value="">Pilih desa</option>
                                             {desaRows.map((desa) => (
                                                 <option
                                                     key={desa.id}
@@ -677,8 +671,7 @@ function ResiduContent() {
                                         onChange={(event) =>
                                             setForm({
                                                 ...form,
-                                                keterangan:
-                                                    event.target.value,
+                                                keterangan: event.target.value,
                                             })
                                         }
                                     />

@@ -52,9 +52,8 @@ function getValues(body: ResiduPayload, desaId: string) {
 }
 
 function validate(values: ReturnType<typeof getValues>) {
-    if (!values.lokasi || !values.jenis_residu) {
-        return "Lokasi dan jenis residu wajib diisi.";
-    }
+    // Hanya validasi jika user secara eksplisit mengisi lokasi dan jenis_residu
+    // Data otomatis dari pemilahan tidak perlu validasi ketat
     if (values.berat_kg <= 0) {
         return "Berat residu harus lebih dari 0 kg.";
     }

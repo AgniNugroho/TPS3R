@@ -48,24 +48,38 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
             tanggal: string;
             asal_sampah: string;
             total_berat_kg: number;
+            remaining_berat_kg?: number;
+            total_sorted_kg?: number;
         }>
     >([]);
     const fields =
         mode === "incoming"
             ? [
-                  { key: "tanggal", label: "Tanggal", type: "date" },
-                  { key: "wilayah_id", label: "Asal sampah", type: "select" },
+                  {
+                      key: "tanggal",
+                      label: "Tanggal",
+                      type: "date",
+                      required: true,
+                  },
+                  {
+                      key: "wilayah_id",
+                      label: "Asal sampah",
+                      type: "select",
+                      required: true,
+                  },
                   {
                       key: "total_berat_kg",
                       label: "Total berat (kg)",
                       type: "number",
                       placeholder: "0",
+                      required: false,
                   },
                   {
                       key: "keterangan",
                       label: "Keterangan",
                       type: "text",
                       placeholder: "Catatan tambahan",
+                      required: false,
                   },
               ]
             : [
@@ -74,49 +88,62 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                       label: "ID sampah masuk",
                       type: "text",
                       placeholder: "UUID dari data sampah masuk",
+                      required: true,
                   },
-                  { key: "tanggal", label: "Tanggal", type: "date" },
+                  {
+                      key: "tanggal",
+                      label: "Tanggal",
+                      type: "date",
+                      required: true,
+                  },
                   {
                       key: "organik_kg",
                       label: "Organik (kg)",
                       type: "number",
                       placeholder: "0",
+                      required: false,
                   },
                   {
                       key: "residu_kg",
                       label: "Residu (kg)",
                       type: "number",
                       placeholder: "0",
+                      required: false,
                   },
                   {
                       key: "kardus_kg",
                       label: "Anorganik: kardus (kg)",
                       type: "number",
                       placeholder: "0",
+                      required: false,
                   },
                   {
                       key: "kaca_kg",
                       label: "Anorganik: kaca (kg)",
                       type: "number",
                       placeholder: "0",
+                      required: false,
                   },
                   {
                       key: "besi_kg",
                       label: "Anorganik: besi (kg)",
                       type: "number",
                       placeholder: "0",
+                      required: false,
                   },
                   {
                       key: "anorganik_lainnya_kg",
                       label: "Anorganik: lainnya (kg)",
                       type: "number",
                       placeholder: "0",
+                      required: false,
                   },
                   {
                       key: "keterangan",
                       label: "Keterangan",
                       type: "text",
                       placeholder: "Catatan tambahan",
+                      required: false,
                   },
               ];
 
@@ -135,15 +162,66 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                         );
                         return;
                     }
-                    const sortedIds = new Set(
-                        (sortingResult.rows ?? []).map(
-                            (row: { sampah_masuk_id: string }) =>
+
+                    // Hitung total pemilahan per sampah_masuk_id
+                    const sortingByIncomingId = new Map<
+                        string,
+                        { organik: number; anorganik: number; residu: number }
+                    >();
+                    (sortingResult.rows ?? []).forEach(
+                        (row: {
+                            sampah_masuk_id: string;
+                            organik_kg: number;
+                            anorganik_kg: number;
+                            residu_kg: number;
+                        }) => {
+                            const existing = sortingByIncomingId.get(
                                 row.sampah_masuk_id,
-                        ),
+                            ) || {
+                                organik: 0,
+                                anorganik: 0,
+                                residu: 0,
+                            };
+                            sortingByIncomingId.set(row.sampah_masuk_id, {
+                                organik: existing.organik + row.organik_kg,
+                                anorganik:
+                                    existing.anorganik + row.anorganik_kg,
+                                residu: existing.residu + row.residu_kg,
+                            });
+                        },
                     );
+
+                    // Filter hanya sampah yang belum dipilah sepenuhnya
+                    const processedIncomingRows = (
+                        incomingResult.rows ?? []
+                    ).map(
+                        (row: {
+                            id: string;
+                            total_berat_kg: number;
+                            tanggal: string;
+                            asal_sampah: string;
+                        }) => {
+                            const sorted = sortingByIncomingId.get(row.id);
+                            const totalSorted = sorted
+                                ? sorted.organik +
+                                  sorted.anorganik +
+                                  sorted.residu
+                                : 0;
+                            const remaining = row.total_berat_kg - totalSorted;
+
+                            return {
+                                ...row,
+                                remaining_berat_kg: remaining,
+                                total_sorted_kg: totalSorted,
+                            };
+                        },
+                    );
+
+                    // Hanya tampilkan yang masih punya sisa
                     setIncomingRows(
-                        (incomingResult.rows ?? []).filter(
-                            (row: { id: string }) => !sortedIds.has(row.id),
+                        processedIncomingRows.filter(
+                            (row: { remaining_berat_kg: number }) =>
+                                row.remaining_berat_kg > 0,
                         ),
                     );
                 })
@@ -196,12 +274,28 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                 Number(values.organik_kg || 0) +
                 anorganik +
                 Number(values.residu_kg || 0);
+
+            // Validasi: tolak jika semua berat adalah 0
+            if (total === 0) {
+                showErrorToast(
+                    "Minimal ada satu berat sampah yang harus diisi (tidak boleh semua 0).",
+                );
+                return;
+            }
+
             const selected = incomingRows.find(
                 (row) => row.id === values.sampah_masuk_id,
             );
-            if (!selected || total !== Number(selected.total_berat_kg)) {
+            if (!selected) {
+                showErrorToast("Sampah masuk tidak ditemukan.");
+                return;
+            }
+
+            const sisaSampah =
+                selected.remaining_berat_kg ?? selected.total_berat_kg;
+            if (total > sisaSampah) {
                 showErrorToast(
-                    `Total pemilahan harus sama dengan ${selected?.total_berat_kg ?? 0} kg.`,
+                    `Total pemilahan tidak boleh melebihi sisa sampah ${sisaSampah} kg.`,
                 );
                 return;
             }
@@ -236,6 +330,13 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
         const selectedWilayah = wilayahRows.find(
             (row) => row.id === values.wilayah_id,
         );
+
+        // Validasi untuk mode incoming: tolak jika total berat adalah 0
+        if (mode === "incoming" && Number(values.total_berat_kg || 0) === 0) {
+            showErrorToast("Berat sampah tidak boleh kosong.");
+            return;
+        }
+
         const valuesWithOrigin =
             mode === "incoming"
                 ? { ...values, asal_sampah: selectedWilayah?.dusun ?? "" }
@@ -272,7 +373,7 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                         {field.label}
                         {field.key === "sampah_masuk_id" ? (
                             <select
-                                required
+                                required={(field as any).required ?? true}
                                 value={values[field.key]}
                                 onChange={(event) =>
                                     setValues({
@@ -287,14 +388,16 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                                         {row.tanggal.slice(8, 10)}-
                                         {row.tanggal.slice(5, 7)}-
                                         {row.tanggal.slice(0, 4)} ·{" "}
-                                        {row.asal_sampah} · {row.total_berat_kg}{" "}
+                                        {row.asal_sampah} · Sisa:{" "}
+                                        {row.remaining_berat_kg ??
+                                            row.total_berat_kg}{" "}
                                         kg
                                     </option>
                                 ))}
                             </select>
                         ) : field.key === "wilayah_id" ? (
                             <select
-                                required
+                                required={(field as any).required ?? true}
                                 value={values[field.key]}
                                 onChange={(event) =>
                                     setValues({
@@ -312,7 +415,7 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                             </select>
                         ) : (
                             <input
-                                required={field.key !== "keterangan"}
+                                required={(field as any).required ?? true}
                                 type={field.type}
                                 placeholder={field.placeholder}
                                 value={values[field.key]}
