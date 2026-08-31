@@ -18,6 +18,11 @@
 * {
     box-sizing: border-box;
 }
+html,
+body {
+    max-width: 100vw;
+    overflow-x: hidden;
+}
 body {
     background: var(--background);
     color: var(--foreground);
@@ -1351,6 +1356,11 @@ button {
     margin-left: 244px;
     height: 100vh;
     overflow-y: auto;
+}
+@media (max-width: 1000px) {
+    .main-area {
+        margin-left: 220px;
+    }
 }
 .topbar {
     position: sticky;
