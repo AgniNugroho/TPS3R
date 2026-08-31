@@ -14,8 +14,13 @@ const displayFont = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-    title: "DASH-SAMPAH DESA | Desa Banyubiru",
+    title: "DASH-SAMPAH DESA | Kecamatan Dukun",
     description: "Dashboard pengelolaan sampah desa berbasis data.",
+    icons: {
+        icon: "/logo_kab_mgl.png",
+        shortcut: "/logo_kab_mgl.png",
+        apple: "/logo_kab_mgl.png",
+    },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
