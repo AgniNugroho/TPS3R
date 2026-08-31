@@ -7,6 +7,7 @@ import {
     Bell,
     CalendarDays,
     ChevronDown,
+    Download,
     Leaf,
     Menu,
     PackageCheck,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
+import { exportWorkbook } from "@/lib/utils/exportExcel";
 
 type DashboardData = {
     totalIncoming: number;
@@ -155,6 +157,110 @@ function DashboardContent() {
     const chartData = dashboard.chart;
     const maxChart = Math.max(...chartData.map((item) => item.total_kg), 1);
 
+    function handleExport() {
+        exportWorkbook(
+            [
+                {
+                    sheetName: "Ringkasan",
+                    rows: [
+                        { indikator: "Sampah Masuk (kg)", nilai: dashboard.totalIncoming },
+                        {
+                            indikator: "Sampah Belum Terpilah (kg)",
+                            nilai: Math.max(
+                                0,
+                                dashboard.totalIncoming - dashboard.sortedTotal,
+                            ),
+                        },
+                        {
+                            indikator: "Material Terpilah (kg)",
+                            nilai: dashboard.sortedTotal,
+                        },
+                        { indikator: "Organik (kg)", nilai: dashboard.organik },
+                        {
+                            indikator: "Anorganik (kg)",
+                            nilai: dashboard.anorganik,
+                        },
+                        { indikator: "Residu (kg)", nilai: dashboard.residu },
+                        {
+                            indikator: "Sampah Dimanfaatkan (kg)",
+                            nilai: dashboard.utilized,
+                        },
+                        {
+                            indikator: "Recovery Rate (%)",
+                            nilai: Number(dashboard.recoveryRate.toFixed(2)),
+                        },
+                    ],
+                    columns: [
+                        {
+                            header: "Indikator",
+                            accessor: (row: { indikator: string }) =>
+                                row.indikator,
+                        },
+                        {
+                            header: "Nilai",
+                            accessor: (row: { nilai: number }) => row.nilai,
+                        },
+                    ],
+                },
+                {
+                    sheetName: `Volume per ${period === "1 tahun" ? "Bulan" : "Hari"}`,
+                    rows: dashboard.chart,
+                    columns: [
+                        {
+                            header:
+                                period === "1 tahun" ? "Bulan" : "Tanggal",
+                            accessor: (row) => row.label,
+                        },
+                        {
+                            header: "Total (kg)",
+                            accessor: (row) => row.total_kg,
+                        },
+                    ],
+                },
+                {
+                    sheetName: "Komposisi",
+                    rows: [
+                        { kategori: "Organik", berat: dashboard.organik },
+                        { kategori: "Anorganik", berat: dashboard.anorganik },
+                        { kategori: "Residu", berat: dashboard.residu },
+                    ],
+                    columns: [
+                        {
+                            header: "Kategori",
+                            accessor: (row: { kategori: string }) =>
+                                row.kategori,
+                        },
+                        {
+                            header: "Berat (kg)",
+                            accessor: (row: { berat: number }) => row.berat,
+                        },
+                    ],
+                },
+                {
+                    sheetName: "Performa Wilayah",
+                    rows: dashboard.regions,
+                    columns: [
+                        { header: "Wilayah", accessor: (row) => row.name },
+                        {
+                            header: "Total (kg)",
+                            accessor: (row) => row.total_kg,
+                        },
+                    ],
+                },
+                {
+                    sheetName: "Aktivitas Terbaru",
+                    rows: dashboard.activities,
+                    columns: [
+                        { header: "Aktivitas", accessor: (row) => row.title },
+                        { header: "Keterangan", accessor: (row) => row.meta },
+                        { header: "Nilai", accessor: (row) => row.value },
+                    ],
+                },
+            ],
+            `ringkasan-sampah-desa-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        );
+    }
+
     return (
         <main className="app-shell">
             <Sidebar
@@ -202,6 +308,15 @@ function DashboardContent() {
                             <p className="heading-copy">
                                 Pantau denyut pengelolaan sampah desa hari ini.
                             </p>
+                        </div>
+                        <div className="heading-actions">
+                            <button
+                                className="secondary-button"
+                                onClick={handleExport}
+                                title="Unduh ringkasan sebagai Excel"
+                            >
+                                <Download size={14} /> Export Excel
+                            </button>
                         </div>
                     </div>
                     <section className="stat-grid">
