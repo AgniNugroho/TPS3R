@@ -39,6 +39,13 @@ export async function proxy(request: NextRequest) {
 
     const { pathname } = request.nextUrl;
 
+    if (
+        pathname.match(/\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/) ||
+        pathname.startsWith("/_next")
+    ) {
+        return response;
+    }
+
     if (!user && !isPublicPath(pathname)) {
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set("redirectedFrom", pathname);
@@ -53,5 +60,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/((?!_next/static|_next/image|favicon.ico|api/).*)"],
+    matcher: [
+        "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|api/).*)",
+    ],
 };

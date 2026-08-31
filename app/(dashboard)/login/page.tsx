@@ -2,7 +2,8 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Leaf, Lock, LogIn, Mail } from "lucide-react";
+import { Lock, LogIn, Mail } from "lucide-react";
+import Image from "next/image";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
 function LoginForm() {
@@ -42,11 +43,18 @@ function LoginForm() {
             <aside className="auth-aside">
                 <div className="brand-row">
                     <div className="brand-mark">
-                        <Leaf size={21} />
+                        <Image
+                            src="/logo_kab_mgl.png"
+                            alt="Logo Kabupaten Magelang"
+                            width={34}
+                            height={42}
+                            className="brand-logo"
+                            priority
+                        />
                     </div>
                     <div>
                         <p className="brand-name">DASH-SAMPAH</p>
-                        <p className="brand-subtitle">DESA BANYUBIRU</p>
+                        <p className="brand-subtitle">KECAMATAN DUKUN</p>
                     </div>
                 </div>
                 <div className="auth-aside-copy">

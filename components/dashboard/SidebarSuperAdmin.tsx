@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, CircleHelp, Leaf, Users, X, LogOut } from "lucide-react";
+import { ChevronDown, CircleHelp, Users, X, LogOut } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
@@ -37,11 +38,15 @@ export default function SidebarSuperAdmin({
         <>
             <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
                 <div className="brand-row">
-                    <div
-                        className="brand-mark"
-                        style={{ background: "#efaa6d", color: "#603b20" }}
-                    >
-                        <Leaf size={21} />
+                    <div className="brand-mark">
+                        <Image
+                            src="/logo_kab_mgl.png"
+                            alt="Logo Kabupaten Magelang"
+                            width={34}
+                            height={42}
+                            className="brand-logo"
+                            priority
+                        />
                     </div>
                     <div>
                         <p className="brand-name">DASHBOARD ADMIN</p>

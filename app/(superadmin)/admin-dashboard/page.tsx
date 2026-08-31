@@ -319,7 +319,7 @@ export default function AdminPage() {
                             <h1>Kelola Pengguna TPS3R</h1>
                             <p className="heading-copy">
                                 Manajemen kredensial, peran, dan wilayah tugas
-                                untuk pengelola TPS3R Desa Banyubiru.
+                                untuk pengelola TPS3R Kecamatan Dukun.
                             </p>
                         </div>
                         <div className="heading-actions">
