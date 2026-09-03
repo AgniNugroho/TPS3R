@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!user && pathname !== "/login" && pathname !== "/publik" && pathname !== "/") {
         router.push("/login");
       }
-      if (user && (pathname === "/login" || pathname === "/")) {
+      if (user && pathname === "/login") {
         if (role === "pengelola_sampah") {
           router.push("/pengumpulan");
         } else {
