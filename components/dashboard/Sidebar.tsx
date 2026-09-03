@@ -8,19 +8,16 @@ import {
     FileText,
     Gauge,
     Landmark,
-    LogOut,
     MapPin,
     PackageCheck,
     Recycle,
     Settings2,
-    Shield,
     Truck,
     X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
 const navItems = [
     { label: "Ringkasan", href: "/dashboard", icon: Gauge },
@@ -29,12 +26,6 @@ const navItems = [
     { label: "Bank Sampah", href: "/bank-sampah", icon: Landmark },
     { label: "Residu", href: "/residu", icon: PackageCheck },
 ];
-
-function getInitials(nama: string) {
-    const parts = nama.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return "?";
-    return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
-}
 
 export default function Sidebar({
     mobileOpen,
@@ -49,7 +40,6 @@ export default function Sidebar({
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const user = useCurrentUser();
-    const [profileOpen, setProfileOpen] = useState(false);
     const [desaOpen, setDesaOpen] = useState(false);
     const [desaList, setDesaList] = useState<
         Array<{ id: string; nama: string }>
@@ -86,13 +76,6 @@ export default function Sidebar({
         if (desaId) params.set("desa_id", desaId);
         const query = params.toString();
         router.replace(query ? `${pathname}?${query}` : pathname);
-    }
-
-    async function handleLogout() {
-        const supabase = getSupabaseBrowserClient();
-        await supabase.auth.signOut();
-        router.replace("/login");
-        router.refresh();
     }
 
     return (
@@ -223,46 +206,6 @@ export default function Sidebar({
                             <strong>Butuh bantuan?</strong>
                             <span>Lihat panduan penggunaan</span>
                         </div>
-                    </div>
-                    <div className="profile-menu">
-                        <button
-                            className="profile-row"
-                            onClick={() => setProfileOpen((open) => !open)}
-                            aria-expanded={profileOpen}
-                        >
-                            <div className="profile-avatar">
-                                {getInitials(user?.nama ?? "?")}
-                            </div>
-                            <div className="profile-copy">
-                                <strong>{user?.nama ?? "Memuat..."}</strong>
-                                <span>{user?.roleLabel ?? ""}</span>
-                            </div>
-                            <ChevronDown
-                                size={16}
-                                className={profileOpen ? "chevron-open" : ""}
-                            />
-                        </button>
-                        {profileOpen && (
-                            <div className="profile-dropdown">
-                                {user?.role === "admin" && (
-                                    <Link
-                                        href="/admin-dashboard"
-                                        className="nav-item"
-                                        onClick={() => setProfileOpen(false)}
-                                    >
-                                        <Shield size={18} />
-                                        <span>Dashboard Admin</span>
-                                    </Link>
-                                )}
-                                <button
-                                    className="nav-item"
-                                    onClick={handleLogout}
-                                >
-                                    <LogOut size={18} />
-                                    <span>Keluar</span>
-                                </button>
-                            </div>
-                        )}
                     </div>
                 </div>
             </aside>

@@ -16,6 +16,7 @@ import {
     X,
 } from "lucide-react";
 import Sidebar from "@/components/dashboard/Sidebar";
+import ProfileMenu from "@/components/dashboard/ProfileMenu";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 
 type DashboardData = {
@@ -187,6 +188,7 @@ function DashboardContent() {
                         <div className="topbar-date">
                             <CalendarDays size={16} /> {localDate}
                         </div>
+                        <ProfileMenu />
                     </div>
                 </header>
                 <div className="content-wrap">

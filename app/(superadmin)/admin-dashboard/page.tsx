@@ -24,6 +24,7 @@ import {
     Phone,
 } from "lucide-react";
 import SidebarSuperAdmin from "@/components/dashboard/SidebarSuperAdmin";
+import ProfileMenu from "@/components/dashboard/ProfileMenu";
 
 type UserAccount = {
     id: string;
@@ -302,6 +303,7 @@ export default function AdminPage() {
                         <div className="topbar-date">
                             <CalendarDays size={16} /> {localDate}
                         </div>
+                        <ProfileMenu adminArea />
                     </div>
                 </header>
 
