@@ -1,18 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Leaf, LogIn, Recycle, ShieldCheck, AlertCircle, Phone, Send, Info, CheckCircle2 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
-import toast from "react-hot-toast";
+import { showSuccessToast, showErrorToast } from "@/components/ui/Toast";
 
 export default function LandingPage() {
     const [nama, setNama] = useState("");
     const [kontak, setKontak] = useState("");
     const [kategori, setKategori] = useState("Sampah Menumpuk");
     const [deskripsi, setDeskripsi] = useState("");
+    const [desaId, setDesaId] = useState("");
+    const [desasList, setDesasList] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchDesa = async () => {
+            try {
+                const res = await fetch("/api/public-desa");
+                const json = await res.json();
+                if (json.ok && json.data) {
+                    setDesasList(json.data);
+                    if (json.data.length > 0) setDesaId(json.data[0].id);
+                }
+            } catch (err) {
+                console.error("Gagal memuat daftar desa", err);
+            }
+        };
+        fetchDesa();
+    }, []);
 
     async function handleSubmitPengaduan(e: React.FormEvent) {
         e.preventDefault();
@@ -25,17 +43,18 @@ export default function LandingPage() {
                 kontak_pelapor: kontak || "-",
                 kategori,
                 deskripsi,
-                status: "Diterima"
+                status: "Diterima",
+                desa_id: desaId || null
             }
         ]);
 
         setLoading(false);
 
         if (error) {
-            toast.error("Gagal mengirim laporan. Coba lagi.");
+            showErrorToast("Gagal mengirim laporan. Pastikan tabel telah diupdate.");
             console.error(error);
         } else {
-            toast.success("Laporan berhasil dikirim! Terima kasih atas partisipasi Anda.");
+            showSuccessToast("Laporan berhasil dikirim! Terima kasih atas partisipasi Anda.");
             setNama("");
             setKontak("");
             setDeskripsi("");
@@ -203,6 +222,18 @@ export default function LandingPage() {
                                     style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "2px solid #eef2ef", fontSize: "14px", outline: "none", background: "#f8faf9" }}
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <label style={{ display: "block", fontSize: "13px", fontWeight: 700, color: "#4a5a55", marginBottom: "8px" }}>Tujuan Desa *</label>
+                            <select 
+                                required value={desaId} onChange={(e) => setDesaId(e.target.value)}
+                                style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "2px solid #eef2ef", fontSize: "14px", outline: "none", background: "#f8faf9", cursor: "pointer", marginBottom: "20px" }}
+                            >
+                                {desasList.map(d => (
+                                    <option key={d.id} value={d.id}>{d.nama}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>
