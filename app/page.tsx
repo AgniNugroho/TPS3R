@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Leaf, LogIn, Recycle, ShieldCheck, AlertCircle, Phone, Send, Info, CheckCircle2 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 import toast from "react-hot-toast";
@@ -52,9 +53,7 @@ export default function LandingPage() {
                 display: "flex", justifyContent: "space-between", alignItems: "center"
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <div style={{ width: "40px", height: "40px", backgroundColor: "var(--teal)", color: "white", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Leaf size={24} />
-                    </div>
+                    <Image src="/icon.png" alt="Logo TPS3R" width={38} height={38} style={{ objectFit: "contain" }} />
                     <div>
                         <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "var(--teal)", fontFamily: "var(--font-display)", letterSpacing: "-0.5px" }}>TPS3R DUKUN</h1>
                         <p style={{ margin: 0, fontSize: "11px", color: "#62736d", fontWeight: 600, letterSpacing: "1px" }}>BUMDES BERSAMA</p>
@@ -246,16 +245,14 @@ export default function LandingPage() {
             </section>
 
             {/* ── FOOTER ── */}
-            <footer style={{ background: "#1a2522", padding: "60px 24px", color: "white", textAlign: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "20px" }}>
-                    <Leaf size={24} color="var(--lime)" />
+            <footer style={{ background: "#1a2522", padding: "40px 24px", color: "white", textAlign: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", marginBottom: "16px" }}>
+                    <Image src="/icon.png" alt="Logo TPS3R" width={32} height={32} style={{ objectFit: "contain" }} />
                     <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "1px" }}>TPS3R DUKUN</h2>
                 </div>
-                <p style={{ color: "#8b9994", fontSize: "14px", maxWidth: "400px", margin: "0 auto 30px", lineHeight: 1.6 }}>
+                <p style={{ color: "#8b9994", fontSize: "14px", maxWidth: "450px", margin: "0 auto", lineHeight: 1.6 }}>
                     Dikelola penuh oleh BUMDes Dukun. Berkomitmen mewujudkan lingkungan yang bersih, hijau, dan sehat.
                 </p>
-                <div style={{ height: "1px", background: "rgba(255,255,255,0.1)", maxWidth: "800px", margin: "0 auto 30px" }}></div>
-                <p style={{ color: "#62736d", fontSize: "13px" }}>© 2026 Pemerintahan Desa Dukun. All rights reserved.</p>
             </footer>
 
             {/* Global Styles Addition for hover effects */}
