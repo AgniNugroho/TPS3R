@@ -9,6 +9,9 @@
     --teal: #0b8f82;
     --deep-teal: #086b65;
     --lime: #cce77e;
+    --amber: #f2a45d;
+    --blue: #72b8d1;
+    --orange: #f0ab6a;
 }
 @theme inline {
     --color-background: var(--background);
