@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 export type CurrentUser = {
     nama: string;
+    nomorHp: string | null;
     role: "admin" | "petugas";
     roleLabel: string;
     desaId: string | null;
@@ -21,6 +22,7 @@ export function useCurrentUser() {
                 if (!cancelled && result.ok) {
                     setUser({
                         nama: result.nama,
+                        nomorHp: result.nomorHp ?? null,
                         role: result.role,
                         roleLabel: result.roleLabel,
                         desaId: result.desaId,

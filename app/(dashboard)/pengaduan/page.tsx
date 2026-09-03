@@ -26,10 +26,6 @@ export default function PengaduanPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.role === "pengelola_sampah") {
-      router.replace("/pengumpulan");
-      return;
-    }
     if (user !== undefined) {
       fetchData();
     }

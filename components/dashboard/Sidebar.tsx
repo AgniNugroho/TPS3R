@@ -196,10 +196,14 @@ export default function Sidebar({
                         <MapPin size={18} />
                         <span>Manajemen Wilayah</span>
                     </Link>
-                    <button className="nav-item">
+                    <Link
+                        className={`nav-item ${activeLabel === "Pengaturan" ? "active" : ""}`}
+                        href="/pengaturan"
+                        onClick={() => onMobileChange(false)}
+                    >
                         <Settings2 size={18} />
                         <span>Pengaturan</span>
-                    </button>
+                    </Link>
                 </nav>
                 <div className="sidebar-bottom">
                     <div className="help-card">
