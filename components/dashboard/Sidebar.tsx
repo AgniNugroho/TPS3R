@@ -9,7 +9,6 @@ import {
     Gauge,
     Landmark,
     LogOut,
-    Leaf,
     MapPin,
     PackageCheck,
     Recycle,
@@ -18,6 +17,7 @@ import {
     Truck,
     X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
@@ -100,7 +100,14 @@ export default function Sidebar({
             <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
                 <div className="brand-row">
                     <div className="brand-mark">
-                        <Leaf size={21} />
+                        <Image
+                            src="/logo_kab_mgl.png"
+                            alt="Logo Kabupaten Magelang"
+                            width={34}
+                            height={42}
+                            className="brand-logo"
+                            priority
+                        />
                     </div>
                     <div>
                         <p className="brand-name">DASH-SAMPAH</p>
