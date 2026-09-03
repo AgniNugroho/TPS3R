@@ -1,9 +1,10 @@
 "use client";
 
-import { Bell, CalendarDays, Menu } from "lucide-react";
+import { CalendarDays, Menu } from "lucide-react";
 import { ReactNode, Suspense, useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import ProfileMenu from "./ProfileMenu";
+import NotificationBell from "./NotificationBell";
 
 export default function FormShell({
     title,
@@ -54,13 +55,7 @@ export default function FormShell({
                         <strong>{title}</strong>
                     </div>
                     <div className="topbar-actions">
-                        <button
-                            className="icon-button notification"
-                            aria-label="Notifikasi"
-                        >
-                            <Bell size={19} />
-                            <i />
-                        </button>
+                        <NotificationBell />
                         <div className="topbar-date">
                             <CalendarDays size={16} /> {localDate}
                         </div>

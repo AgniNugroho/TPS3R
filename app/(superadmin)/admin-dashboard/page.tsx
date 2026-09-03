@@ -11,7 +11,6 @@ import {
     MapPin,
     Activity,
     X,
-    Bell,
     CalendarDays,
     Menu,
     RefreshCw,
@@ -25,6 +24,7 @@ import {
 } from "lucide-react";
 import SidebarSuperAdmin from "@/components/dashboard/SidebarSuperAdmin";
 import ProfileMenu from "@/components/dashboard/ProfileMenu";
+import NotificationBell from "@/components/dashboard/NotificationBell";
 
 type UserAccount = {
     id: string;
@@ -293,13 +293,7 @@ export default function AdminPage() {
                         <strong>Kelola Pengguna</strong>
                     </div>
                     <div className="topbar-actions">
-                        <button
-                            className="icon-button notification"
-                            aria-label="Notifikasi"
-                        >
-                            <Bell size={19} />
-                            <i />
-                        </button>
+                        <NotificationBell />
                         <div className="topbar-date">
                             <CalendarDays size={16} /> {localDate}
                         </div>
