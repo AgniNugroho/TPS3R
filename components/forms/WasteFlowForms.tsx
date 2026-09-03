@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { showErrorToast } from "@/components/ui/Toast";
 
@@ -9,6 +9,7 @@ const initialIncoming: FormValues = {
     tanggal: new Date().toISOString().slice(0, 10),
     asal_sampah: "",
     wilayah_id: "",
+    member_id: "",
     total_berat_kg: "",
     keterangan: "",
 };
@@ -27,6 +28,14 @@ const initialSorting: FormValues = {
 
 type FormMode = "incoming" | "sorting";
 
+type FormField = {
+    key: string;
+    label: string;
+    type: string;
+    required: boolean;
+    placeholder?: string;
+};
+
 export default function WasteFlowForm({ mode }: { mode: FormMode }) {
     const router = useRouter();
     const [values, setValues] = useState<FormValues>(
@@ -42,6 +51,15 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
             status: string;
         }>
     >([]);
+    const [memberRows, setMemberRows] = useState<
+        Array<{
+            id: string;
+            nama: string;
+            wilayah_id: string | null;
+            desa_id: string;
+            status: string;
+        }>
+    >([]);
     const [incomingRows, setIncomingRows] = useState<
         Array<{
             id: string;
@@ -52,7 +70,14 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
             total_sorted_kg?: number;
         }>
     >([]);
-    const fields =
+
+    // Filter members based on selected wilayah_id (Cascading)
+    const filteredMembers = useMemo(() => {
+        if (!values.wilayah_id) return [];
+        return memberRows.filter((m) => m.wilayah_id === values.wilayah_id);
+    }, [memberRows, values.wilayah_id]);
+
+    const fields: FormField[] =
         mode === "incoming"
             ? [
                   {
@@ -63,9 +88,15 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                   },
                   {
                       key: "wilayah_id",
-                      label: "Asal sampah",
+                      label: "Asal wilayah / dusun",
                       type: "select",
                       required: true,
+                  },
+                  {
+                      key: "member_id",
+                      label: "Member / Nasabah (Opsional)",
+                      type: "select",
+                      required: false,
                   },
                   {
                       key: "total_berat_kg",
@@ -150,8 +181,8 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
     useEffect(() => {
         if (mode === "sorting") {
             Promise.all([
-                fetch("/api/sampah-masuk").then((response) => response.json()),
-                fetch("/api/pemilahan").then((response) => response.json()),
+                fetch(`/api/sampah-masuk?_t=${Date.now()}`, { cache: "no-store" }).then((response) => response.json()),
+                fetch(`/api/pemilahan?_t=${Date.now()}`, { cache: "no-store" }).then((response) => response.json()),
             ])
                 .then(([incomingResult, sortingResult]) => {
                     if (!incomingResult.ok || !sortingResult.ok) {
@@ -234,17 +265,19 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                 );
             return;
         }
-        fetch("/api/wilayah")
-            .then((response) => response.json())
-            .then((result) => {
-                if (!result.ok) {
+        Promise.all([
+            fetch("/api/wilayah").then((res) => res.json()),
+            fetch("/api/member-bank-sampah").then((res) => res.json()),
+        ])
+            .then(([wilayahResult, memberResult]) => {
+                if (!wilayahResult.ok) {
                     showErrorToast(
-                        result.error || "Data wilayah gagal dimuat.",
+                        wilayahResult.error || "Data wilayah gagal dimuat.",
                     );
                     return;
                 }
                 setWilayahRows(
-                    (result.rows ?? [])
+                    (wilayahResult.rows ?? [])
                         .filter(
                             (row: { status?: string }) =>
                                 !row.status ||
@@ -256,6 +289,22 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                             }),
                         ),
                 );
+
+                if (memberResult.ok) {
+                    setMemberRows(
+                        (memberResult.rows ?? [])
+                            .filter(
+                                (row: { status?: string }) =>
+                                    !row.status ||
+                                    row.status.toLowerCase() === "aktif",
+                            )
+                            .sort((a: { nama: string }, b: { nama: string }) =>
+                                a.nama.localeCompare(b.nama, "id", {
+                                    sensitivity: "base",
+                                }),
+                            ),
+                    );
+                }
             })
             .catch((error) => showErrorToast(error));
     }, [mode]);
@@ -330,6 +379,9 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
         const selectedWilayah = wilayahRows.find(
             (row) => row.id === values.wilayah_id,
         );
+        const selectedMember = memberRows.find(
+            (row) => row.id === values.member_id,
+        );
 
         // Validasi untuk mode incoming: tolak jika total berat adalah 0
         if (mode === "incoming" && Number(values.total_berat_kg || 0) === 0) {
@@ -337,9 +389,17 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
             return;
         }
 
+        const originText = selectedMember
+            ? `${selectedWilayah?.dusun ?? ""} - ${selectedMember.nama}`
+            : selectedWilayah?.dusun ?? "";
+
         const valuesWithOrigin =
             mode === "incoming"
-                ? { ...values, asal_sampah: selectedWilayah?.dusun ?? "" }
+                ? {
+                      ...values,
+                      asal_sampah: originText,
+                      member_id: values.member_id || null,
+                  }
                 : values;
         const payload = Object.fromEntries(
             Object.entries(valuesWithOrigin).map(([key, value]) => [
@@ -348,7 +408,7 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                 key.includes("id") ||
                 key === "asal_sampah" ||
                 key === "keterangan"
-                    ? value
+                    ? value || null
                     : Number(value || 0),
             ]),
         );
@@ -373,7 +433,7 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                         {field.label}
                         {field.key === "sampah_masuk_id" ? (
                             <select
-                                required={(field as any).required ?? true}
+                                required={field.required}
                                 value={values[field.key]}
                                 onChange={(event) =>
                                     setValues({
@@ -397,25 +457,60 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                             </select>
                         ) : field.key === "wilayah_id" ? (
                             <select
-                                required={(field as any).required ?? true}
+                                required={field.required}
                                 value={values[field.key]}
                                 onChange={(event) =>
                                     setValues({
                                         ...values,
                                         wilayah_id: event.target.value,
+                                        member_id: "",
                                     })
                                 }
                             >
-                                <option value="">Pilih wilayah asal</option>
+                                <option value="">Pilih wilayah asal (dusun)</option>
                                 {wilayahRows.map((row) => (
                                     <option key={row.id} value={row.id}>
                                         {row.dusun}
                                     </option>
                                 ))}
                             </select>
+                        ) : field.key === "member_id" ? (
+                            <select
+                                value={values.member_id}
+                                disabled={!values.wilayah_id}
+                                onChange={(event) =>
+                                    setValues({
+                                        ...values,
+                                        member_id: event.target.value,
+                                    })
+                                }
+                            >
+                                {!values.wilayah_id ? (
+                                    <option value="">
+                                        -- Pilih wilayah asal terlebih dahulu --
+                                    </option>
+                                ) : (
+                                    <>
+                                        <option value="">
+                                            Kolektif Wilayah (Tanpa Member Khusus)
+                                        </option>
+                                        {filteredMembers.length > 0 ? (
+                                            filteredMembers.map((m) => (
+                                                <option key={m.id} value={m.id}>
+                                                    {m.nama}
+                                                </option>
+                                            ))
+                                        ) : (
+                                            <option value="" disabled>
+                                                Belum ada member terdaftar di wilayah ini
+                                            </option>
+                                        )}
+                                    </>
+                                )}
+                            </select>
                         ) : (
                             <input
-                                required={(field as any).required ?? true}
+                                required={field.required}
                                 type={field.type}
                                 placeholder={field.placeholder}
                                 value={values[field.key]}

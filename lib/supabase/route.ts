@@ -26,6 +26,8 @@ export function createSupabaseGetHandler(table: TableName) {
                 "sampah_masuk_id",
                 "tanggal",
                 "desa_id",
+                "member_id",
+                "status",
             ];
             const filters = Object.fromEntries(
                 allowedFilters

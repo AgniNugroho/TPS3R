@@ -170,6 +170,31 @@ alter table pengumpulan add column if not exists desa_id uuid references desa(id
 alter table bank_sampah add column if not exists desa_id uuid references desa(id);
 alter table residu add column if not exists desa_id uuid references desa(id);
 
+create table if not exists member_bank_sampah (
+  id uuid primary key default gen_random_uuid(),
+  kode_member text unique,
+  nama text not null,
+  desa_id uuid not null references desa(id) on delete cascade,
+  wilayah_id uuid references wilayah(id) on delete set null,
+  nomor_hp text,
+  alamat text,
+  status text not null default 'Aktif' check (status in ('Aktif', 'Nonaktif')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_member_bank_sampah_desa on member_bank_sampah (desa_id);
+create index if not exists idx_member_bank_sampah_wilayah on member_bank_sampah (wilayah_id);
+create index if not exists idx_member_bank_sampah_nama on member_bank_sampah (nama);
+
+alter table bank_sampah add column if not exists member_id uuid references member_bank_sampah(id) on delete set null;
+create index if not exists idx_bank_sampah_member_id on bank_sampah (member_id);
+
+alter table bank_sampah add column if not exists sampah_masuk_id uuid references sampah_masuk(id) on delete set null;
+create index if not exists idx_bank_sampah_sampah_masuk_id on bank_sampah (sampah_masuk_id);
+
+alter table sampah_masuk add column if not exists member_id uuid references member_bank_sampah(id) on delete set null;
+create index if not exists idx_sampah_masuk_member_id on sampah_masuk (member_id);
+
 update sampah_masuk s set desa_id = w.desa_id from wilayah w where s.wilayah_id = w.id and s.desa_id is null;
 update pengumpulan g set desa_id = w.desa_id from wilayah w where g.wilayah_id = w.id and g.desa_id is null;
 update bank_sampah b set desa_id = p.desa_id from petugas p where b.petugas_id = p.id and b.desa_id is null;
@@ -260,6 +285,7 @@ alter table pemilahan_sampah enable row level security;
 alter table pengumpulan enable row level security;
 alter table bank_sampah enable row level security;
 alter table residu enable row level security;
+alter table member_bank_sampah enable row level security;
 
 drop policy if exists desa_select on desa;
 create policy desa_select on desa for select using (is_admin() or id = current_desa_id());
@@ -298,5 +324,10 @@ create policy bank_sampah_scope on bank_sampah for all
 
 drop policy if exists residu_scope on residu;
 create policy residu_scope on residu for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+drop policy if exists member_bank_sampah_scope on member_bank_sampah;
+create policy member_bank_sampah_scope on member_bank_sampah for all
   using (is_admin() or desa_id = current_desa_id())
   with check (is_admin() or desa_id = current_desa_id());

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/permissions/session";
 
+export const dynamic = "force-dynamic";
+
 type WasteInput = {
     tanggal: string;
     asal_sampah: string;
