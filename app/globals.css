@@ -1695,3 +1695,756 @@ button {
         padding: 24px;
     }
 }
+
+/* ================================================================
+   Waste Sorting Form (Pilah Sampah) - Single Item & Live Capacity Bar
+   ================================================================ */
+
+/* Step 1: Select items */
+.sorting-select-step {
+    margin-top: 20px;
+}
+
+/* Summary cards */
+.sorting-batch-summary {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.sorting-summary-card {
+    flex: 1;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: white;
+    text-align: center;
+}
+.sorting-summary-card.completed {
+    border-color: rgba(11, 143, 130, 0.25);
+    background: rgba(11, 143, 130, 0.04);
+}
+.sorting-summary-value {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    font-family: var(--font-display);
+    color: var(--ink);
+}
+.sorting-summary-card.completed .sorting-summary-value {
+    color: var(--teal);
+}
+.sorting-summary-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+}
+
+/* Empty / loading */
+.sorting-empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+}
+.sorting-empty svg {
+    margin: 0 auto 12px;
+    opacity: 0.5;
+}
+.sorting-empty p {
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.sorting-spinner {
+    animation: spin 0.8s linear infinite;
+}
+
+.sorting-section-header {
+    margin-bottom: 12px;
+}
+.sorting-select-hint {
+    font-size: 13px;
+    color: var(--ink);
+    margin: 0;
+}
+
+/* Selectable list - One-by-One Selection */
+.sorting-select-list {
+    display: grid;
+    gap: 10px;
+}
+.sorting-select-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    color: inherit;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+.sorting-select-item:hover {
+    border-color: var(--teal);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(11, 143, 130, 0.08);
+}
+.sorting-select-item:active {
+    transform: translateY(0);
+}
+.sorting-select-item.completed {
+    cursor: default;
+    opacity: 0.75;
+    background: #fafcfb;
+    transform: none;
+    box-shadow: none;
+}
+.sorting-select-item.completed:hover {
+    border-color: var(--line);
+    box-shadow: none;
+}
+.sorting-select-item-body {
+    flex: 1;
+    min-width: 0;
+}
+.sorting-select-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.sorting-select-item-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.sorting-select-item-origin {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+}
+.sorting-select-item-date {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--background);
+}
+.sorting-select-item-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--teal);
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(11, 143, 130, 0.08);
+    flex-shrink: 0;
+}
+.sorting-select-action-cue {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--teal);
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: rgba(11, 143, 130, 0.06);
+    flex-shrink: 0;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+.sorting-select-item:hover .sorting-select-action-cue {
+    background: rgba(11, 143, 130, 0.12);
+    transform: translateX(2px);
+}
+
+.sorting-progress {
+    height: 5px;
+    background: #eef2ef;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 4px 0;
+}
+.sorting-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+.sorting-select-item-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+}
+.sorting-select-item-remaining {
+    color: var(--amber);
+    font-weight: 700;
+}
+
+/* Completed section */
+.sorting-completed-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+}
+.sorting-complete-icon {
+    color: var(--teal);
+    flex-shrink: 0;
+}
+.sorting-badge-complete {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--teal);
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(11, 143, 130, 0.1);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ================================================================
+   Step 2: Single-Item Sorting Form
+   ================================================================ */
+.sorting-batch {
+    margin-top: 16px;
+}
+.sorting-batch-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+.sorting-back-btn {
+    height: 46px;
+    padding: 0 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    background: white;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+.sorting-back-btn:hover {
+    background: #f7faf8;
+    border-color: rgba(11, 143, 130, 0.4);
+    color: var(--teal);
+    transform: translateX(-2px);
+}
+
+/* ---- Hero Capacity Progress Card ---- */
+.sorting-hero {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(12, 50, 45, 0.04);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.sorting-hero.is-complete {
+    border-color: rgba(11, 143, 130, 0.35);
+    box-shadow: 0 4px 16px rgba(11, 143, 130, 0.08);
+}
+.sorting-hero.is-over {
+    border-color: rgba(239, 68, 68, 0.35);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.08);
+}
+.sorting-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+.sorting-hero-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.sorting-hero-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--teal);
+    background: rgba(11, 143, 130, 0.09);
+    padding: 2px 8px;
+    border-radius: 5px;
+}
+.sorting-hero-date {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+}
+.sorting-hero-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+}
+.sorting-hero-numbers-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+.sorting-hero-numbers {
+    display: flex;
+    align-items: baseline;
+    font-family: var(--font-display);
+    font-weight: 800;
+    line-height: 1;
+}
+.sorting-hero-current {
+    font-size: 26px;
+    color: var(--ink);
+}
+.sorting-hero-separator {
+    font-size: 18px;
+    color: var(--muted);
+    margin: 0 5px;
+}
+.sorting-hero-target {
+    font-size: 18px;
+    color: var(--muted);
+}
+.sorting-hero-percent {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--ink);
+    margin-top: 5px;
+    display: inline-block;
+}
+.sorting-hero-percent.percent-exact {
+    background: rgba(11, 143, 130, 0.12);
+    color: var(--teal);
+}
+.sorting-hero-percent.percent-over {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+.sorting-hero-subinfo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 5px;
+}
+.sorting-hero-subinfo strong {
+    color: var(--ink);
+}
+.sorting-hero-subinfo .dot {
+    opacity: 0.4;
+}
+
+/* Progress bar */
+.sorting-hero-bar {
+    height: 12px;
+    background: #e9ecef;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 16px 0 12px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.sorting-hero-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+}
+
+/* Status messaging */
+.sorting-hero-status {
+    margin-top: 10px;
+}
+.sorting-hero-status-msg {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+.sorting-hero-status-msg.neutral {
+    background: #f8faf9;
+    color: var(--muted);
+    border: 1px solid var(--line);
+}
+.sorting-hero-status-msg.remaining {
+    background: rgba(245, 158, 11, 0.08);
+    color: #b45309;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.sorting-hero-status-msg.ready {
+    background: rgba(11, 143, 130, 0.08);
+    color: #0d685e;
+    border: 1px solid rgba(11, 143, 130, 0.22);
+}
+.sorting-hero-status-msg.warning {
+    background: rgba(239, 68, 68, 0.08);
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.sorting-hero-breakdown {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-size: 11px;
+    color: var(--muted);
+    flex-wrap: wrap;
+}
+.sorting-hero-breakdown .dot {
+    opacity: 0.4;
+}
+.sorting-hero-breakdown strong {
+    color: var(--ink);
+}
+.sorting-breakdown-sub {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+/* Previous History Summary Card */
+.sorting-prev-history-card {
+    background: #f8faf9;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+}
+.sorting-prev-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--line);
+}
+.sorting-prev-history-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--teal);
+    letter-spacing: 0.02em;
+}
+.sorting-prev-history-sisa {
+    font-size: 11px;
+    color: var(--muted);
+}
+.sorting-prev-history-sisa strong {
+    color: var(--ink);
+}
+.sorting-prev-history-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+}
+.sorting-prev-history-item {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.sorting-prev-history-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+}
+.sorting-prev-history-val {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--ink);
+    font-family: var(--font-display);
+    transition: color 0.15s ease;
+}
+.sorting-prev-history-item.has-input {
+    border-color: rgba(11, 143, 130, 0.4);
+    background: #f0fdf4;
+}
+.sorting-prev-history-val.highlight {
+    color: var(--teal);
+}
+
+/* Form input card */
+.sorting-card {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: white;
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.sorting-card.over-limit {
+    border-color: #ef4444;
+}
+.sorting-card-body {
+    padding: 16px 20px 20px;
+}
+.sorting-inputs {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-top: 8px;
+}
+.sorting-inputs label {
+    display: grid;
+    gap: 5px;
+}
+.sorting-input-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.sorting-inputs label span {
+    font-size: 11px;
+    font-weight: 700;
+    color: #556b63;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.sorting-prev-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--teal);
+    background: rgba(11, 143, 130, 0.08);
+    border: 1px solid rgba(11, 143, 130, 0.2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: none;
+    letter-spacing: normal;
+}
+.sorting-prev-badge strong {
+    font-weight: 800;
+}
+.sorting-total-badge {
+    color: #0d685e;
+    font-weight: 700;
+}
+.sorting-inputs input {
+    width: 100%;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 14px;
+    color: var(--ink);
+    background: #fbfdfb;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sorting-inputs input:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(11, 143, 130, 0.12);
+    background: white;
+}
+.sorting-card.over-limit .sorting-inputs input {
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+/* Anorganik sub-group */
+.sorting-anorganik-group {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--line);
+}
+.sorting-group-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+    display: block;
+}
+
+/* Keterangan */
+.sorting-keterangan {
+    display: grid;
+    gap: 5px;
+    margin-top: 16px;
+}
+.sorting-keterangan span {
+    font-size: 11px;
+    font-weight: 700;
+    color: #556b63;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.sorting-keterangan input {
+    width: 100%;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 13px;
+    color: var(--ink);
+    background: #fbfdfb;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+.sorting-keterangan input:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(11, 143, 130, 0.12);
+    background: white;
+}
+
+/* Actions */
+.sorting-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-top: 28px;
+    padding-top: 20px;
+    padding-bottom: 32px;
+    border-top: 1px solid var(--line);
+}
+.sorting-submit-hint {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+}
+.sorting-submit-btn {
+    width: 100%;
+    height: 58px;
+    min-height: 58px;
+    padding: 0 28px;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.015em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(11, 143, 130, 0.28);
+    transition: all 0.2s ease;
+}
+.sorting-submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 26px rgba(11, 143, 130, 0.38);
+}
+.sorting-submit-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+.sorting-submit-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    background: #9ca3af;
+    border-color: #9ca3af;
+    box-shadow: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sorting-batch-summary {
+        flex-direction: column;
+    }
+    .sorting-inputs {
+        grid-template-columns: 1fr;
+    }
+    .sorting-batch-header {
+        width: 100%;
+        margin-bottom: 16px;
+    }
+    .sorting-back-btn {
+        width: 100%;
+        height: 52px;
+        justify-content: center;
+        font-size: 15px;
+        font-weight: 700;
+        border-radius: 12px;
+    }
+    .sorting-hero {
+        padding: 18px;
+    }
+    .sorting-hero-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .sorting-hero-numbers-wrap {
+        align-items: flex-start;
+        width: 100%;
+        border-top: 1px dashed var(--line);
+        padding-top: 10px;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .sorting-hero-percent {
+        margin-top: 0;
+    }
+    .sorting-actions {
+        margin-top: 20px;
+        padding-bottom: 56px; /* Generous bottom spacing on mobile so dev badge/nav bars don't cover button */
+    }
+    .sorting-submit-hint {
+        font-size: 12px;
+    }
+    .sorting-submit-btn {
+        height: 60px; /* Large, prominent touch target */
+        font-size: 16px;
+        font-weight: 800;
+        border-radius: 14px;
+    }
+    .sorting-select-item {
+        padding: 16px;
+        gap: 12px;
+    }
+    .sorting-select-item-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .sorting-select-action-cue {
+        height: 44px;
+        padding: 0 16px;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 9px;
+    }
+    .sorting-prev-history-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .sorting-prev-history-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+

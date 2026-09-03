@@ -79,6 +79,59 @@ export async function POST(request: Request) {
 
         const supabase = getSupabaseServerClient();
 
+        // Validasi kuota: total pemilahan baru harus memenuhi sisa kuota sampah masuk
+        let sampahMasukData: { asal_sampah: string | null; wilayah_id: string | null; total_berat_kg: number } | null = null;
+        if (row.sampah_masuk_id) {
+            const { data: smData, error: smError } = await supabase
+                .from("sampah_masuk")
+                .select("asal_sampah, wilayah_id, total_berat_kg")
+                .eq("id", row.sampah_masuk_id)
+                .single();
+
+            if (smError || !smData) {
+                return NextResponse.json(
+                    { ok: false, error: "Data sampah masuk tidak ditemukan." },
+                    { status: 404 },
+                );
+            }
+
+            sampahMasukData = smData;
+
+            const { data: previousSorting } = await supabase
+                .from("pemilahan_sampah")
+                .select("organik_kg, anorganik_kg, residu_kg")
+                .eq("sampah_masuk_id", row.sampah_masuk_id);
+
+            const alreadySorted = (previousSorting ?? []).reduce(
+                (sum, r: { organik_kg?: number; anorganik_kg?: number; residu_kg?: number }) =>
+                    sum + Number(r.organik_kg || 0) + Number(r.anorganik_kg || 0) + Number(r.residu_kg || 0),
+                0,
+            );
+
+            const remainingQuota = Math.max(0, Number(smData.total_berat_kg || 0) - alreadySorted);
+            const totalSubmitted = Number(row.organik_kg || 0) + Number(row.anorganik_kg || 0) + Number(row.residu_kg || 0);
+
+            if (totalSubmitted <= 0) {
+                return NextResponse.json(
+                    {
+                        ok: false,
+                        error: "Total pemilahan harus lebih dari 0 kg.",
+                    },
+                    { status: 400 },
+                );
+            }
+
+            if (totalSubmitted > remainingQuota + 0.01) {
+                return NextResponse.json(
+                    {
+                        ok: false,
+                        error: `Total pemilahan (${totalSubmitted.toFixed(2)} kg) melebihi sisa kuota sampah masuk (${remainingQuota.toFixed(2)} kg).`,
+                    },
+                    { status: 400 },
+                );
+            }
+        }
+
         // Simpan ke pemilahan_sampah
         const { data: pemilahanData, error: pemilahanError } = await supabase
             .from("pemilahan_sampah")
@@ -94,27 +147,19 @@ export async function POST(request: Request) {
             let sumber = null;
             let lokasi = null;
 
-            if (row.sampah_masuk_id) {
-                const { data: sampahMasukData } = await supabase
-                    .from("sampah_masuk")
-                    .select("asal_sampah, wilayah_id")
-                    .eq("id", row.sampah_masuk_id)
-                    .single();
+            if (sampahMasukData) {
+                sumber = sampahMasukData.asal_sampah;
 
-                if (sampahMasukData) {
-                    sumber = sampahMasukData.asal_sampah;
+                // Ambil nama wilayah jika ada
+                if (sampahMasukData.wilayah_id) {
+                    const { data: wilayahData } = await supabase
+                        .from("wilayah")
+                        .select("dusun")
+                        .eq("id", sampahMasukData.wilayah_id)
+                        .single();
 
-                    // Ambil nama wilayah jika ada
-                    if (sampahMasukData.wilayah_id) {
-                        const { data: wilayahData } = await supabase
-                            .from("wilayah")
-                            .select("dusun")
-                            .eq("id", sampahMasukData.wilayah_id)
-                            .single();
-
-                        if (wilayahData) {
-                            lokasi = wilayahData.dusun;
-                        }
+                    if (wilayahData) {
+                        lokasi = wilayahData.dusun;
                     }
                 }
             }
