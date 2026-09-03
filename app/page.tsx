@@ -1,5 +1,46 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
+import { Leaf, LogIn, Recycle, ShieldCheck, AlertCircle, Phone, Send, Info, CheckCircle2 } from "lucide-react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import toast from "react-hot-toast";
+
+export default function LandingPage() {
+    const [nama, setNama] = useState("");
+    const [kontak, setKontak] = useState("");
+    const [kategori, setKategori] = useState("Sampah Menumpuk");
+    const [deskripsi, setDeskripsi] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    async function handleSubmitPengaduan(e: React.FormEvent) {
+        e.preventDefault();
+        setLoading(true);
+
+        const supabase = getSupabaseBrowserClient();
+        const { error } = await supabase.from("pengaduan").insert([
+            {
+                nama_pelapor: nama,
+                kontak_pelapor: kontak || "-",
+                kategori,
+                deskripsi,
+                status: "Diterima"
+            }
+        ]);
+
+        setLoading(false);
+
+        if (error) {
+            toast.error("Gagal mengirim laporan. Coba lagi.");
+            console.error(error);
+        } else {
+            toast.success("Laporan berhasil dikirim! Terima kasih atas partisipasi Anda.");
+            setNama("");
+            setKontak("");
+            setDeskripsi("");
+            setKategori("Sampah Menumpuk");
+        }
+    }
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -262,47 +303,6 @@ function DashboardContent() {
             `ringkasan-sampah-desa-${new Date().toISOString().slice(0, 10)}.xlsx`,
         );
     }
-import { useState } from "react";
-import Link from "next/link";
-import { Leaf, LogIn, Recycle, ShieldCheck, AlertCircle, Phone, Send, Info, CheckCircle2 } from "lucide-react";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
-import toast from "react-hot-toast";
-
-export default function LandingPage() {
-    const [nama, setNama] = useState("");
-    const [kontak, setKontak] = useState("");
-    const [kategori, setKategori] = useState("Sampah Menumpuk");
-    const [deskripsi, setDeskripsi] = useState("");
-    const [loading, setLoading] = useState(false);
-
-    async function handleSubmitPengaduan(e: React.FormEvent) {
-        e.preventDefault();
-        setLoading(true);
-
-        const supabase = getSupabaseBrowserClient();
-        const { error } = await supabase.from("pengaduan").insert([
-            {
-                nama_pelapor: nama,
-                kontak_pelapor: kontak || "-",
-                kategori,
-                deskripsi,
-                status: "Diterima"
-            }
-        ]);
-
-        setLoading(false);
-
-        if (error) {
-            toast.error("Gagal mengirim laporan. Coba lagi.");
-            console.error(error);
-        } else {
-            toast.success("Laporan berhasil dikirim! Terima kasih atas partisipasi Anda.");
-            setNama("");
-            setKontak("");
-            setDeskripsi("");
-            setKategori("Sampah Menumpuk");
-        }
-    }
 
     return (
         <div style={{ minHeight: "100vh", backgroundColor: "#f8faf9", fontFamily: "var(--font-body)" }}>
@@ -321,6 +321,29 @@ export default function LandingPage() {
                         <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "var(--teal)", fontFamily: "var(--font-display)", letterSpacing: "-0.5px" }}>TPS3R DUKUN</h1>
                         <p style={{ margin: 0, fontSize: "11px", color: "#62736d", fontWeight: 600, letterSpacing: "1px" }}>BUMDES BERSAMA</p>
                     </div>
+                </div>
+                <Link href="/login" style={{ 
+                    display: "flex", alignItems: "center", gap: "8px", 
+                    backgroundColor: "var(--teal)", color: "white", padding: "10px 18px", 
+                    borderRadius: "100px", fontSize: "13px", fontWeight: 700, textDecoration: "none",
+                    transition: "transform 0.2s, backgroundColor 0.2s"
+                }}>
+                    <LogIn size={16} /> Login Petugas
+                </Link>
+            </nav>
+
+            {/* ── HERO SECTION ── */}
+            <section style={{ 
+                minHeight: "100vh", 
+                padding: "100px 24px 60px", 
+                display: "flex", alignItems: "center", justifyContent: "center",
+                textAlign: "center", 
+                background: "linear-gradient(180deg, #e6f0ed 0%, #f8faf9 100%)",
+                position: "relative", overflow: "hidden"
+            }}>
+                <div style={{ maxWidth: "800px", margin: "0 auto", position: "relative", zIndex: 2 }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", backgroundColor: "rgba(11, 143, 130, 0.1)", color: "var(--teal)", padding: "6px 16px", borderRadius: "100px", fontSize: "13px", fontWeight: 700, marginBottom: "24px" }}>
+                        <Recycle size={16} /> Desa Bersih, Warga Sehat
                 </header>
                 <div className="content-wrap">
                     <div className="page-heading">
@@ -335,6 +358,15 @@ export default function LandingPage() {
                             <p className="heading-copy">
                                 Pantau denyut pengelolaan sampah desa hari ini.
                             </p>
+                        </div>
+                        <div className="heading-actions">
+                            <button
+                                className="secondary-button"
+                                onClick={handleExport}
+                                title="Unduh ringkasan sebagai Excel"
+                            >
+                                <Download size={14} /> Export Excel
+                            </button>
                         </div>
                     </div>
                     <h2 style={{ fontSize: "56px", fontWeight: 800, color: "#1a2522", fontFamily: "var(--font-display)", lineHeight: 1.1, marginBottom: "24px", letterSpacing: "-1.5px" }}>
