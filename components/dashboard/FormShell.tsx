@@ -3,6 +3,7 @@
 import { Bell, CalendarDays, Menu } from "lucide-react";
 import { ReactNode, Suspense, useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
+import ProfileMenu from "./ProfileMenu";
 
 export default function FormShell({
     title,
@@ -63,6 +64,7 @@ export default function FormShell({
                         <div className="topbar-date">
                             <CalendarDays size={16} /> {localDate}
                         </div>
+                        <ProfileMenu />
                     </div>
                 </header>
                 {children}

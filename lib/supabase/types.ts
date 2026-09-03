@@ -2,6 +2,7 @@ export type TableName =
     | "desa"
     | "wilayah"
     | "petugas"
+    | "members"
     | "sampah_masuk"
     | "pemilahan_sampah"
     | "pengumpulan"
@@ -13,6 +14,7 @@ export const DESA_SCOPE_COLUMN: Record<TableName, string> = {
     desa: "id",
     wilayah: "desa_id",
     petugas: "desa_id",
+    members: "desa_id",
     sampah_masuk: "desa_id",
     pemilahan_sampah: "desa_id",
     pengumpulan: "desa_id",

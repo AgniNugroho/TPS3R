@@ -2,7 +2,8 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Lock, LogIn, Mail } from "lucide-react";
+import Link from "next/link";
+import { Eye, EyeOff, Lock, LogIn, Mail, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 
@@ -11,7 +12,6 @@ function LoginForm() {
     const searchParams = useSearchParams();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
@@ -72,6 +72,22 @@ function LoginForm() {
                 </p>
             </aside>
             <div className="auth-main">
+                <div style={{ position: "absolute", top: "24px", right: "32px", zIndex: 10 }}>
+                    <Link 
+                        href="/" 
+                        style={{ 
+                            display: "inline-flex", alignItems: "center", gap: "8px", 
+                            backgroundColor: "white", padding: "10px 18px", borderRadius: "100px",
+                            color: "#62736d", textDecoration: "none", fontSize: "13px", fontWeight: 700,
+                            boxShadow: "0 8px 24px rgba(0,0,0,0.03)", border: "1px solid #eef2ef",
+                            transition: "all 0.2s"
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--teal)"; e.currentTarget.style.color = "var(--teal)"; e.currentTarget.style.transform = "translateY(-2px)" }}
+                        onMouseOut={(e) => { e.currentTarget.style.borderColor = "#eef2ef"; e.currentTarget.style.color = "#62736d"; e.currentTarget.style.transform = "translateY(0)" }}
+                    >
+                        <ArrowLeft size={16} /> Halaman Utama
+                    </Link>
+                </div>
                 <div className="auth-card">
                     <p className="eyebrow">
                         <span className="live-dot" /> MASUK KE AKUN
@@ -103,7 +119,7 @@ function LoginForm() {
                             <div className="input-with-icon">
                                 <Lock size={16} />
                                 <input
-                                    type={showPassword ? "text" : "password"}
+                                    type="password"
                                     required
                                     placeholder="••••••••"
                                     value={password}
@@ -112,24 +128,6 @@ function LoginForm() {
                                     }
                                     autoComplete="current-password"
                                 />
-                                <button
-                                    type="button"
-                                    className="icon-button password-toggle"
-                                    onClick={() =>
-                                        setShowPassword((show) => !show)
-                                    }
-                                    aria-label={
-                                        showPassword
-                                            ? "Sembunyikan kata sandi"
-                                            : "Tampilkan kata sandi"
-                                    }
-                                >
-                                    {showPassword ? (
-                                        <EyeOff size={16} />
-                                    ) : (
-                                        <Eye size={16} />
-                                    )}
-                                </button>
                             </div>
                         </label>
                         {error && <p className="auth-error">{error}</p>}

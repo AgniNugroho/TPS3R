@@ -9,6 +9,9 @@
     --teal: #0b8f82;
     --deep-teal: #086b65;
     --lime: #cce77e;
+    --amber: #f2a45d;
+    --blue: #72b8d1;
+    --orange: #f0ab6a;
 }
 @theme inline {
     --color-background: var(--background);
@@ -331,54 +334,58 @@ button {
 .help-card span {
     font-size: 10px;
 }
+.profile-menu {
+    position: relative;
+}
 .profile-row {
     display: flex;
     align-items: center;
     gap: 9px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-    padding: 16px 5px 0;
-    width: 100%;
-    background: transparent;
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 0;
+    padding: 5px 8px 5px 5px;
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    background: white;
     text-align: left;
-    color: inherit;
+    color: var(--ink);
     font: inherit;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+.profile-row:hover {
+    background: #f5f8f7;
 }
 .profile-row > svg {
-    color: #8bb8aa;
+    color: #98a6a1;
     transition: transform 0.2s ease;
 }
 .profile-row .chevron-open {
     transform: rotate(180deg);
 }
-.profile-menu {
-    position: relative;
-}
 .profile-dropdown {
     position: absolute;
-    bottom: calc(100% + 6px);
-    left: 5px;
-    right: 5px;
-    background: #0a4440;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
-    padding: 5px;
-    box-shadow: 0 12px 28px rgba(5, 30, 27, 0.35);
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 210px;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 16px 36px rgba(12, 50, 45, 0.16);
+    z-index: 20;
 }
 .profile-dropdown .nav-item {
-    color: #f1b3a8;
+    color: var(--ink);
 }
 .profile-dropdown .nav-item:hover {
-    color: white;
-    background: rgba(255, 255, 255, 0.08);
+    color: var(--ink);
+    background: #f0f4f2;
 }
 .profile-avatar {
     display: grid;
     place-items: center;
     width: 30px;
     height: 30px;
+    flex-shrink: 0;
     border-radius: 50%;
     color: #1a6359;
     font-weight: 800;
@@ -386,15 +393,20 @@ button {
     background: #f3d293;
 }
 .profile-copy {
-    flex: 1;
+    line-height: 1.25;
 }
 .profile-copy strong {
-    font-size: 11px;
+    font-size: 12px;
 }
 .profile-copy span {
-    color: #88b9aa;
+    color: #7c8a85;
     font-size: 10px;
-    margin-top: 2px;
+    margin-top: 1px;
+}
+@media (max-width: 700px) {
+    .profile-copy {
+        display: none;
+    }
 }
 .main-area {
     min-width: 0;
