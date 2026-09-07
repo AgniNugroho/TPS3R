@@ -59,7 +59,9 @@ function PostinganContent() {
     const [uploadingImage, setUploadingImage] = useState(false);
 
     // Filters
-    const [selectedDesaFilter, setSelectedDesaFilter] = useState(queryDesaId || "all");
+    const [selectedDesaFilter, setSelectedDesaFilter] = useState(
+        queryDesaId || "all",
+    );
     const [statusFilter, setStatusFilter] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -84,7 +86,9 @@ function PostinganContent() {
     // Sync selectedDesaFilter with URL if provided
     useEffect(() => {
         if (queryDesaId) {
-            void Promise.resolve().then(() => setSelectedDesaFilter(queryDesaId));
+            void Promise.resolve().then(() =>
+                setSelectedDesaFilter(queryDesaId),
+            );
         }
     }, [queryDesaId]);
 
@@ -116,7 +120,9 @@ function PostinganContent() {
             if (result.ok) {
                 setPostinganList(result.data || []);
             } else {
-                setErrorMessage(result.error || "Gagal mengambil data postingan.");
+                setErrorMessage(
+                    result.error || "Gagal mengambil data postingan.",
+                );
             }
         } catch {
             setErrorMessage("Koneksi ke server terganggu.");
@@ -137,7 +143,9 @@ function PostinganContent() {
         if (!file) return;
 
         if (!file.type.startsWith("image/")) {
-            showErrorToast("File yang diunggah harus berupa gambar (JPG, PNG, WebP).");
+            showErrorToast(
+                "File yang diunggah harus berupa gambar (JPG, PNG, WebP).",
+            );
             return;
         }
 
@@ -175,7 +183,10 @@ function PostinganContent() {
         setErrorMessage("");
         setForm({
             ...initialForm,
-            desa_id: user?.role === "admin" ? desaList[0]?.id || "" : user?.desaId || "",
+            desa_id:
+                user?.role === "admin"
+                    ? desaList[0]?.id || ""
+                    : user?.desaId || "",
         });
         setModalMode("create");
     }
@@ -305,10 +316,18 @@ function PostinganContent() {
                     </p>
                     <h1>Postingan & Produk</h1>
                     <p className="heading-copy">
-                        Kelola publikasi produk olahan TPS3R (pupuk kompos, pakan maggot, dll) yang muncul di landing page publik.
+                        Kelola publikasi produk olahan TPS3R (pupuk kompos,
+                        pakan maggot, dll) yang muncul di landing page publik.
                     </p>
                 </div>
-                <div className="heading-actions" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div
+                    className="heading-actions"
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                    }}
+                >
                     <button
                         type="button"
                         className="primary-button"
@@ -353,15 +372,28 @@ function PostinganContent() {
                             cursor: loading ? "not-allowed" : "pointer",
                         }}
                     >
-                        <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                        <RefreshCw
+                            size={14}
+                            className={loading ? "animate-spin" : ""}
+                        />
                         <span>Segarkan</span>
                     </button>
                 </div>
             </div>
 
             {/* Filter and Search Bar */}
-            <div className="panel" style={{ padding: "16px", marginBottom: "24px" }}>
-                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+            <div
+                className="panel"
+                style={{ padding: "16px", marginBottom: "24px" }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        gap: "12px",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                    }}
+                >
                     {/* Search Input */}
                     <div style={{ position: "relative", flex: "1 1 240px" }}>
                         <Search
@@ -395,7 +427,9 @@ function PostinganContent() {
                     {isAdmin ? (
                         <select
                             value={selectedDesaFilter}
-                            onChange={(e) => setSelectedDesaFilter(e.target.value)}
+                            onChange={(e) =>
+                                setSelectedDesaFilter(e.target.value)
+                            }
                             style={{
                                 padding: "9px 14px",
                                 borderRadius: "8px",
@@ -484,7 +518,9 @@ function PostinganContent() {
                     }}
                 >
                     <Loader2 size={24} className="animate-spin" />
-                    <span style={{ fontSize: "14px" }}>Memuat postingan produk...</span>
+                    <span style={{ fontSize: "14px" }}>
+                        Memuat postingan produk...
+                    </span>
                 </div>
             ) : postinganList.length === 0 ? (
                 <EmptyState
@@ -495,14 +531,17 @@ function PostinganContent() {
                 <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                        gridTemplateColumns:
+                            "repeat(auto-fill, minmax(320px, 1fr))",
                         gap: "24px",
                     }}
                 >
                     {postinganList.map((item) => {
                         const desaNama = item.desa?.nama || "Desa";
                         const isPublik = item.status === "Publik";
-                        const formattedDate = new Date(item.created_at).toLocaleDateString("id-ID", {
+                        const formattedDate = new Date(
+                            item.created_at,
+                        ).toLocaleDateString("id-ID", {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
@@ -519,7 +558,8 @@ function PostinganContent() {
                                     boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                                     display: "flex",
                                     flexDirection: "column",
-                                    transition: "box-shadow 0.2s, transform 0.2s",
+                                    transition:
+                                        "box-shadow 0.2s, transform 0.2s",
                                 }}
                             >
                                 {/* Image Container */}
@@ -546,7 +586,8 @@ function PostinganContent() {
                                             position: "absolute",
                                             top: "12px",
                                             left: "12px",
-                                            background: "rgba(11, 143, 130, 0.9)",
+                                            background:
+                                                "rgba(11, 143, 130, 0.9)",
                                             backdropFilter: "blur(6px)",
                                             color: "#fff",
                                             padding: "4px 10px",
@@ -564,8 +605,12 @@ function PostinganContent() {
                                             position: "absolute",
                                             top: "12px",
                                             right: "12px",
-                                            background: isPublik ? "#dcfce7" : "#fef3c7",
-                                            color: isPublik ? "#166534" : "#92400e",
+                                            background: isPublik
+                                                ? "#dcfce7"
+                                                : "#fef3c7",
+                                            color: isPublik
+                                                ? "#166534"
+                                                : "#92400e",
                                             border: `1px solid ${isPublik ? "#bbf7d0" : "#fde68a"}`,
                                             padding: "4px 10px",
                                             borderRadius: "100px",
@@ -633,7 +678,9 @@ function PostinganContent() {
                                     >
                                         <button
                                             type="button"
-                                            onClick={() => openPreviewModal(item)}
+                                            onClick={() =>
+                                                openPreviewModal(item)
+                                            }
                                             style={{
                                                 flex: 1,
                                                 display: "flex",
@@ -662,7 +709,8 @@ function PostinganContent() {
                                                 justifyContent: "center",
                                                 gap: "6px",
                                                 padding: "8px",
-                                                background: "rgba(11, 143, 130, 0.08)",
+                                                background:
+                                                    "rgba(11, 143, 130, 0.08)",
                                                 border: "1px solid rgba(11, 143, 130, 0.2)",
                                                 borderRadius: "8px",
                                                 fontSize: "12px",
@@ -675,7 +723,9 @@ function PostinganContent() {
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => openDeleteModal(item)}
+                                            onClick={() =>
+                                                openDeleteModal(item)
+                                            }
                                             style={{
                                                 padding: "8px 12px",
                                                 background: "#fff1f2",
@@ -701,491 +751,389 @@ function PostinganContent() {
 
             {/* ── MODAL CREATE / EDIT ── */}
             {(modalMode === "create" || modalMode === "edit") && (
-                <div
-                    className="modal-backdrop z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs"
-                    role="presentation"
-                    onClick={closeModal}
-                    style={{ position: "fixed", inset: 0, padding: "16px", zIndex: 999 }}
-                >
-                    <section
-                        className="activity-modal max-w-lg w-full bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-100"
+                <div className="modal-backdrop-clean" onClick={closeModal}>
+                    <div
+                        className="modal-dialog-clean"
                         role="dialog"
                         aria-modal="true"
                         onClick={(e) => e.stopPropagation()}
-                        style={{
-                            background: "#fff",
-                            borderRadius: "16px",
-                            maxWidth: "560px",
-                            width: "100%",
-                            boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
-                            overflow: "hidden",
-                        }}
                     >
-                        <div
-                            style={{
-                                padding: "20px 24px",
-                                borderBottom: "1px solid #eef2ef",
-                                background: "#f8faf9",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                            }}
-                        >
-                            <div>
-                                <h2
-                                    style={{
-                                        margin: 0,
-                                        fontSize: "17px",
-                                        fontWeight: 800,
-                                        color: "var(--ink)",
-                                    }}
-                                >
-                                    {modalMode === "create"
-                                        ? "Buat Postingan Produk Baru"
-                                        : "Edit Postingan Produk"}
-                                </h2>
-                                <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "var(--muted)" }}>
-                                    Informasi ini akan ditampilkan untuk member & warga desa di landing page.
-                                </p>
-                            </div>
+                        <div className="modal-header-clean">
+                            <h3>
+                                {modalMode === "create"
+                                    ? "Buat Postingan Produk Baru"
+                                    : "Edit Postingan Produk"}
+                            </h3>
                             <button
                                 type="button"
-                                onClick={closeModal}
                                 style={{
+                                    background: "none",
                                     border: "none",
-                                    background: "transparent",
+                                    color: "#94a3b8",
                                     cursor: "pointer",
-                                    color: "var(--muted)",
-                                    padding: "4px",
                                 }}
+                                onClick={closeModal}
                             >
-                                <X size={20} />
+                                <X size={18} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit}>
-                            <div
-                                style={{
-                                    padding: "24px",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "18px",
-                                    maxHeight: "calc(80vh - 140px)",
-                                    overflowY: "auto",
-                                }}
-                            >
-                                {errorMessage && (
-                                    <div
-                                        style={{
-                                            padding: "12px 14px",
-                                            borderRadius: "8px",
-                                            background: "#fee2e2",
-                                            border: "1px solid #fca5a5",
-                                            color: "#991b1b",
-                                            fontSize: "12px",
-                                            display: "flex",
-                                            gap: "8px",
-                                            alignItems: "center",
-                                        }}
-                                    >
-                                        <AlertCircle size={16} />
-                                        <span>{errorMessage}</span>
-                                    </div>
-                                )}
-
-                                {/* Desa Selector */}
-                                <div>
-                                    <label
-                                        style={{
-                                            display: "block",
-                                            fontSize: "12px",
-                                            fontWeight: 700,
-                                            color: "#4a5a55",
-                                            marginBottom: "6px",
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.5px",
-                                        }}
-                                    >
-                                        Desa TPS3R *
-                                    </label>
-                                    {isAdmin ? (
-                                        <select
-                                            required
-                                            value={form.desa_id}
-                                            onChange={(e) =>
-                                                setForm({ ...form, desa_id: e.target.value })
-                                            }
-                                            style={{
-                                                width: "100%",
-                                                padding: "10px 14px",
-                                                borderRadius: "8px",
-                                                border: "1px solid var(--line)",
-                                                fontSize: "13px",
-                                                outline: "none",
-                                                background: "#fcfdfc",
-                                            }}
-                                        >
-                                            <option value="" disabled>
-                                                Pilih Desa
-                                            </option>
-                                            {desaList.map((d) => (
-                                                <option key={d.id} value={d.id}>
-                                                    {d.nama}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            disabled
-                                            value={user?.desaNama || "Desa Anda"}
-                                            style={{
-                                                width: "100%",
-                                                padding: "10px 14px",
-                                                borderRadius: "8px",
-                                                border: "1px solid var(--line)",
-                                                fontSize: "13px",
-                                                background: "#f4f7f4",
-                                                color: "var(--ink)",
-                                            }}
-                                        />
-                                    )}
+                        <form
+                            onSubmit={handleSubmit}
+                            className="modal-form-clean"
+                        >
+                            {errorMessage && (
+                                <div
+                                    style={{
+                                        padding: "12px 14px",
+                                        borderRadius: "8px",
+                                        background: "#fee2e2",
+                                        border: "1px solid #fca5a5",
+                                        color: "#991b1b",
+                                        fontSize: "12px",
+                                        display: "flex",
+                                        gap: "8px",
+                                        alignItems: "center",
+                                    }}
+                                >
+                                    <AlertCircle size={16} />
+                                    <span>{errorMessage}</span>
                                 </div>
+                            )}
 
-                                {/* Judul Produk */}
-                                <div>
-                                    <label
-                                        style={{
-                                            display: "block",
-                                            fontSize: "12px",
-                                            fontWeight: 700,
-                                            color: "#4a5a55",
-                                            marginBottom: "6px",
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.5px",
-                                        }}
+                            {/* Desa Selector */}
+                            <div className="form-group-clean">
+                                <label>Desa TPS3R *</label>
+                                {isAdmin ? (
+                                    <select
+                                        required
+                                        value={form.desa_id}
+                                        onChange={(e) =>
+                                            setForm({
+                                                ...form,
+                                                desa_id: e.target.value,
+                                            })
+                                        }
+                                        className="form-control-clean"
                                     >
-                                        Nama / Judul Produk *
-                                    </label>
+                                        <option value="" disabled>
+                                            Pilih Desa
+                                        </option>
+                                        {desaList.map((d) => (
+                                            <option key={d.id} value={d.id}>
+                                                {d.nama}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
                                     <input
                                         type="text"
-                                        required
-                                        placeholder="Contoh: Pupuk Kompos Organik Super / Pakan Maggot BSF"
-                                        value={form.judul}
-                                        onChange={(e) =>
-                                            setForm({ ...form, judul: e.target.value })
-                                        }
-                                        style={{
-                                            width: "100%",
-                                            padding: "10px 14px",
-                                            borderRadius: "8px",
-                                            border: "1px solid var(--line)",
-                                            fontSize: "13px",
-                                            outline: "none",
-                                            background: "#fcfdfc",
-                                        }}
+                                        disabled
+                                        value={user?.desaNama || "Desa Anda"}
+                                        className="form-control-clean"
                                     />
-                                </div>
+                                )}
+                            </div>
 
-                                {/* Upload Foto Produk */}
-                                <div>
-                                    <label
-                                        style={{
-                                            display: "block",
-                                            fontSize: "12px",
-                                            fontWeight: 700,
-                                            color: "#4a5a55",
-                                            marginBottom: "6px",
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.5px",
-                                        }}
-                                    >
-                                        Foto Produk *
-                                    </label>
+                            {/* Judul Produk */}
+                            <div className="form-group-clean">
+                                <label>Nama / Judul Produk *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Contoh: Pupuk Kompos Organik Super / Pakan Maggot BSF"
+                                    value={form.judul}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            judul: e.target.value,
+                                        })
+                                    }
+                                    className="form-control-clean"
+                                />
+                            </div>
 
-                                    {/* Live Image Preview */}
-                                    {form.gambar_url ? (
-                                        <div
-                                            style={{
-                                                marginBottom: "12px",
-                                                position: "relative",
-                                                borderRadius: "10px",
-                                                overflow: "hidden",
-                                                border: "1px solid var(--line)",
-                                                height: "180px",
-                                                background: "#f4f7f4",
-                                            }}
-                                        >
-                                            <Image
-                                                src={form.gambar_url}
-                                                alt="Preview"
-                                                fill
-                                                style={{ objectFit: "cover" }}
-                                                unoptimized
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setForm({ ...form, gambar_url: "" })
-                                                }
-                                                style={{
-                                                    position: "absolute",
-                                                    top: "10px",
-                                                    right: "10px",
-                                                    background: "rgba(0,0,0,0.6)",
-                                                    color: "#fff",
-                                                    border: "none",
-                                                    borderRadius: "50%",
-                                                    width: "28px",
-                                                    height: "28px",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    cursor: "pointer",
-                                                }}
-                                                title="Hapus foto"
-                                            >
-                                                <X size={16} />
-                                            </button>
-                                        </div>
-                                    ) : null}
+                            {/* Upload Foto Produk */}
+                            <div className="form-group-clean">
+                                <label>Foto Produk *</label>
 
-                                    {/* Upload trigger */}
+                                {/* Live Image Preview */}
+                                {form.gambar_url ? (
                                     <div
                                         style={{
-                                            border: "2px dashed #d0dcd6",
-                                            borderRadius: "10px",
-                                            padding: "20px",
-                                            textAlign: "center",
-                                            background: "#fcfdfc",
+                                            marginBottom: "4px",
                                             position: "relative",
-                                            cursor: uploadingImage ? "not-allowed" : "pointer",
+                                            borderRadius: "10px",
+                                            overflow: "hidden",
+                                            border: "1px solid var(--line)",
+                                            height: "180px",
+                                            background: "#f4f7f4",
                                         }}
                                     >
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            disabled={uploadingImage}
-                                            onChange={handleFileUpload}
+                                        <Image
+                                            src={form.gambar_url}
+                                            alt="Preview"
+                                            fill
+                                            style={{ objectFit: "cover" }}
+                                            unoptimized
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setForm({
+                                                    ...form,
+                                                    gambar_url: "",
+                                                })
+                                            }
                                             style={{
                                                 position: "absolute",
-                                                inset: 0,
-                                                opacity: 0,
-                                                cursor: uploadingImage ? "not-allowed" : "pointer",
-                                                width: "100%",
-                                                height: "100%",
-                                            }}
-                                        />
-                                        <div
-                                            style={{
+                                                top: "10px",
+                                                right: "10px",
+                                                background: "rgba(0,0,0,0.6)",
+                                                color: "#fff",
+                                                border: "none",
+                                                borderRadius: "50%",
+                                                width: "28px",
+                                                height: "28px",
                                                 display: "flex",
-                                                flexDirection: "column",
                                                 alignItems: "center",
-                                                gap: "8px",
-                                                color: "var(--muted)",
+                                                justifyContent: "center",
+                                                cursor: "pointer",
                                             }}
+                                            title="Hapus foto"
                                         >
-                                            {uploadingImage ? (
-                                                <>
-                                                    <Loader2 size={24} className="animate-spin text-[var(--teal)]" />
-                                                    <span style={{ fontSize: "12px", fontWeight: 600 }}>
-                                                        Mengunggah gambar ke server...
-                                                    </span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <UploadCloud size={28} color="var(--teal)" />
-                                                    <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)" }}>
-                                                        Pilih file foto produk
-                                                    </span>
-                                                    <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                                                        Mendukung JPG, PNG, atau WebP (Maks. 5MB)
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
+                                            <X size={16} />
+                                        </button>
                                     </div>
-                                </div>
+                                ) : null}
 
-                                {/* Deskripsi Produk */}
-                                <div>
-                                    <label
+                                {/* Upload trigger */}
+                                <div
+                                    style={{
+                                        border: "2px dashed #d0dcd6",
+                                        borderRadius: "10px",
+                                        padding: "20px",
+                                        textAlign: "center",
+                                        background: "#fcfdfc",
+                                        position: "relative",
+                                        cursor: uploadingImage
+                                            ? "not-allowed"
+                                            : "pointer",
+                                    }}
+                                >
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        disabled={uploadingImage}
+                                        onChange={handleFileUpload}
                                         style={{
-                                            display: "block",
-                                            fontSize: "12px",
-                                            fontWeight: 700,
-                                            color: "#4a5a55",
-                                            marginBottom: "6px",
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.5px",
-                                        }}
-                                    >
-                                        Deskripsi & Informasi Produk *
-                                    </label>
-                                    <textarea
-                                        required
-                                        rows={5}
-                                        placeholder="Tuliskan informasi produk olahan ini: manfaat pupuk, kadar nutrisi, cara pemakaian, asal bahan olahan, dll..."
-                                        value={form.deskripsi}
-                                        onChange={(e) =>
-                                            setForm({ ...form, deskripsi: e.target.value })
-                                        }
-                                        style={{
+                                            position: "absolute",
+                                            inset: 0,
+                                            opacity: 0,
+                                            cursor: uploadingImage
+                                                ? "not-allowed"
+                                                : "pointer",
                                             width: "100%",
-                                            padding: "12px 14px",
-                                            borderRadius: "8px",
-                                            border: "1px solid var(--line)",
-                                            fontSize: "13px",
-                                            outline: "none",
-                                            background: "#fcfdfc",
-                                            resize: "vertical",
-                                            lineHeight: 1.5,
+                                            height: "100%",
                                         }}
                                     />
-                                </div>
-
-                                {/* Status Postingan */}
-                                <div>
-                                    <label
+                                    <div
                                         style={{
-                                            display: "block",
-                                            fontSize: "12px",
-                                            fontWeight: 700,
-                                            color: "#4a5a55",
-                                            marginBottom: "8px",
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.5px",
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "center",
+                                            gap: "8px",
+                                            color: "var(--muted)",
                                         }}
                                     >
-                                        Status Publikasi
-                                    </label>
-                                    <div style={{ display: "flex", gap: "12px" }}>
-                                        <label
-                                            style={{
-                                                flex: 1,
-                                                padding: "10px 14px",
-                                                borderRadius: "8px",
-                                                border: `1.5px solid ${form.status === "Publik" ? "var(--teal)" : "var(--line)"}`,
-                                                background: form.status === "Publik" ? "rgba(11, 143, 130, 0.05)" : "#fff",
-                                                cursor: "pointer",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "8px",
-                                                fontSize: "13px",
-                                                fontWeight: 600,
-                                                color: form.status === "Publik" ? "var(--teal)" : "var(--ink)",
-                                            }}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="status"
-                                                value="Publik"
-                                                checked={form.status === "Publik"}
-                                                onChange={() => setForm({ ...form, status: "Publik" })}
-                                                style={{ accentColor: "var(--teal)" }}
-                                            />
-                                            <span>Publik (Tampil di Web)</span>
-                                        </label>
-
-                                        <label
-                                            style={{
-                                                flex: 1,
-                                                padding: "10px 14px",
-                                                borderRadius: "8px",
-                                                border: `1.5px solid ${form.status === "Draft" ? "var(--amber)" : "var(--line)"}`,
-                                                background: form.status === "Draft" ? "rgba(242, 164, 93, 0.08)" : "#fff",
-                                                cursor: "pointer",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "8px",
-                                                fontSize: "13px",
-                                                fontWeight: 600,
-                                                color: form.status === "Draft" ? "#b45309" : "var(--ink)",
-                                            }}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="status"
-                                                value="Draft"
-                                                checked={form.status === "Draft"}
-                                                onChange={() => setForm({ ...form, status: "Draft" })}
-                                                style={{ accentColor: "var(--amber)" }}
-                                            />
-                                            <span>Draft (Simpan Internal)</span>
-                                        </label>
+                                        {uploadingImage ? (
+                                            <>
+                                                <Loader2
+                                                    size={24}
+                                                    className="animate-spin text-[var(--teal)]"
+                                                />
+                                                <span
+                                                    style={{
+                                                        fontSize: "12px",
+                                                        fontWeight: 600,
+                                                    }}
+                                                >
+                                                    Mengunggah gambar ke
+                                                    server...
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <UploadCloud
+                                                    size={28}
+                                                    color="var(--teal)"
+                                                />
+                                                <span
+                                                    style={{
+                                                        fontSize: "13px",
+                                                        fontWeight: 600,
+                                                        color: "var(--ink)",
+                                                    }}
+                                                >
+                                                    Pilih file foto produk
+                                                </span>
+                                                <span
+                                                    style={{
+                                                        fontSize: "11px",
+                                                        color: "var(--muted)",
+                                                    }}
+                                                >
+                                                    Mendukung JPG, PNG, atau
+                                                    WebP (Maks. 5MB)
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Modal Actions */}
-                            <div
-                                style={{
-                                    padding: "16px 24px",
-                                    borderTop: "1px solid #eef2ef",
-                                    background: "#f8faf9",
-                                    display: "flex",
-                                    justifyContent: "flex-end",
-                                    alignItems: "center",
-                                    gap: "12px",
-                                }}
-                            >
+                            {/* Deskripsi Produk */}
+                            <div className="form-group-clean">
+                                <label>Deskripsi & Informasi Produk *</label>
+                                <textarea
+                                    required
+                                    rows={5}
+                                    placeholder="Tuliskan informasi produk olahan ini: manfaat pupuk, kadar nutrisi, cara pemakaian, asal bahan olahan, dll..."
+                                    value={form.deskripsi}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            deskripsi: e.target.value,
+                                        })
+                                    }
+                                    className="form-control-clean"
+                                    style={{
+                                        height: "auto",
+                                        padding: "10px 12px",
+                                        resize: "vertical",
+                                        lineHeight: 1.5,
+                                    }}
+                                />
+                            </div>
+
+                            {/* Status Postingan */}
+                            <div className="form-group-clean">
+                                <label>Status Publikasi</label>
+                                <div style={{ display: "flex", gap: "12px" }}>
+                                    <label
+                                        style={{
+                                            flex: 1,
+                                            padding: "10px 14px",
+                                            borderRadius: "8px",
+                                            border: `1.5px solid ${form.status === "Publik" ? "var(--teal)" : "var(--line)"}`,
+                                            background:
+                                                form.status === "Publik"
+                                                    ? "rgba(11, 143, 130, 0.05)"
+                                                    : "#fff",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "8px",
+                                            fontSize: "13px",
+                                            fontWeight: 600,
+                                            color:
+                                                form.status === "Publik"
+                                                    ? "var(--teal)"
+                                                    : "var(--ink)",
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="status"
+                                            value="Publik"
+                                            checked={form.status === "Publik"}
+                                            onChange={() =>
+                                                setForm({
+                                                    ...form,
+                                                    status: "Publik",
+                                                })
+                                            }
+                                            style={{
+                                                accentColor: "var(--teal)",
+                                            }}
+                                        />
+                                        <span>Publik (Tampil di Web)</span>
+                                    </label>
+
+                                    <label
+                                        style={{
+                                            flex: 1,
+                                            padding: "10px 14px",
+                                            borderRadius: "8px",
+                                            border: `1.5px solid ${form.status === "Draft" ? "var(--amber)" : "var(--line)"}`,
+                                            background:
+                                                form.status === "Draft"
+                                                    ? "rgba(242, 164, 93, 0.08)"
+                                                    : "#fff",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "8px",
+                                            fontSize: "13px",
+                                            fontWeight: 600,
+                                            color:
+                                                form.status === "Draft"
+                                                    ? "#b45309"
+                                                    : "var(--ink)",
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="status"
+                                            value="Draft"
+                                            checked={form.status === "Draft"}
+                                            onChange={() =>
+                                                setForm({
+                                                    ...form,
+                                                    status: "Draft",
+                                                })
+                                            }
+                                            style={{
+                                                accentColor: "var(--amber)",
+                                            }}
+                                        />
+                                        <span>Draft (Simpan Internal)</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="modal-actions-clean">
                                 <button
                                     type="button"
-                                    className="secondary-button"
+                                    className="btn-secondary-clean"
                                     onClick={closeModal}
                                     disabled={submitting}
-                                    style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        padding: "0 18px",
-                                        height: "40px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--line)",
-                                        background: "#fff",
-                                        color: "#527069",
-                                        fontSize: "13px",
-                                        fontWeight: 700,
-                                        cursor: submitting ? "not-allowed" : "pointer",
-                                    }}
                                 >
                                     Batal
                                 </button>
                                 <button
                                     type="submit"
-                                    className="primary-button"
+                                    className="btn-primary-clean"
                                     disabled={submitting || uploadingImage}
-                                    style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        gap: "8px",
-                                        padding: "0 22px",
-                                        height: "40px",
-                                        borderRadius: "8px",
-                                        border: "none",
-                                        background: "var(--teal)",
-                                        color: "#fff",
-                                        fontSize: "13px",
-                                        fontWeight: 700,
-                                        boxShadow: "0 4px 12px rgba(11, 143, 130, 0.25)",
-                                        cursor: submitting || uploadingImage ? "not-allowed" : "pointer",
-                                        opacity: submitting || uploadingImage ? 0.7 : 1,
-                                    }}
                                 >
                                     {submitting ? (
                                         <>
-                                            <Loader2 size={16} className="animate-spin" /> Menyimpan...
+                                            <Loader2
+                                                size={16}
+                                                className="animate-spin"
+                                            />{" "}
+                                            Menyimpan...
                                         </>
                                     ) : (
                                         <>
-                                            <CheckCircle size={16} /> Simpan Postingan
+                                            <CheckCircle size={16} /> Simpan
+                                            Postingan
                                         </>
                                     )}
                                 </button>
                             </div>
                         </form>
-                    </section>
+                    </div>
                 </div>
             )}
 
@@ -1195,7 +1143,12 @@ function PostinganContent() {
                     className="modal-backdrop z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs"
                     role="presentation"
                     onClick={closeModal}
-                    style={{ position: "fixed", inset: 0, padding: "16px", zIndex: 999 }}
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        padding: "16px",
+                        zIndex: 999,
+                    }}
                 >
                     <div
                         style={{
@@ -1277,7 +1230,9 @@ function PostinganContent() {
                                     }}
                                 >
                                     Dipublikasikan:{" "}
-                                    {new Date(activePost.created_at).toLocaleDateString("id-ID", {
+                                    {new Date(
+                                        activePost.created_at,
+                                    ).toLocaleDateString("id-ID", {
                                         dateStyle: "long",
                                     })}
                                 </span>
@@ -1288,9 +1243,13 @@ function PostinganContent() {
                                         padding: "4px 10px",
                                         borderRadius: "100px",
                                         background:
-                                            activePost.status === "Publik" ? "#dcfce7" : "#fef3c7",
+                                            activePost.status === "Publik"
+                                                ? "#dcfce7"
+                                                : "#fef3c7",
                                         color:
-                                            activePost.status === "Publik" ? "#166534" : "#92400e",
+                                            activePost.status === "Publik"
+                                                ? "#166534"
+                                                : "#92400e",
                                     }}
                                 >
                                     {activePost.status}
@@ -1363,7 +1322,12 @@ function PostinganContent() {
                     className="modal-backdrop z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs"
                     role="presentation"
                     onClick={closeModal}
-                    style={{ position: "fixed", inset: 0, padding: "16px", zIndex: 999 }}
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        padding: "16px",
+                        zIndex: 999,
+                    }}
                 >
                     <div
                         style={{
@@ -1410,10 +1374,17 @@ function PostinganContent() {
                             }}
                         >
                             Apakah Anda yakin ingin menghapus postingan{" "}
-                            <strong>&ldquo;{activePost.judul}&rdquo;</strong>? Tindakan ini tidak dapat
-                            dibatalkan.
+                            <strong>&ldquo;{activePost.judul}&rdquo;</strong>?
+                            Tindakan ini tidak dapat dibatalkan.
                         </p>
-                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "10px" }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                alignItems: "center",
+                                gap: "10px",
+                            }}
+                        >
                             <button
                                 type="button"
                                 className="secondary-button"
@@ -1431,7 +1402,9 @@ function PostinganContent() {
                                     color: "#527069",
                                     fontSize: "13px",
                                     fontWeight: 700,
-                                    cursor: submitting ? "not-allowed" : "pointer",
+                                    cursor: submitting
+                                        ? "not-allowed"
+                                        : "pointer",
                                 }}
                             >
                                 Batal
@@ -1448,7 +1421,9 @@ function PostinganContent() {
                                     fontSize: "13px",
                                     fontWeight: 700,
                                     border: "none",
-                                    cursor: submitting ? "not-allowed" : "pointer",
+                                    cursor: submitting
+                                        ? "not-allowed"
+                                        : "pointer",
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "6px",
@@ -1456,7 +1431,11 @@ function PostinganContent() {
                             >
                                 {submitting ? (
                                     <>
-                                        <Loader2 size={15} className="animate-spin" /> Menghapus...
+                                        <Loader2
+                                            size={15}
+                                            className="animate-spin"
+                                        />{" "}
+                                        Menghapus...
                                     </>
                                 ) : (
                                     "Ya, Hapus Postingan"

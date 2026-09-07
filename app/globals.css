@@ -1758,7 +1758,9 @@ button {
     margin-bottom: 16px;
 }
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 .sorting-spinner {
     animation: spin 0.8s linear infinite;
@@ -1864,7 +1866,9 @@ button {
     border-radius: 8px;
     background: rgba(11, 143, 130, 0.06);
     flex-shrink: 0;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
 }
 .sorting-select-item:hover .sorting-select-action-cue {
     background: rgba(11, 143, 130, 0.12);
@@ -1881,7 +1885,9 @@ button {
 .sorting-progress-fill {
     height: 100%;
     border-radius: 999px;
-    transition: width 0.3s ease, background 0.3s ease;
+    transition:
+        width 0.3s ease,
+        background 0.3s ease;
 }
 .sorting-select-item-meta {
     display: flex;
@@ -1960,7 +1966,9 @@ button {
     padding: 20px 22px;
     margin-bottom: 20px;
     box-shadow: 0 2px 10px rgba(12, 50, 45, 0.04);
-    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
 }
 .sorting-hero.is-complete {
     border-color: rgba(11, 143, 130, 0.35);
@@ -2071,7 +2079,9 @@ button {
 .sorting-hero-bar-fill {
     height: 100%;
     border-radius: 999px;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+    transition:
+        width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        background 0.3s ease;
 }
 
 /* Status messaging */
@@ -2212,7 +2222,9 @@ button {
     background: white;
     margin-bottom: 16px;
     overflow: hidden;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition:
+        border-color 0.2s,
+        box-shadow 0.2s;
 }
 .sorting-card.over-limit {
     border-color: #ef4444;
@@ -2272,7 +2284,9 @@ button {
     color: var(--ink);
     background: #fbfdfb;
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
 }
 .sorting-inputs input:focus {
     border-color: var(--teal);
@@ -2572,10 +2586,22 @@ button {
     flex-shrink: 0;
 }
 
-.kpi-icon-blue { background: #e0f2fe; color: #0284c7; }
-.kpi-icon-green { background: #dcfce7; color: #16a34a; }
-.kpi-icon-purple { background: #f3e8ff; color: #9333ea; }
-.kpi-icon-orange { background: #ffedd5; color: #ea580c; }
+.kpi-icon-blue {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+.kpi-icon-green {
+    background: #dcfce7;
+    color: #16a34a;
+}
+.kpi-icon-purple {
+    background: #f3e8ff;
+    color: #9333ea;
+}
+.kpi-icon-orange {
+    background: #ffedd5;
+    color: #ea580c;
+}
 
 .kpi-text-clean {
     display: flex;
@@ -2710,7 +2736,9 @@ button {
 .custom-select-clean {
     height: 38px;
     padding: 0 30px 0 12px;
-    background: #f8fafc url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 8px center/14px 14px;
+    background: #f8fafc
+        url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")
+        no-repeat right 8px center/14px 14px;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     font-size: 13px;
@@ -3058,8 +3086,13 @@ button {
     border-radius: 14px;
     width: 100%;
     max-width: 520px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    max-height: 90vh;
+    box-shadow:
+        0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 10px 10px -5px rgba(0, 0, 0, 0.04);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-dialog-sm-clean {
@@ -3072,6 +3105,7 @@ button {
     align-items: center;
     padding: 16px 20px;
     border-bottom: 1px solid #f1f5f9;
+    flex-shrink: 0;
 }
 
 .modal-header-clean h3 {
@@ -3086,6 +3120,9 @@ button {
     display: flex;
     flex-direction: column;
     gap: 14px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .form-group-clean {
@@ -3108,7 +3145,9 @@ button {
     font-size: 13px;
     color: #0f172a;
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
 }
 
 .form-control-clean:focus {
@@ -3121,6 +3160,7 @@ button {
     justify-content: flex-end;
     gap: 10px;
     padding-top: 6px;
+    flex-shrink: 0;
 }
 
 .btn-secondary-clean {
