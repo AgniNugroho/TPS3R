@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleHelp, Sparkles, Users, X } from "lucide-react";
+import { CircleHelp, Megaphone, Sparkles, Users, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -74,6 +74,19 @@ export default function SidebarSuperAdmin({
                     >
                         <Sparkles size={18} />
                         <span>Kelola Postingan</span>
+                    </Link>
+                    <Link
+                        href="/pemberitahuan"
+                        className={`nav-item ${activeLabel === "Pemberitahuan" ? "active" : ""}`}
+                        onClick={() => onMobileChange(false)}
+                        style={
+                            activeLabel === "Pemberitahuan"
+                                ? { background: "#efaa6d", color: "#603b20" }
+                                : {}
+                        }
+                    >
+                        <Megaphone size={18} />
+                        <span>Kelola Pemberitahuan</span>
                     </Link>
                 </nav>
 

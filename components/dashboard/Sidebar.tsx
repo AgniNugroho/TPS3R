@@ -16,6 +16,7 @@ import {
     X,
     MessageSquareWarning,
     Sparkles,
+    Megaphone,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -29,6 +30,7 @@ const navItems = [
     { label: "Residu", href: "/residu", icon: PackageCheck },
     { label: "Pengaduan", href: "/pengaduan", icon: MessageSquareWarning },
     { label: "Postingan & Produk", href: "/postingan", icon: Sparkles },
+    { label: "Pemberitahuan", href: "/pemberitahuan", icon: Megaphone },
 ];
 
 export default function Sidebar({

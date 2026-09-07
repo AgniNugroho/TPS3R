@@ -358,3 +358,34 @@ create policy postingan_scope on postingan for all
   using (is_admin() or desa_id = current_desa_id())
   with check (is_admin() or desa_id = current_desa_id());
 
+create table if not exists pemberitahuan (
+  id uuid primary key default gen_random_uuid(),
+  desa_id uuid not null references desa(id) on delete cascade,
+  judul text not null,
+  isi text not null,
+  kategori text not null default 'Operasional' check (kategori in ('Operasional', 'Iuran & Keuangan', 'Jadwal Layanan', 'Sosialisasi & Edukasi', 'Lainnya')),
+  tingkat_urgensi text not null default 'Normal' check (tingkat_urgensi in ('Penting', 'Normal', 'Info')),
+  status text not null default 'Aktif' check (status in ('Aktif', 'Diarsipkan')),
+  tanggal_mulai date not null default current_date,
+  tanggal_selesai date,
+  author_id uuid references petugas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_pemberitahuan_desa on pemberitahuan (desa_id);
+create index if not exists idx_pemberitahuan_status on pemberitahuan (status);
+create index if not exists idx_pemberitahuan_urgensi on pemberitahuan (tingkat_urgensi);
+create index if not exists idx_pemberitahuan_created_at on pemberitahuan (created_at desc);
+
+alter table pemberitahuan enable row level security;
+
+drop policy if exists pemberitahuan_public_read on pemberitahuan;
+create policy pemberitahuan_public_read on pemberitahuan for select using (status = 'Aktif');
+
+drop policy if exists pemberitahuan_scope on pemberitahuan;
+create policy pemberitahuan_scope on pemberitahuan for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+
