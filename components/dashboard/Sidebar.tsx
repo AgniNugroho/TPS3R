@@ -14,6 +14,9 @@ import {
     Settings2,
     Truck,
     X,
+    MessageSquareWarning,
+    Sparkles,
+    Megaphone,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,6 +28,9 @@ const navItems = [
     { label: "Pilah Sampah", href: "/pemilahan", icon: Recycle },
     { label: "Bank Sampah", href: "/bank-sampah", icon: Landmark },
     { label: "Residu", href: "/residu", icon: PackageCheck },
+    { label: "Pengaduan", href: "/pengaduan", icon: MessageSquareWarning },
+    { label: "Postingan & Produk", href: "/postingan", icon: Sparkles },
+    { label: "Pemberitahuan", href: "/pemberitahuan", icon: Megaphone },
 ];
 
 export default function Sidebar({
@@ -194,10 +200,14 @@ export default function Sidebar({
                         <MapPin size={18} />
                         <span>Manajemen Wilayah</span>
                     </Link>
-                    <button className="nav-item">
+                    <Link
+                        className={`nav-item ${activeLabel === "Pengaturan" ? "active" : ""}`}
+                        href="/pengaturan"
+                        onClick={() => onMobileChange(false)}
+                    >
                         <Settings2 size={18} />
                         <span>Pengaturan</span>
-                    </button>
+                    </Link>
                 </nav>
                 <div className="sidebar-bottom">
                     <div className="help-card">

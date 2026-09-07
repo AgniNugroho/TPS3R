@@ -7,6 +7,7 @@ export type PetugasRole = "admin" | "petugas";
 
 export type SessionContext = {
     userId: string;
+    email: string | null;
     petugasId: string;
     role: PetugasRole;
     desaId: string | null;
@@ -33,6 +34,7 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     const role = (petugas.role as PetugasRole) ?? "petugas";
     return {
         userId: user.id,
+        email: user.email ?? null,
         petugasId: petugas.id as string,
         role,
         desaId: (petugas.desa_id as string | null) ?? null,

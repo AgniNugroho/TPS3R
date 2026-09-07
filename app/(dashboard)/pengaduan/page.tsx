@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import FormShell from "@/components/dashboard/FormShell";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccessToast, showErrorToast } from "@/components/ui/Toast";
 import EmptyState from "@/components/dashboard/EmptyState";
 import { MessageSquareWarning, CheckCircle, Clock } from "lucide-react";
 
@@ -19,30 +19,36 @@ interface Pengaduan {
 }
 
 export default function PengaduanPage() {
-  const { role } = useAuth();
+  const user = useCurrentUser();
   const router = useRouter();
   
   const [data, setData] = useState<Pengaduan[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (role === "pengelola_sampah") {
-      router.replace("/pengumpulan");
-      return;
+    if (user !== undefined) {
+      fetchData();
     }
-    fetchData();
-  }, [role, router]);
+  }, [user, router]);
 
   async function fetchData() {
+    if (!user) return;
     setLoading(true);
     const supabase = getSupabaseBrowserClient();
-    const { data: records, error } = await supabase
+    
+    let query = supabase
       .from("pengaduan")
       .select("*")
       .order("created_at", { ascending: false });
+
+    if (user.role !== "admin" && user.desaId) {
+      query = query.eq("desa_id", user.desaId);
+    }
+      
+    const { data: records, error } = await query;
       
     if (error) {
-      toast.error("Gagal memuat data pengaduan");
+      showErrorToast("Gagal memuat data pengaduan");
     } else {
       setData(records || []);
     }
@@ -57,9 +63,9 @@ export default function PengaduanPage() {
       .eq("id", id);
       
     if (error) {
-      toast.error("Gagal memperbarui status");
+      showErrorToast("Gagal memperbarui status");
     } else {
-      toast.success(`Status diubah menjadi ${newStatus}`);
+      showSuccessToast(`Status diubah menjadi ${newStatus}`);
       setData(data.map(item => item.id === id ? { ...item, status: newStatus } : item));
     }
   }

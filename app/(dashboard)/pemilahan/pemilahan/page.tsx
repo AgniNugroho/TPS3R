@@ -1,4 +1,4 @@
-import WasteFlowForm from "@/components/forms/WasteFlowForms";
+import SortingBatchForm from "@/components/forms/SortingBatchForm";
 import FormShell from "@/components/dashboard/FormShell";
 
 export default function PemilahanPage() {
@@ -11,7 +11,7 @@ export default function PemilahanPage() {
           Pecah sampah masuk menjadi organik (maggot), anorganik (dijual), residu (insinerator),
           dan catat abu sisa pembakaran. Limbah medis/pampers wajib disisihkan.
         </p>
-        <WasteFlowForm mode="sorting" />
+        <SortingBatchForm />
       </main>
     </FormShell>
   );

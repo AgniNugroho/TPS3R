@@ -1,4 +1,4 @@
-import WasteFlowForm from "@/components/forms/WasteFlowForms";
+import SortingBatchForm from "@/components/forms/SortingBatchForm";
 import FormShell from "@/components/dashboard/FormShell";
 
 export default function PemilahanPage() {
@@ -11,7 +11,7 @@ export default function PemilahanPage() {
                     Pecah sampah masuk menjadi organik, anorganik, dan residu.
                     Anorganik dicatat lagi berdasarkan materialnya.
                 </p>
-                <WasteFlowForm mode="sorting" />
+                <SortingBatchForm />
             </main>
         </FormShell>
     );
