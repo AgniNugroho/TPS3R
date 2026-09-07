@@ -15,9 +15,11 @@ type Sorting = {
     organik_kg: number;
     anorganik_kg: number;
     residu_kg: number;
+    plastik_kg?: number;
     kardus_kg: number;
     kaca_kg: number;
     besi_kg: number;
+    medis_kg?: number;
     anorganik_lainnya_kg: number;
     created_at: string;
 };
@@ -89,7 +91,7 @@ export async function GET(request: Request) {
         let sortingQuery = supabase
             .from("pemilahan_sampah")
             .select(
-                "tanggal, organik_kg, anorganik_kg, residu_kg, kardus_kg, kaca_kg, besi_kg, anorganik_lainnya_kg, created_at",
+                "tanggal, organik_kg, anorganik_kg, residu_kg, plastik_kg, kardus_kg, kaca_kg, besi_kg, medis_kg, anorganik_lainnya_kg, created_at",
             )
             .order("created_at", { ascending: false });
         if (session.isAdmin && selectedDesaId) {

@@ -40,14 +40,16 @@ create table if not exists pemilahan_sampah (
   organik_kg numeric(12,2) not null default 0 check (organik_kg >= 0),
   anorganik_kg numeric(12,2) not null default 0 check (anorganik_kg >= 0),
   residu_kg numeric(12,2) not null default 0 check (residu_kg >= 0),
+  plastik_kg numeric(12,2) not null default 0 check (plastik_kg >= 0),
   kardus_kg numeric(12,2) not null default 0 check (kardus_kg >= 0),
   kaca_kg numeric(12,2) not null default 0 check (kaca_kg >= 0),
   besi_kg numeric(12,2) not null default 0 check (besi_kg >= 0),
+  medis_kg numeric(12,2) not null default 0 check (medis_kg >= 0),
   anorganik_lainnya_kg numeric(12,2) not null default 0 check (anorganik_lainnya_kg >= 0),
   keterangan text,
   created_at timestamptz not null default now(),
   check (organik_kg + anorganik_kg + residu_kg >= 0),
-  check (kardus_kg + kaca_kg + besi_kg + anorganik_lainnya_kg <= anorganik_kg)
+  check (plastik_kg + kardus_kg + kaca_kg + besi_kg + medis_kg + anorganik_lainnya_kg <= anorganik_kg)
 );
 
 create index if not exists idx_sampah_masuk_asal on sampah_masuk (asal_sampah);

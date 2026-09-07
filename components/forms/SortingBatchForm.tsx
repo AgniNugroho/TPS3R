@@ -29,9 +29,11 @@ type SortingRecord = {
     organik_kg?: number;
     anorganik_kg?: number;
     residu_kg?: number;
+    plastik_kg?: number;
     kardus_kg?: number;
     kaca_kg?: number;
     besi_kg?: number;
+    medis_kg?: number;
     anorganik_lainnya_kg?: number;
 };
 
@@ -39,9 +41,11 @@ type SortedBreakdown = {
     organik_kg: number;
     anorganik_kg: number;
     residu_kg: number;
+    plastik_kg: number;
     kardus_kg: number;
     kaca_kg: number;
     besi_kg: number;
+    medis_kg: number;
     anorganik_lainnya_kg: number;
 };
 
@@ -49,9 +53,11 @@ const emptyBreakdown: SortedBreakdown = {
     organik_kg: 0,
     anorganik_kg: 0,
     residu_kg: 0,
+    plastik_kg: 0,
     kardus_kg: 0,
     kaca_kg: 0,
     besi_kg: 0,
+    medis_kg: 0,
     anorganik_lainnya_kg: 0,
 };
 
@@ -65,9 +71,11 @@ type EnrichedRow = IncomingRow & {
 type CardWeights = {
     organik_kg: string;
     residu_kg: string;
+    plastik_kg: string;
     kardus_kg: string;
     kaca_kg: string;
     besi_kg: string;
+    medis_kg: string;
     anorganik_lainnya_kg: string;
     keterangan: string;
 };
@@ -75,9 +83,11 @@ type CardWeights = {
 const emptyWeights: CardWeights = {
     organik_kg: "",
     residu_kg: "",
+    plastik_kg: "",
     kardus_kg: "",
     kaca_kg: "",
     besi_kg: "",
+    medis_kg: "",
     anorganik_lainnya_kg: "",
     keterangan: "",
 };
@@ -95,18 +105,22 @@ function weightTotal(w: CardWeights) {
     return (
         num(w.organik_kg) +
         num(w.residu_kg) +
+        num(w.plastik_kg) +
         num(w.kardus_kg) +
         num(w.kaca_kg) +
         num(w.besi_kg) +
+        num(w.medis_kg) +
         num(w.anorganik_lainnya_kg)
     );
 }
 
 function anorganikTotal(w: CardWeights) {
     return (
+        num(w.plastik_kg) +
         num(w.kardus_kg) +
         num(w.kaca_kg) +
         num(w.besi_kg) +
+        num(w.medis_kg) +
         num(w.anorganik_lainnya_kg)
     );
 }
@@ -172,9 +186,11 @@ export default function SortingBatchForm() {
                     anorganik_kg:
                         existing.anorganik_kg + Number(row.anorganik_kg || 0),
                     residu_kg: existing.residu_kg + Number(row.residu_kg || 0),
+                    plastik_kg: existing.plastik_kg + Number(row.plastik_kg || 0),
                     kardus_kg: existing.kardus_kg + Number(row.kardus_kg || 0),
                     kaca_kg: existing.kaca_kg + Number(row.kaca_kg || 0),
                     besi_kg: existing.besi_kg + Number(row.besi_kg || 0),
+                    medis_kg: existing.medis_kg + Number(row.medis_kg || 0),
                     anorganik_lainnya_kg:
                         existing.anorganik_lainnya_kg +
                         Number(row.anorganik_lainnya_kg || 0),
@@ -217,7 +233,7 @@ export default function SortingBatchForm() {
     }, []);
 
     useEffect(() => {
-        loadData();
+        void Promise.resolve().then(() => loadData());
     }, [loadData]);
 
     /* ---- Derived State for Form ---- */
@@ -237,11 +253,11 @@ export default function SortingBatchForm() {
     const prev = activeRow?.previouslySorted ?? emptyBreakdown;
     const totOrganik = prev.organik_kg + num(weights.organik_kg);
     const totResidu = prev.residu_kg + num(weights.residu_kg);
+    const totPlastik = prev.plastik_kg + num(weights.plastik_kg);
     const totKardus = prev.kardus_kg + num(weights.kardus_kg);
     const totKaca = prev.kaca_kg + num(weights.kaca_kg);
     const totBesi = prev.besi_kg + num(weights.besi_kg);
-    const totLainnya =
-        prev.anorganik_lainnya_kg + num(weights.anorganik_lainnya_kg);
+    const totMedis = prev.medis_kg + num(weights.medis_kg);
 
     // Cumulative progress out of total incoming waste
     const cumulativeRatio =
@@ -297,9 +313,11 @@ export default function SortingBatchForm() {
             organik_kg: num(weights.organik_kg),
             anorganik_kg: anorganikTotal(weights),
             residu_kg: num(weights.residu_kg),
+            plastik_kg: num(weights.plastik_kg),
             kardus_kg: num(weights.kardus_kg),
             kaca_kg: num(weights.kaca_kg),
             besi_kg: num(weights.besi_kg),
+            medis_kg: num(weights.medis_kg),
             anorganik_lainnya_kg: num(weights.anorganik_lainnya_kg),
             keterangan: weights.keterangan || "",
         };
@@ -685,6 +703,20 @@ export default function SortingBatchForm() {
                     </div>
                     <div
                         className={`sorting-prev-history-item ${
+                            num(weights.plastik_kg) > 0 ? "has-input" : ""
+                        }`}
+                    >
+                        <span className="sorting-prev-history-label">Plastik</span>
+                        <span
+                            className={`sorting-prev-history-val ${
+                                num(weights.plastik_kg) > 0 ? "highlight" : ""
+                            }`}
+                        >
+                            {totPlastik.toFixed(2)} kg
+                        </span>
+                    </div>
+                    <div
+                        className={`sorting-prev-history-item ${
                             num(weights.kardus_kg) > 0 ? "has-input" : ""
                         }`}
                     >
@@ -727,20 +759,16 @@ export default function SortingBatchForm() {
                     </div>
                     <div
                         className={`sorting-prev-history-item ${
-                            num(weights.anorganik_lainnya_kg) > 0
-                                ? "has-input"
-                                : ""
+                            num(weights.medis_kg) > 0 ? "has-input" : ""
                         }`}
                     >
-                        <span className="sorting-prev-history-label">Lainnya</span>
+                        <span className="sorting-prev-history-label">Medis</span>
                         <span
                             className={`sorting-prev-history-val ${
-                                num(weights.anorganik_lainnya_kg) > 0
-                                    ? "highlight"
-                                    : ""
+                                num(weights.medis_kg) > 0 ? "highlight" : ""
                             }`}
                         >
-                            {totLainnya.toFixed(2)} kg
+                            {totMedis.toFixed(2)} kg
                         </span>
                     </div>
                 </div>
@@ -807,6 +835,35 @@ export default function SortingBatchForm() {
                     <div className="sorting-anorganik-group">
                         <span className="sorting-group-label">Kategori Anorganik</span>
                         <div className="sorting-inputs">
+                            <label>
+                                <div className="sorting-input-header">
+                                    <span>Plastik (kg)</span>
+                                    {activeRow.previouslySorted.plastik_kg > 0 && (
+                                        <span className="sorting-prev-badge">
+                                            Sudah: <strong>{activeRow.previouslySorted.plastik_kg.toFixed(2)} kg</strong>
+                                            {num(weights.plastik_kg) > 0 && (
+                                                <span className="sorting-total-badge">
+                                                    {" "}➔ Total: {(activeRow.previouslySorted.plastik_kg + num(weights.plastik_kg)).toFixed(2)} kg
+                                                </span>
+                                            )}
+                                        </span>
+                                    )}
+                                </div>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max={target}
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={weights.plastik_kg}
+                                    onChange={(e) =>
+                                        updateWeight(
+                                            "plastik_kg",
+                                            e.target.value,
+                                        )
+                                    }
+                                />
+                            </label>
                             <label>
                                 <div className="sorting-input-header">
                                     <span>Kardus (kg)</span>
@@ -890,13 +947,13 @@ export default function SortingBatchForm() {
                             </label>
                             <label>
                                 <div className="sorting-input-header">
-                                    <span>Lainnya (kg)</span>
-                                    {activeRow.previouslySorted.anorganik_lainnya_kg > 0 && (
+                                    <span>Medis (kg)</span>
+                                    {activeRow.previouslySorted.medis_kg > 0 && (
                                         <span className="sorting-prev-badge">
-                                            Sudah: <strong>{activeRow.previouslySorted.anorganik_lainnya_kg.toFixed(2)} kg</strong>
-                                            {num(weights.anorganik_lainnya_kg) > 0 && (
+                                            Sudah: <strong>{activeRow.previouslySorted.medis_kg.toFixed(2)} kg</strong>
+                                            {num(weights.medis_kg) > 0 && (
                                                 <span className="sorting-total-badge">
-                                                    {" "}➔ Total: {(activeRow.previouslySorted.anorganik_lainnya_kg + num(weights.anorganik_lainnya_kg)).toFixed(2)} kg
+                                                    {" "}➔ Total: {(activeRow.previouslySorted.medis_kg + num(weights.medis_kg)).toFixed(2)} kg
                                                 </span>
                                             )}
                                         </span>
@@ -908,10 +965,10 @@ export default function SortingBatchForm() {
                                     max={target}
                                     step="0.01"
                                     placeholder="0.00"
-                                    value={weights.anorganik_lainnya_kg}
+                                    value={weights.medis_kg}
                                     onChange={(e) =>
                                         updateWeight(
-                                            "anorganik_lainnya_kg",
+                                            "medis_kg",
                                             e.target.value,
                                         )
                                     }

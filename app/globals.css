@@ -2162,8 +2162,18 @@ button {
 }
 .sorting-prev-history-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 8px;
+}
+@media (max-width: 900px) {
+    .sorting-prev-history-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+@media (max-width: 600px) {
+    .sorting-prev-history-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 .sorting-prev-history-item {
     background: white;

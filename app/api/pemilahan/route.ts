@@ -47,9 +47,11 @@ export async function POST(request: Request) {
             "organik_kg",
             "anorganik_kg",
             "residu_kg",
+            "plastik_kg",
             "kardus_kg",
             "kaca_kg",
             "besi_kg",
+            "medis_kg",
             "anorganik_lainnya_kg",
         ];
         for (const column of numericColumns) {

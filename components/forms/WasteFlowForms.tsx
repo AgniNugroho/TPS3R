@@ -19,9 +19,11 @@ const initialSorting: FormValues = {
     organik_kg: "",
     anorganik_kg: "",
     residu_kg: "",
+    plastik_kg: "",
     kardus_kg: "",
     kaca_kg: "",
     besi_kg: "",
+    medis_kg: "",
     anorganik_lainnya_kg: "",
     keterangan: "",
 };
@@ -142,6 +144,13 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                       required: false,
                   },
                   {
+                      key: "plastik_kg",
+                      label: "Anorganik: plastik (kg)",
+                      type: "number",
+                      placeholder: "0",
+                      required: false,
+                  },
+                  {
                       key: "kardus_kg",
                       label: "Anorganik: kardus (kg)",
                       type: "number",
@@ -158,6 +167,13 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
                   {
                       key: "besi_kg",
                       label: "Anorganik: besi (kg)",
+                      type: "number",
+                      placeholder: "0",
+                      required: false,
+                  },
+                  {
+                      key: "medis_kg",
+                      label: "Anorganik: medis (kg)",
                       type: "number",
                       placeholder: "0",
                       required: false,
@@ -315,9 +331,11 @@ export default function WasteFlowForm({ mode }: { mode: FormMode }) {
             mode === "incoming" ? "/api/sampah-masuk" : "/api/pemilahan";
         if (mode === "sorting") {
             const anorganik =
+                Number(values.plastik_kg || 0) +
                 Number(values.kardus_kg || 0) +
                 Number(values.kaca_kg || 0) +
                 Number(values.besi_kg || 0) +
+                Number(values.medis_kg || 0) +
                 Number(values.anorganik_lainnya_kg || 0);
             const total =
                 Number(values.organik_kg || 0) +
