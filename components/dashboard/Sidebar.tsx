@@ -185,7 +185,7 @@ export default function Sidebar({
                 <p className="nav-label secondary-label">LAINNYA</p>
                 <nav className="nav-list">
                     <Link
-                        className="nav-item"
+                        className={`nav-item ${activeLabel === "Laporan" ? "active" : ""}`}
                         href="/laporan"
                         onClick={() => onMobileChange(false)}
                     >
