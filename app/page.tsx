@@ -3,9 +3,25 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Leaf, LogIn, Recycle, ShieldCheck, AlertCircle, Phone, Send, Info, CheckCircle2 } from "lucide-react";
+import { Leaf, LogIn, Recycle, ShieldCheck, AlertCircle, Phone, Send, Info, CheckCircle2, Sparkles, Eye, X, PackageOpen, Loader2 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 import { showSuccessToast, showErrorToast } from "@/components/ui/Toast";
+
+type DesaItem = {
+    id: string;
+    nama: string;
+};
+
+type PostinganItem = {
+    id: string;
+    desa_id: string;
+    judul: string;
+    deskripsi: string;
+    gambar_url: string;
+    status: string;
+    created_at: string;
+    desa?: { id: string; nama: string };
+};
 
 export default function LandingPage() {
     const [nama, setNama] = useState("");
@@ -13,8 +29,14 @@ export default function LandingPage() {
     const [kategori, setKategori] = useState("Sampah Menumpuk");
     const [deskripsi, setDeskripsi] = useState("");
     const [desaId, setDesaId] = useState("");
-    const [desasList, setDesasList] = useState<any[]>([]);
+    const [desasList, setDesasList] = useState<DesaItem[]>([]);
     const [loading, setLoading] = useState(false);
+
+    // Postingan produk state
+    const [postinganList, setPostinganList] = useState<PostinganItem[]>([]);
+    const [loadingPosts, setLoadingPosts] = useState(true);
+    const [selectedDesaFilter, setSelectedDesaFilter] = useState("all");
+    const [selectedPostDetail, setSelectedPostDetail] = useState<PostinganItem | null>(null);
 
     useEffect(() => {
         const fetchDesa = async () => {
@@ -29,7 +51,24 @@ export default function LandingPage() {
                 console.error("Gagal memuat daftar desa", err);
             }
         };
+
+        const fetchPostingan = async () => {
+            setLoadingPosts(true);
+            try {
+                const res = await fetch("/api/postingan?public=true");
+                const json = await res.json();
+                if (json.ok && json.data) {
+                    setPostinganList(json.data);
+                }
+            } catch (err) {
+                console.error("Gagal memuat postingan", err);
+            } finally {
+                setLoadingPosts(false);
+            }
+        };
+
         fetchDesa();
+        fetchPostingan();
     }, []);
 
     async function handleSubmitPengaduan(e: React.FormEvent) {
@@ -116,6 +155,13 @@ export default function LandingPage() {
                         }}>
                             <AlertCircle size={18} /> Lapor Keluhan Warga
                         </a>
+                        <a href="#produk" className="hover-lift" style={{ 
+                            backgroundColor: "var(--teal)", color: "white", padding: "16px 32px", 
+                            borderRadius: "100px", fontSize: "15px", fontWeight: 700, textDecoration: "none",
+                            display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 8px 24px rgba(11, 143, 130, 0.3)", border: "none"
+                        }}>
+                            <Sparkles size={18} /> Produk Olahan TPS
+                        </a>
                         <a href="#tentang" className="hover-lift" style={{ 
                             backgroundColor: "white", color: "var(--teal)", padding: "16px 32px", border: "2px solid #dce5e1",
                             borderRadius: "100px", fontSize: "15px", fontWeight: 700, textDecoration: "none",
@@ -163,8 +209,194 @@ export default function LandingPage() {
                 </div>
             </section>
 
+            {/* ── PRODUK & INOVASI OLAHAN TPS3R ── */}
+            <section id="produk" style={{ padding: "90px 24px", background: "linear-gradient(180deg, #f8faf9 0%, #edf5f2 50%, #f8faf9 100%)", borderTop: "1px solid #eef2ef" }}>
+                <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+                    <div style={{ textAlign: "center", marginBottom: "40px" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", backgroundColor: "rgba(11, 143, 130, 0.1)", color: "var(--teal)", padding: "6px 16px", borderRadius: "100px", fontSize: "13px", fontWeight: 700, marginBottom: "16px" }}>
+                            <Sparkles size={16} /> PRODUK & INOVASI DESA
+                        </div>
+                        <h3 style={{ fontSize: "36px", fontWeight: 800, color: "#1a2522", fontFamily: "var(--font-display)", marginBottom: "12px", letterSpacing: "-0.5px" }}>
+                            Hasil Olahan TPS3R
+                        </h3>
+                        <p style={{ fontSize: "16px", color: "#62736d", maxWidth: "620px", margin: "0 auto" }}>
+                            Mengenal aneka hasil pengolahan sampah organik dan inovasi daur ulang bernilai guna dari setiap unit TPS3R desa.
+                        </p>
+                    </div>
+
+                    {/* Filter Desa Tabs */}
+                    <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap", marginBottom: "40px" }}>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedDesaFilter("all")}
+                            style={{
+                                padding: "10px 22px",
+                                borderRadius: "100px",
+                                fontSize: "14px",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                border: selectedDesaFilter === "all" ? "none" : "1.5px solid #dce5e1",
+                                background: selectedDesaFilter === "all" ? "var(--teal)" : "white",
+                                color: selectedDesaFilter === "all" ? "white" : "#4a5a55",
+                                boxShadow: selectedDesaFilter === "all" ? "0 6px 18px rgba(11, 143, 130, 0.25)" : "none",
+                                transition: "all 0.2s ease",
+                            }}
+                        >
+                            Semua Desa ({postinganList.length})
+                        </button>
+                        {desasList.map((desa) => {
+                            const count = postinganList.filter((p) => p.desa_id === desa.id).length;
+                            const isActive = selectedDesaFilter === desa.id;
+                            return (
+                                <button
+                                    key={desa.id}
+                                    type="button"
+                                    onClick={() => setSelectedDesaFilter(desa.id)}
+                                    style={{
+                                        padding: "10px 22px",
+                                        borderRadius: "100px",
+                                        fontSize: "14px",
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        border: isActive ? "none" : "1.5px solid #dce5e1",
+                                        background: isActive ? "var(--teal)" : "white",
+                                        color: isActive ? "white" : "#4a5a55",
+                                        boxShadow: isActive ? "0 6px 18px rgba(11, 143, 130, 0.25)" : "none",
+                                        transition: "all 0.2s ease",
+                                    }}
+                                >
+                                    {desa.nama} ({count})
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Postings Grid */}
+                    {loadingPosts ? (
+                        <div style={{ textAlign: "center", padding: "60px 0", color: "#62736d" }}>
+                            <Loader2 size={32} className="animate-spin" style={{ margin: "0 auto 12px", color: "var(--teal)" }} />
+                            <p style={{ margin: 0, fontSize: "14px" }}>Memuat informasi produk olahan TPS3R...</p>
+                        </div>
+                    ) : (
+                        (() => {
+                            const filtered = selectedDesaFilter === "all"
+                                ? postinganList
+                                : postinganList.filter((p) => p.desa_id === selectedDesaFilter);
+
+                            if (filtered.length === 0) {
+                                return (
+                                    <div style={{ 
+                                        background: "white", padding: "50px 24px", borderRadius: "24px", 
+                                        textAlign: "center", maxWidth: "540px", margin: "0 auto", 
+                                        border: "1px dashed #dce5e1" 
+                                    }}>
+                                        <div style={{ width: "56px", height: "56px", borderRadius: "16px", background: "#f0fdf4", color: "var(--teal)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                                            <PackageOpen size={28} />
+                                        </div>
+                                        <h4 style={{ fontSize: "18px", fontWeight: 700, color: "#1a2522", marginBottom: "8px" }}>
+                                            Belum Ada Postingan Produk
+                                        </h4>
+                                        <p style={{ fontSize: "14px", color: "#62736d", margin: 0, lineHeight: 1.6 }}>
+                                            {selectedDesaFilter === "all"
+                                                ? "Saat ini belum ada informasi produk olahan sampah yang dipublikasikan."
+                                                : `Belum ada informasi produk olahan sampah dari ${desasList.find((d) => d.id === selectedDesaFilter)?.nama || "desa ini"}.`}
+                                        </p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div style={{ 
+                                    display: "grid", 
+                                    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", 
+                                    gap: "28px" 
+                                }}>
+                                    {filtered.map((post) => (
+                                        <div 
+                                            key={post.id} 
+                                            className="hover-lift"
+                                            style={{ 
+                                                background: "white", 
+                                                borderRadius: "20px", 
+                                                overflow: "hidden", 
+                                                boxShadow: "0 10px 30px rgba(0,0,0,0.03)", 
+                                                border: "1px solid #eef2ef",
+                                                display: "flex", 
+                                                flexDirection: "column",
+                                                transition: "transform 0.25s, box-shadow 0.25s"
+                                            }}
+                                        >
+                                            {/* Image */}
+                                            <div style={{ position: "relative", width: "100%", height: "220px", background: "#eef2ef" }}>
+                                                <Image 
+                                                    src={post.gambar_url} 
+                                                    alt={post.judul} 
+                                                    fill 
+                                                    style={{ objectFit: "cover" }} 
+                                                    sizes="(max-width: 768px) 100vw, 360px"
+                                                    unoptimized
+                                                />
+                                                {/* Origin Desa Badge */}
+                                                <div style={{ 
+                                                    position: "absolute", top: "14px", left: "14px", 
+                                                    background: "rgba(11, 143, 130, 0.92)", backdropFilter: "blur(6px)",
+                                                    color: "white", padding: "5px 12px", borderRadius: "100px", 
+                                                    fontSize: "11px", fontWeight: 700, letterSpacing: "0.5px"
+                                                }}>
+                                                    {post.desa?.nama || "Desa"}
+                                                </div>
+                                            </div>
+
+                                            {/* Card Body */}
+                                            <div style={{ padding: "22px", display: "flex", flexDirection: "column", flex: 1 }}>
+                                                <h4 style={{ 
+                                                    margin: "0 0 10px 0", fontSize: "18px", fontWeight: 800, 
+                                                    color: "#1a2522", lineHeight: 1.3 
+                                                }}>
+                                                    {post.judul}
+                                                </h4>
+                                                <p style={{ 
+                                                    margin: "0 0 20px 0", fontSize: "14px", color: "#62736d", 
+                                                    lineHeight: 1.6, flex: 1,
+                                                    display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden"
+                                                }}>
+                                                    {post.deskripsi}
+                                                </p>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedPostDetail(post)}
+                                                    style={{
+                                                        width: "100%",
+                                                        padding: "11px 16px",
+                                                        borderRadius: "10px",
+                                                        background: "#f4f7f4",
+                                                        border: "1px solid #dce5e1",
+                                                        color: "var(--teal)",
+                                                        fontSize: "13px",
+                                                        fontWeight: 700,
+                                                        cursor: "pointer",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        gap: "8px",
+                                                        transition: "background 0.2s"
+                                                    }}
+                                                >
+                                                    <Eye size={15} /> Lihat Informasi Lengkap
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()
+                    )}
+                </div>
+            </section>
+
             {/* ── PERATURAN & TATA TERTIB ── */}
-            <section style={{ padding: "80px 24px", background: "white", borderTop: "1px solid #eef2ef", borderBottom: "1px solid #eef2ef" }}>
+            <section id="peraturan" style={{ padding: "80px 24px", background: "white", borderTop: "1px solid #eef2ef", borderBottom: "1px solid #eef2ef" }}>
                 <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
                     <div style={{ textAlign: "center", marginBottom: "50px" }}>
                         <h3 style={{ fontSize: "32px", fontWeight: 800, color: "#1a2522", fontFamily: "var(--font-display)", marginBottom: "12px" }}>Tata Tertib Pelayanan</h3>
@@ -274,6 +506,134 @@ export default function LandingPage() {
                     </form>
                 </div>
             </section>
+
+            {/* ── MODAL DETAIL POSTINGAN PRODUK ── */}
+            {selectedPostDetail && (
+                <div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 100,
+                        background: "rgba(0,0,0,0.55)",
+                        backdropFilter: "blur(6px)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "20px",
+                    }}
+                    onClick={() => setSelectedPostDetail(null)}
+                >
+                    <div
+                        style={{
+                            background: "white",
+                            borderRadius: "24px",
+                            maxWidth: "620px",
+                            width: "100%",
+                            overflow: "hidden",
+                            boxShadow: "0 25px 50px rgba(0,0,0,0.25)",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div style={{ position: "relative", width: "100%", height: "280px", background: "#1a2522" }}>
+                            <Image
+                                src={selectedPostDetail.gambar_url}
+                                alt={selectedPostDetail.judul}
+                                fill
+                                style={{ objectFit: "cover" }}
+                                unoptimized
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setSelectedPostDetail(null)}
+                                style={{
+                                    position: "absolute",
+                                    top: "16px",
+                                    right: "16px",
+                                    background: "rgba(0,0,0,0.6)",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "50%",
+                                    width: "36px",
+                                    height: "36px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: "pointer",
+                                }}
+                                aria-label="Tutup detail"
+                            >
+                                <X size={20} />
+                            </button>
+                            <div
+                                style={{
+                                    position: "absolute",
+                                    bottom: "16px",
+                                    left: "16px",
+                                    background: "rgba(11, 143, 130, 0.95)",
+                                    color: "white",
+                                    padding: "6px 16px",
+                                    borderRadius: "100px",
+                                    fontSize: "12px",
+                                    fontWeight: 700,
+                                }}
+                            >
+                                {selectedPostDetail.desa?.nama || "Desa"}
+                            </div>
+                        </div>
+
+                        <div style={{ padding: "28px" }}>
+                            <div style={{ fontSize: "12px", color: "#8b9994", marginBottom: "8px", fontWeight: 600 }}>
+                                Dipublikasikan pada{" "}
+                                {new Date(selectedPostDetail.created_at).toLocaleDateString("id-ID", {
+                                    dateStyle: "long",
+                                })}
+                            </div>
+                            <h3
+                                style={{
+                                    margin: "0 0 16px 0",
+                                    fontSize: "22px",
+                                    fontWeight: 800,
+                                    color: "#1a2522",
+                                    lineHeight: 1.3,
+                                }}
+                            >
+                                {selectedPostDetail.judul}
+                            </h3>
+                            <div
+                                style={{
+                                    fontSize: "15px",
+                                    color: "#4a5a55",
+                                    lineHeight: 1.7,
+                                    whiteSpace: "pre-line",
+                                    maxHeight: "260px",
+                                    overflowY: "auto",
+                                    paddingRight: "8px",
+                                }}
+                            >
+                                {selectedPostDetail.deskripsi}
+                            </div>
+                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedPostDetail(null)}
+                                    style={{
+                                        padding: "12px 26px",
+                                        borderRadius: "100px",
+                                        background: "var(--teal)",
+                                        color: "white",
+                                        border: "none",
+                                        fontWeight: 700,
+                                        fontSize: "14px",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Tutup Informasi
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── FOOTER ── */}
             <footer style={{ background: "#1a2522", padding: "40px 24px", color: "white", textAlign: "center" }}>

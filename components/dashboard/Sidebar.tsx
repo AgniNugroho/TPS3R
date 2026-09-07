@@ -15,6 +15,7 @@ import {
     Truck,
     X,
     MessageSquareWarning,
+    Sparkles,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,6 +28,7 @@ const navItems = [
     { label: "Bank Sampah", href: "/bank-sampah", icon: Landmark },
     { label: "Residu", href: "/residu", icon: PackageCheck },
     { label: "Pengaduan", href: "/pengaduan", icon: MessageSquareWarning },
+    { label: "Postingan & Produk", href: "/postingan", icon: Sparkles },
 ];
 
 export default function Sidebar({

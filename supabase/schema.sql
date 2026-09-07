@@ -331,3 +331,30 @@ drop policy if exists member_bank_sampah_scope on member_bank_sampah;
 create policy member_bank_sampah_scope on member_bank_sampah for all
   using (is_admin() or desa_id = current_desa_id())
   with check (is_admin() or desa_id = current_desa_id());
+
+create table if not exists postingan (
+  id uuid primary key default gen_random_uuid(),
+  desa_id uuid not null references desa(id) on delete cascade,
+  judul text not null,
+  deskripsi text not null,
+  gambar_url text not null,
+  status text not null default 'Publik' check (status in ('Publik', 'Draft')),
+  author_id uuid references petugas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_postingan_desa on postingan (desa_id);
+create index if not exists idx_postingan_status on postingan (status);
+create index if not exists idx_postingan_created_at on postingan (created_at desc);
+
+alter table postingan enable row level security;
+
+drop policy if exists postingan_public_read on postingan;
+create policy postingan_public_read on postingan for select using (status = 'Publik');
+
+drop policy if exists postingan_scope on postingan;
+create policy postingan_scope on postingan for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
