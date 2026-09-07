@@ -390,4 +390,56 @@ create policy pemberitahuan_scope on pemberitahuan for all
   using (is_admin() or desa_id = current_desa_id())
   with check (is_admin() or desa_id = current_desa_id());
 
+create table if not exists pembayaran_member (
+  id uuid primary key default gen_random_uuid(),
+  desa_id uuid not null references desa(id) on delete cascade,
+  member_id uuid not null references member_bank_sampah(id) on delete cascade,
+  periode_bulan varchar(7) not null,
+  tanggal_bayar date not null default current_date,
+  nominal numeric(12,2) not null default 20000 check (nominal > 0),
+  metode_pembayaran text not null default 'Cash' check (metode_pembayaran in ('Cash', 'Transfer')),
+  status text not null default 'Lunas' check (status in ('Lunas', 'Pending')),
+  catatan text,
+  petugas_id uuid references petugas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint uq_member_periode unique (member_id, periode_bulan)
+);
+
+create table if not exists operasional_tps3r (
+  id uuid primary key default gen_random_uuid(),
+  desa_id uuid not null references desa(id) on delete cascade,
+  periode_bulan varchar(7) not null,
+  tanggal date not null default current_date,
+  kategori text not null default 'BBM' check (kategori in ('BBM', 'Listrik', 'Dapur / Konsumsi', 'Pemeliharaan Mesin', 'Lainnya')),
+  keterangan text not null,
+  nominal numeric(12,2) not null check (nominal > 0),
+  petugas_id uuid references petugas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_pembayaran_member_desa on pembayaran_member(desa_id);
+create index if not exists idx_pembayaran_member_periode on pembayaran_member(periode_bulan);
+create index if not exists idx_pembayaran_member_member on pembayaran_member(member_id);
+create index if not exists idx_pembayaran_member_tanggal on pembayaran_member(tanggal_bayar);
+
+create index if not exists idx_operasional_tps3r_desa on operasional_tps3r(desa_id);
+create index if not exists idx_operasional_tps3r_periode on operasional_tps3r(periode_bulan);
+create index if not exists idx_operasional_tps3r_tanggal on operasional_tps3r(tanggal);
+
+alter table pembayaran_member enable row level security;
+alter table operasional_tps3r enable row level security;
+
+drop policy if exists pembayaran_member_scope on pembayaran_member;
+create policy pembayaran_member_scope on pembayaran_member for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+drop policy if exists operasional_tps3r_scope on operasional_tps3r;
+create policy operasional_tps3r_scope on operasional_tps3r for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+
 

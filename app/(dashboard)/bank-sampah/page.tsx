@@ -2,12 +2,15 @@
 
 import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
+    Banknote,
+    Building2,
     CheckCircle2,
     Edit2,
     Home,
     MapPin,
     Phone,
     Plus,
+    Receipt,
     RefreshCw,
     Search,
     Trash2,
@@ -18,6 +21,9 @@ import {
 } from "lucide-react";
 import FormShell from "@/components/dashboard/FormShell";
 import { showErrorToast, showSuccessToast } from "@/components/ui/Toast";
+import IuranMemberTab from "@/components/bank-sampah/IuranMemberTab";
+import OperasionalTab from "@/components/bank-sampah/OperasionalTab";
+import RekapBUMDesTab from "@/components/bank-sampah/RekapBUMDesTab";
 
 export type MemberItem = {
     id: string;
@@ -102,6 +108,7 @@ function BankSampahContent() {
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [wilayahFilter, setWilayahFilter] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<string>("");
+    const [activeTab, setActiveTab] = useState<"master" | "iuran" | "operasional" | "rekap">("master");
 
     // Active Desa
     const currentDesa = useMemo(() => {
@@ -148,18 +155,31 @@ function BankSampahContent() {
         let mounted = true;
         async function fetchDesa() {
             try {
-                const res = await fetch("/api/desa", { cache: "no-store" });
-                const data = await res.json();
+                const [desaRes, meRes] = await Promise.all([
+                    fetch("/api/desa", { cache: "no-store" }),
+                    fetch("/api/me", { cache: "no-store" }),
+                ]);
+                const data = await desaRes.json();
+                const meData = await meRes.json();
                 if (!mounted) return;
+
+                if (meData.ok) {
+                    setIsAdmin(Boolean(meData.role === "admin" || meData.role === "superadmin"));
+                    if (meData.desaId) {
+                        setSelectedDesaId(meData.desaId);
+                    }
+                }
 
                 if (data.ok && Array.isArray(data.rows)) {
                     setDesaList(data.rows);
                     if (data.rows.length > 0) {
-                        setIsAdmin(true);
-                        const dukun = data.rows.find((d: Desa) =>
-                            d.nama.toLowerCase().includes("dukun")
-                        );
-                        setSelectedDesaId(dukun ? dukun.id : data.rows[0].id);
+                        setSelectedDesaId((prev) => {
+                            if (prev) return prev;
+                            const dukun = data.rows.find((d: Desa) =>
+                                d.nama.toLowerCase().includes("dukun")
+                            );
+                            return dukun ? dukun.id : data.rows[0].id;
+                        });
                     }
                 }
             } catch (err) {
@@ -548,18 +568,120 @@ function BankSampahContent() {
                             </select>
                         )}
 
-                        <button
-                            type="button"
-                            className="btn-primary-clean"
-                            onClick={isDesaDukun ? openCreateMemberModal : openCreateDusunModal}
-                        >
-                            <Plus size={15} />
-                            <span>
-                                {isDesaDukun ? "Tambah Member Baru" : "Tambah Dusun Baru"}
-                            </span>
-                        </button>
+                        {activeTab === "master" && (
+                            <button
+                                type="button"
+                                className="btn-primary-clean"
+                                onClick={isDesaDukun ? openCreateMemberModal : openCreateDusunModal}
+                            >
+                                <Plus size={15} />
+                                <span>
+                                    {isDesaDukun ? "Tambah Member Baru" : "Tambah Dusun Baru"}
+                                </span>
+                            </button>
+                        )}
                     </div>
                 </div>
+
+                {/* Tab Navigation */}
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        borderBottom: "1px solid #e2e8f0",
+                        paddingBottom: "8px",
+                        overflowX: "auto",
+                    }}
+                >
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("master")}
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "8px 16px",
+                            borderRadius: "10px",
+                            border: "none",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: activeTab === "master" ? "#059669" : "#f1f5f9",
+                            color: activeTab === "master" ? "#ffffff" : "#475569",
+                            transition: "all 0.15s ease",
+                        }}
+                    >
+                        <Users size={16} />
+                        {isDesaDukun ? "Data Member" : "Data Dusun"}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("iuran")}
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "8px 16px",
+                            borderRadius: "10px",
+                            border: "none",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: activeTab === "iuran" ? "#059669" : "#f1f5f9",
+                            color: activeTab === "iuran" ? "#ffffff" : "#475569",
+                            transition: "all 0.15s ease",
+                        }}
+                    >
+                        <Banknote size={16} />
+                        Iuran Member (Tgl 1-7)
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("operasional")}
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "8px 16px",
+                            borderRadius: "10px",
+                            border: "none",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: activeTab === "operasional" ? "#059669" : "#f1f5f9",
+                            color: activeTab === "operasional" ? "#ffffff" : "#475569",
+                            transition: "all 0.15s ease",
+                        }}
+                    >
+                        <Receipt size={16} />
+                        Biaya Operasional
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("rekap")}
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "8px 16px",
+                            borderRadius: "10px",
+                            border: "none",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: activeTab === "rekap" ? "#059669" : "#f1f5f9",
+                            color: activeTab === "rekap" ? "#ffffff" : "#475569",
+                            transition: "all 0.15s ease",
+                        }}
+                    >
+                        <Building2 size={16} />
+                        Rekap & Setoran BUMDes
+                    </button>
+                </div>
+
+                {activeTab === "master" && (
+                    <>
 
                 {/* KPI Summary Cards */}
                 {isDesaDukun ? (
@@ -1000,6 +1122,20 @@ function BankSampahContent() {
                             </table>
                         </div>
                     </div>
+                )}
+                    </>
+                )}
+
+                {activeTab === "iuran" && (
+                    <IuranMemberTab selectedDesaId={selectedDesaId} members={members} />
+                )}
+
+                {activeTab === "operasional" && (
+                    <OperasionalTab selectedDesaId={selectedDesaId} />
+                )}
+
+                {activeTab === "rekap" && (
+                    <RekapBUMDesTab selectedDesaId={selectedDesaId} desaName={currentDesa?.nama} />
                 )}
 
                 {/* MODALS FOR MEMBER (Desa Dukun) */}

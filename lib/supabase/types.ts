@@ -8,7 +8,9 @@ export type TableName =
     | "pengumpulan"
     | "bank_sampah"
     | "residu"
-    | "member_bank_sampah";
+    | "member_bank_sampah"
+    | "pembayaran_member"
+    | "operasional_tps3r";
 
 /** Column each table uses to scope rows to a desa. "desa" itself is scoped by its own id. */
 export const DESA_SCOPE_COLUMN: Record<TableName, string> = {
@@ -22,6 +24,8 @@ export const DESA_SCOPE_COLUMN: Record<TableName, string> = {
     bank_sampah: "desa_id",
     residu: "desa_id",
     member_bank_sampah: "desa_id",
+    pembayaran_member: "desa_id",
+    operasional_tps3r: "desa_id",
 };
 
 export type DatabaseRow = Record<
