@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
     ArrowUpRight,
-    Bell,
     CalendarDays,
     ChevronDown,
     Leaf,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import ProfileMenu from "@/components/dashboard/ProfileMenu";
+import NotificationBell from "@/components/dashboard/NotificationBell";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 
 type DashboardData = {
@@ -178,13 +178,7 @@ function DashboardContent() {
                         <strong>Ringkasan</strong>
                     </div>
                     <div className="topbar-actions">
-                        <button
-                            className="icon-button notification"
-                            aria-label="Notifikasi"
-                        >
-                            <Bell size={19} />
-                            <i />
-                        </button>
+                        <NotificationBell />
                         <div className="topbar-date">
                             <CalendarDays size={16} /> {localDate}
                         </div>
@@ -415,9 +409,6 @@ function DashboardContent() {
                                     <h3>Performa per Wilayah</h3>
                                     <p>Total sampah masuk berdasarkan asal</p>
                                 </div>
-                                <button className="text-button">
-                                    Data SQL <ArrowUpRight size={15} />
-                                </button>
                             </div>
                             <div
                                 className="region-list"

@@ -1,4 +1,5 @@
-import WasteFlowForm from "@/components/forms/WasteFlowForms";
+import { Suspense } from "react";
+import SortingBatchForm from "@/components/forms/SortingBatchForm";
 import FormShell from "@/components/dashboard/FormShell";
 
 export default function PemilahanPage() {
@@ -11,7 +12,9 @@ export default function PemilahanPage() {
                     Pecah sampah masuk menjadi organik, anorganik, dan residu.
                     Anorganik dicatat lagi berdasarkan materialnya.
                 </p>
-                <WasteFlowForm mode="sorting" />
+                <Suspense fallback={<div>Memuat data pilah sampah...</div>}>
+                    <SortingBatchForm />
+                </Suspense>
             </main>
         </FormShell>
     );

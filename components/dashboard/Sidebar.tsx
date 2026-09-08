@@ -15,6 +15,8 @@ import {
     Truck,
     X,
     MessageSquareWarning,
+    Sparkles,
+    Megaphone,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,6 +29,8 @@ const navItems = [
     { label: "Bank Sampah", href: "/bank-sampah", icon: Landmark },
     { label: "Residu", href: "/residu", icon: PackageCheck },
     { label: "Pengaduan", href: "/pengaduan", icon: MessageSquareWarning },
+    { label: "Postingan & Produk", href: "/postingan", icon: Sparkles },
+    { label: "Pemberitahuan", href: "/pemberitahuan", icon: Megaphone },
 ];
 
 export default function Sidebar({
@@ -181,7 +185,7 @@ export default function Sidebar({
                 <p className="nav-label secondary-label">LAINNYA</p>
                 <nav className="nav-list">
                     <Link
-                        className="nav-item"
+                        className={`nav-item ${activeLabel === "Laporan" ? "active" : ""}`}
                         href="/laporan"
                         onClick={() => onMobileChange(false)}
                     >

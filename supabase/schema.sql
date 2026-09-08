@@ -40,14 +40,16 @@ create table if not exists pemilahan_sampah (
   organik_kg numeric(12,2) not null default 0 check (organik_kg >= 0),
   anorganik_kg numeric(12,2) not null default 0 check (anorganik_kg >= 0),
   residu_kg numeric(12,2) not null default 0 check (residu_kg >= 0),
+  plastik_kg numeric(12,2) not null default 0 check (plastik_kg >= 0),
   kardus_kg numeric(12,2) not null default 0 check (kardus_kg >= 0),
   kaca_kg numeric(12,2) not null default 0 check (kaca_kg >= 0),
   besi_kg numeric(12,2) not null default 0 check (besi_kg >= 0),
+  medis_kg numeric(12,2) not null default 0 check (medis_kg >= 0),
   anorganik_lainnya_kg numeric(12,2) not null default 0 check (anorganik_lainnya_kg >= 0),
   keterangan text,
   created_at timestamptz not null default now(),
   check (organik_kg + anorganik_kg + residu_kg >= 0),
-  check (kardus_kg + kaca_kg + besi_kg + anorganik_lainnya_kg <= anorganik_kg)
+  check (plastik_kg + kardus_kg + kaca_kg + besi_kg + medis_kg + anorganik_lainnya_kg <= anorganik_kg)
 );
 
 create index if not exists idx_sampah_masuk_asal on sampah_masuk (asal_sampah);
@@ -170,6 +172,33 @@ alter table pengumpulan add column if not exists desa_id uuid references desa(id
 alter table bank_sampah add column if not exists desa_id uuid references desa(id);
 alter table residu add column if not exists desa_id uuid references desa(id);
 
+create table if not exists member_bank_sampah (
+  id uuid primary key default gen_random_uuid(),
+  kode_member text unique,
+  nama text not null,
+  nik text,
+  kategori text not null default 'Rumahan' check (kategori in ('Rumahan', 'Industri')),
+  desa_id uuid not null references desa(id) on delete cascade,
+  wilayah_id uuid references wilayah(id) on delete set null,
+  nomor_hp text,
+  alamat text,
+  status text not null default 'Aktif' check (status in ('Aktif', 'Nonaktif')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_member_bank_sampah_desa on member_bank_sampah (desa_id);
+create index if not exists idx_member_bank_sampah_wilayah on member_bank_sampah (wilayah_id);
+create index if not exists idx_member_bank_sampah_nama on member_bank_sampah (nama);
+
+alter table bank_sampah add column if not exists member_id uuid references member_bank_sampah(id) on delete set null;
+create index if not exists idx_bank_sampah_member_id on bank_sampah (member_id);
+
+alter table bank_sampah add column if not exists sampah_masuk_id uuid references sampah_masuk(id) on delete set null;
+create index if not exists idx_bank_sampah_sampah_masuk_id on bank_sampah (sampah_masuk_id);
+
+alter table sampah_masuk add column if not exists member_id uuid references member_bank_sampah(id) on delete set null;
+create index if not exists idx_sampah_masuk_member_id on sampah_masuk (member_id);
+
 update sampah_masuk s set desa_id = w.desa_id from wilayah w where s.wilayah_id = w.id and s.desa_id is null;
 update pengumpulan g set desa_id = w.desa_id from wilayah w where g.wilayah_id = w.id and g.desa_id is null;
 update bank_sampah b set desa_id = p.desa_id from petugas p where b.petugas_id = p.id and b.desa_id is null;
@@ -260,6 +289,7 @@ alter table pemilahan_sampah enable row level security;
 alter table pengumpulan enable row level security;
 alter table bank_sampah enable row level security;
 alter table residu enable row level security;
+alter table member_bank_sampah enable row level security;
 
 drop policy if exists desa_select on desa;
 create policy desa_select on desa for select using (is_admin() or id = current_desa_id());
@@ -300,3 +330,153 @@ drop policy if exists residu_scope on residu;
 create policy residu_scope on residu for all
   using (is_admin() or desa_id = current_desa_id())
   with check (is_admin() or desa_id = current_desa_id());
+
+drop policy if exists member_bank_sampah_scope on member_bank_sampah;
+create policy member_bank_sampah_scope on member_bank_sampah for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+create table if not exists postingan (
+  id uuid primary key default gen_random_uuid(),
+  desa_id uuid not null references desa(id) on delete cascade,
+  judul text not null,
+  deskripsi text not null,
+  gambar_url text not null,
+  status text not null default 'Publik' check (status in ('Publik', 'Draft')),
+  author_id uuid references petugas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_postingan_desa on postingan (desa_id);
+create index if not exists idx_postingan_status on postingan (status);
+create index if not exists idx_postingan_created_at on postingan (created_at desc);
+
+alter table postingan enable row level security;
+
+drop policy if exists postingan_public_read on postingan;
+create policy postingan_public_read on postingan for select using (status = 'Publik');
+
+drop policy if exists postingan_scope on postingan;
+create policy postingan_scope on postingan for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+create table if not exists pemberitahuan (
+  id uuid primary key default gen_random_uuid(),
+  desa_id uuid not null references desa(id) on delete cascade,
+  judul text not null,
+  isi text not null,
+  kategori text not null default 'Operasional' check (kategori in ('Operasional', 'Iuran & Keuangan', 'Jadwal Layanan', 'Sosialisasi & Edukasi', 'Lainnya')),
+  tingkat_urgensi text not null default 'Normal' check (tingkat_urgensi in ('Penting', 'Normal', 'Info')),
+  status text not null default 'Aktif' check (status in ('Aktif', 'Diarsipkan')),
+  tanggal_mulai date not null default current_date,
+  tanggal_selesai date,
+  author_id uuid references petugas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_pemberitahuan_desa on pemberitahuan (desa_id);
+create index if not exists idx_pemberitahuan_status on pemberitahuan (status);
+create index if not exists idx_pemberitahuan_urgensi on pemberitahuan (tingkat_urgensi);
+create index if not exists idx_pemberitahuan_created_at on pemberitahuan (created_at desc);
+
+alter table pemberitahuan enable row level security;
+
+drop policy if exists pemberitahuan_public_read on pemberitahuan;
+create policy pemberitahuan_public_read on pemberitahuan for select using (status = 'Aktif');
+
+drop policy if exists pemberitahuan_scope on pemberitahuan;
+create policy pemberitahuan_scope on pemberitahuan for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+create table if not exists pembayaran_member (
+  id uuid primary key default gen_random_uuid(),
+  desa_id uuid not null references desa(id) on delete cascade,
+  member_id uuid references member_bank_sampah(id) on delete cascade,
+  wilayah_id uuid references wilayah(id) on delete cascade,
+  periode_bulan varchar(7) not null,
+  tanggal_bayar date not null default current_date,
+  nominal numeric(12,2) not null default 20000 check (nominal > 0),
+  metode_pembayaran text not null default 'Cash' check (metode_pembayaran in ('Cash', 'Transfer')),
+  status text not null default 'Lunas' check (status in ('Lunas', 'Pending')),
+  catatan text,
+  petugas_id uuid references petugas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists operasional_tps3r (
+  id uuid primary key default gen_random_uuid(),
+  desa_id uuid not null references desa(id) on delete cascade,
+  periode_bulan varchar(7) not null,
+  tanggal date not null default current_date,
+  kategori text not null default 'BBM' check (kategori in ('BBM', 'Listrik', 'Dapur / Konsumsi', 'Pemeliharaan Mesin', 'Lainnya')),
+  keterangan text not null,
+  nominal numeric(12,2) not null check (nominal > 0),
+  petugas_id uuid references petugas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_pembayaran_member_desa on pembayaran_member(desa_id);
+create index if not exists idx_pembayaran_member_periode on pembayaran_member(periode_bulan);
+create index if not exists idx_pembayaran_member_member on pembayaran_member(member_id);
+create index if not exists idx_pembayaran_member_wilayah on pembayaran_member(wilayah_id);
+create index if not exists idx_pembayaran_member_tanggal on pembayaran_member(tanggal_bayar);
+
+create unique index if not exists uq_member_periode on pembayaran_member(member_id, periode_bulan) where member_id is not null;
+create unique index if not exists uq_wilayah_periode on pembayaran_member(wilayah_id, periode_bulan) where wilayah_id is not null;
+
+create index if not exists idx_operasional_tps3r_desa on operasional_tps3r(desa_id);
+create index if not exists idx_operasional_tps3r_periode on operasional_tps3r(periode_bulan);
+create index if not exists idx_operasional_tps3r_tanggal on operasional_tps3r(tanggal);
+
+alter table pembayaran_member enable row level security;
+alter table operasional_tps3r enable row level security;
+
+drop policy if exists pembayaran_member_scope on pembayaran_member;
+create policy pembayaran_member_scope on pembayaran_member for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+drop policy if exists operasional_tps3r_scope on operasional_tps3r;
+create policy operasional_tps3r_scope on operasional_tps3r for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+create table if not exists public.penjualan_anorganik (
+  id uuid primary key default gen_random_uuid(),
+  desa_id uuid not null references public.desa(id) on delete cascade,
+  tanggal date not null default current_date,
+  pembeli text not null,
+  kontak_pembeli text,
+  kategori text not null check (kategori in ('Plastik', 'Kardus', 'Kaca', 'Besi', 'Medis', 'Lainnya')),
+  berat_kg numeric(12,2) not null check (berat_kg > 0),
+  harga_per_kg numeric(12,2) not null check (harga_per_kg >= 0),
+  total_pendapatan numeric(12,2) not null check (total_pendapatan >= 0),
+  status_setoran text not null default 'Belum Disetor' check (status_setoran in ('Belum Disetor', 'Sudah Disetor')),
+  tanggal_setor date,
+  catatan text,
+  petugas_id uuid references public.petugas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_penjualan_anorganik_desa on public.penjualan_anorganik(desa_id);
+create index if not exists idx_penjualan_anorganik_tanggal on public.penjualan_anorganik(tanggal);
+create index if not exists idx_penjualan_anorganik_kategori on public.penjualan_anorganik(kategori);
+create index if not exists idx_penjualan_anorganik_status on public.penjualan_anorganik(status_setoran);
+
+alter table public.penjualan_anorganik enable row level security;
+
+drop policy if exists penjualan_anorganik_scope on public.penjualan_anorganik;
+create policy penjualan_anorganik_scope on public.penjualan_anorganik for all
+  using (is_admin() or desa_id = current_desa_id())
+  with check (is_admin() or desa_id = current_desa_id());
+
+
+
+
