@@ -11,6 +11,8 @@ import {
     ChevronRight,
     Scale,
     AlertCircle,
+    Search,
+    X,
 } from "lucide-react";
 import { showErrorToast, showSuccessToast } from "@/components/ui/Toast";
 
@@ -26,7 +28,9 @@ type IncomingRow = {
 };
 
 type SortingRecord = {
+    id?: string;
     sampah_masuk_id: string;
+    tanggal?: string;
     organik_kg?: number;
     anorganik_kg?: number;
     residu_kg?: number;
@@ -36,6 +40,8 @@ type SortingRecord = {
     besi_kg?: number;
     medis_kg?: number;
     anorganik_lainnya_kg?: number;
+    keterangan?: string;
+    created_at?: string;
 };
 
 type SortedBreakdown = {
@@ -67,6 +73,7 @@ type EnrichedRow = IncomingRow & {
     remaining: number;
     isComplete: boolean;
     previouslySorted: SortedBreakdown;
+    records: SortingRecord[];
 };
 
 type CardWeights = {
@@ -158,6 +165,15 @@ export default function SortingBatchForm() {
     const [allRows, setAllRows] = useState<EnrichedRow[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
+    // Detail modal & All list modal state
+    const [selectedDetailRow, setSelectedDetailRow] = useState<EnrichedRow | null>(null);
+    const [showAllModal, setShowAllModal] = useState(false);
+    const [allModalTab, setAllModalTab] = useState<"all" | "unsorted" | "completed">("all");
+    const [periodFilter, setPeriodFilter] = useState<"all" | "weekly" | "monthly" | "yearly" | "custom">("all");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
+
     // Form state
     const [weights, setWeights] = useState<CardWeights>({ ...emptyWeights });
     const [submitting, setSubmitting] = useState(false);
@@ -181,7 +197,12 @@ export default function SortingBatchForm() {
             }
 
             const sortedMap = new Map<string, SortedBreakdown>();
+            const recordsMap = new Map<string, SortingRecord[]>();
             (sortingRes.rows ?? []).forEach((row: SortingRecord) => {
+                const list = recordsMap.get(row.sampah_masuk_id) || [];
+                list.push(row);
+                recordsMap.set(row.sampah_masuk_id, list);
+
                 const existing = sortedMap.get(row.sampah_masuk_id) || {
                     ...emptyBreakdown,
                 };
@@ -222,6 +243,7 @@ export default function SortingBatchForm() {
                         remaining,
                         isComplete: remaining <= 0.005,
                         previouslySorted: sorted,
+                        records: recordsMap.get(row.id) || [],
                     };
                 })
                 .sort((a: EnrichedRow, b: EnrichedRow) => {
@@ -242,10 +264,61 @@ export default function SortingBatchForm() {
         void Promise.resolve().then(() => loadData());
     }, [loadData]);
 
-    /* ---- Derived State for Form ---- */
+    function handlePeriodChange(p: "all" | "weekly" | "monthly" | "yearly") {
+        setPeriodFilter(p);
+        if (p === "all") {
+            setStartDate("");
+            setEndDate("");
+            return;
+        }
+        const today = new Date();
+        const toStr = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+        };
+        const end = toStr(today);
+        let start = "";
+        if (p === "weekly") {
+            const d = new Date(today);
+            d.setDate(today.getDate() - 7);
+            start = toStr(d);
+        } else if (p === "monthly") {
+            const d = new Date(today.getFullYear(), today.getMonth(), 1);
+            start = toStr(d);
+        } else if (p === "yearly") {
+            const d = new Date(today.getFullYear(), 0, 1);
+            start = toStr(d);
+        }
+        setStartDate(start);
+        setEndDate(end);
+    }
+
+    function resetFilters() {
+        setPeriodFilter("all");
+        setStartDate("");
+        setEndDate("");
+        setSearchQuery("");
+        setAllModalTab("all");
+    }
+
+    /* ---- Derived State for Form & Modals ---- */
     const unsortedRows = allRows.filter((r) => !r.isComplete);
     const completedRows = allRows.filter((r) => r.isComplete);
     const activeRow = allRows.find((r) => r.id === selectedId) ?? null;
+
+    const filteredAllRows = allRows.filter((row) => {
+        if (allModalTab === "unsorted" && row.isComplete) return false;
+        if (allModalTab === "completed" && !row.isComplete) return false;
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase().trim();
+            if (!row.asal_sampah.toLowerCase().includes(q)) return false;
+        }
+        if (startDate && row.tanggal < startDate) return false;
+        if (endDate && row.tanggal > endDate) return false;
+        return true;
+    });
 
     const inputTotal = weightTotal(weights);
     const target = activeRow?.remaining ?? 0;
@@ -401,17 +474,28 @@ export default function SortingBatchForm() {
                     </div>
                 )}
 
-                {/* Unsorted items - Click to process one item */}
+                {/* Unsorted items - Show top 5 */}
                 {!loading && unsortedRows.length > 0 && (
                     <>
                         <div className="sorting-section-header">
                             <p className="sorting-select-hint">
-                                Pilih <strong>satu</strong> sampah masuk yang
-                                ingin dipilah:
+                                Pilih <strong>satu</strong> sampah masuk yang ingin dipilah:
                             </p>
+                            {unsortedRows.length > 5 && (
+                                <button
+                                    type="button"
+                                    className="sorting-clean-link"
+                                    onClick={() => {
+                                        setAllModalTab("unsorted");
+                                        setShowAllModal(true);
+                                    }}
+                                >
+                                    Lihat Semua ({unsortedRows.length}) →
+                                </button>
+                            )}
                         </div>
                         <div className="sorting-select-list">
-                            {unsortedRows.map((row) => {
+                            {unsortedRows.slice(0, 5).map((row) => {
                                 const rowRatio =
                                     row.total_berat_kg > 0
                                         ? row.totalSorted / row.total_berat_kg
@@ -431,15 +515,11 @@ export default function SortingBatchForm() {
                                                         {row.asal_sampah}
                                                     </span>
                                                     <span className="sorting-select-item-date">
-                                                        {fmtDateShort(
-                                                            row.tanggal,
-                                                        )}
+                                                        {fmtDateShort(row.tanggal)}
                                                     </span>
                                                 </div>
                                                 <span className="sorting-select-item-badge">
-                                                    Kuota:{" "}
-                                                    {row.remaining.toFixed(1)}{" "}
-                                                    kg
+                                                    Kuota: {row.remaining.toFixed(1)} kg
                                                 </span>
                                             </div>
 
@@ -458,17 +538,10 @@ export default function SortingBatchForm() {
 
                                             <div className="sorting-select-item-meta">
                                                 <span>
-                                                    {row.totalSorted.toFixed(1)}{" "}
-                                                    /{" "}
-                                                    {row.total_berat_kg.toFixed(
-                                                        1,
-                                                    )}{" "}
-                                                    kg terpilah
+                                                    {row.totalSorted.toFixed(1)} / {row.total_berat_kg.toFixed(1)} kg terpilah
                                                 </span>
                                                 <span className="sorting-select-item-remaining">
-                                                    Sisa kuota:{" "}
-                                                    {row.remaining.toFixed(1)}{" "}
-                                                    kg
+                                                    Sisa kuota: {row.remaining.toFixed(1)} kg
                                                 </span>
                                             </div>
                                         </div>
@@ -483,17 +556,40 @@ export default function SortingBatchForm() {
                     </>
                 )}
 
-                {/* Completed section */}
+                {/* Completed section - Show top 5 with Click to View Detail */}
                 {!loading && completedRows.length > 0 && (
                     <div className="sorting-completed-section">
-                        <span className="sorting-group-label">
-                            Sudah selesai dipilah
-                        </span>
+                        <div className="sorting-section-header">
+                            <span className="sorting-group-label">
+                                Sudah selesai dipilah
+                            </span>
+                            {completedRows.length > 5 && (
+                                <button
+                                    type="button"
+                                    className="sorting-clean-link"
+                                    onClick={() => {
+                                        setAllModalTab("completed");
+                                        setShowAllModal(true);
+                                    }}
+                                >
+                                    Lihat Semua ({completedRows.length}) →
+                                </button>
+                            )}
+                        </div>
                         <div className="sorting-select-list">
-                            {completedRows.map((row) => (
+                            {completedRows.slice(0, 5).map((row) => (
                                 <div
                                     key={row.id}
+                                    role="button"
+                                    tabIndex={0}
                                     className="sorting-select-item completed"
+                                    onClick={() => setSelectedDetailRow(row)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                            setSelectedDetailRow(row);
+                                        }
+                                    }}
+                                    title={`Klik untuk melihat detail pemilahan ${row.asal_sampah}`}
                                 >
                                     <CheckCircle2
                                         size={20}
@@ -517,10 +613,7 @@ export default function SortingBatchForm() {
                                         </div>
                                         <div className="sorting-select-item-meta">
                                             <span>
-                                                {row.total_berat_kg.toFixed(1)}{" "}
-                                                /{" "}
-                                                {row.total_berat_kg.toFixed(1)}{" "}
-                                                kg terpilah
+                                                {row.total_berat_kg.toFixed(1)} / {row.total_berat_kg.toFixed(1)} kg terpilah
                                             </span>
                                             <span className="sorting-badge-complete">
                                                 Selesai
@@ -529,6 +622,392 @@ export default function SortingBatchForm() {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ============================================================ */}
+                {/*  MODAL: Detail Hasil Pemilahan (e.g. CEPEK)                  */}
+                {/* ============================================================ */}
+                {selectedDetailRow && (
+                    <div
+                        className="sorting-modal-backdrop"
+                        onClick={() => setSelectedDetailRow(null)}
+                    >
+                        <div
+                            className="sorting-detail-modal"
+                            onClick={(e) => e.stopPropagation()}
+                            role="dialog"
+                            aria-modal="true"
+                        >
+                            <div className="sorting-modal-header">
+                                <div>
+                                    <div className="sorting-detail-title-wrap">
+                                        <h3 className="sorting-modal-title">
+                                            {selectedDetailRow.asal_sampah}
+                                        </h3>
+                                        <span className="sorting-badge-complete">
+                                            {selectedDetailRow.isComplete ? "Selesai" : "Dalam Proses"}
+                                        </span>
+                                    </div>
+                                    <p className="sorting-modal-subtitle">
+                                        {fmtDate(selectedDetailRow.tanggal)} • Total Berat: <strong>{selectedDetailRow.total_berat_kg.toFixed(1)} kg</strong>
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="sorting-modal-close-btn"
+                                    onClick={() => setSelectedDetailRow(null)}
+                                    aria-label="Tutup"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            <div className="sorting-modal-body">
+                                {/* 3 Metric Cards */}
+                                <div className="sorting-detail-stats">
+                                    <div className="sorting-stat-box organik">
+                                        <span className="stat-label">Organik</span>
+                                        <span className="stat-num">{selectedDetailRow.previouslySorted.organik_kg.toFixed(1)} <small>kg</small></span>
+                                    </div>
+                                    <div className="sorting-stat-box anorganik">
+                                        <span className="stat-label">Anorganik</span>
+                                        <span className="stat-num">{selectedDetailRow.previouslySorted.anorganik_kg.toFixed(1)} <small>kg</small></span>
+                                    </div>
+                                    <div className="sorting-stat-box residu">
+                                        <span className="stat-label">Residu</span>
+                                        <span className="stat-num">{selectedDetailRow.previouslySorted.residu_kg.toFixed(1)} <small>kg</small></span>
+                                    </div>
+                                </div>
+
+                                {/* Anorganik Breakdown */}
+                                <div className="sorting-detail-subgroup">
+                                    <span className="sorting-subgroup-label">Rincian Anorganik</span>
+                                    <div className="sorting-chips-grid">
+                                        <div className="sorting-chip">
+                                            <span>Plastik</span>
+                                            <strong>{selectedDetailRow.previouslySorted.plastik_kg.toFixed(1)} kg</strong>
+                                        </div>
+                                        <div className="sorting-chip">
+                                            <span>Kardus</span>
+                                            <strong>{selectedDetailRow.previouslySorted.kardus_kg.toFixed(1)} kg</strong>
+                                        </div>
+                                        <div className="sorting-chip">
+                                            <span>Kaca</span>
+                                            <strong>{selectedDetailRow.previouslySorted.kaca_kg.toFixed(1)} kg</strong>
+                                        </div>
+                                        <div className="sorting-chip">
+                                            <span>Besi</span>
+                                            <strong>{selectedDetailRow.previouslySorted.besi_kg.toFixed(1)} kg</strong>
+                                        </div>
+                                        <div className="sorting-chip">
+                                            <span>Medis</span>
+                                            <strong>{selectedDetailRow.previouslySorted.medis_kg.toFixed(1)} kg</strong>
+                                        </div>
+                                        <div className="sorting-chip">
+                                            <span>Lainnya</span>
+                                            <strong>{selectedDetailRow.previouslySorted.anorganik_lainnya_kg.toFixed(1)} kg</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Catatan / Keterangan if available */}
+                                {selectedDetailRow.records?.some((r) => r.keterangan) && (
+                                    <div className="sorting-detail-subgroup">
+                                        <span className="sorting-subgroup-label">Catatan Pemilahan</span>
+                                        <div className="sorting-notes-list">
+                                            {selectedDetailRow.records
+                                                .filter((r) => r.keterangan)
+                                                .map((r, idx) => (
+                                                    <p key={idx} className="sorting-note-item">
+                                                        {r.keterangan}
+                                                    </p>
+                                                ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="sorting-modal-footer">
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={() => setSelectedDetailRow(null)}
+                                >
+                                    Tutup
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ============================================================ */}
+                {/*  MODAL: Lihat Semua Data & Filter                            */}
+                {/* ============================================================ */}
+                {showAllModal && (
+                    <div
+                        className="sorting-modal-backdrop"
+                        onClick={() => setShowAllModal(false)}
+                    >
+                        <div
+                            className="sorting-all-modal"
+                            onClick={(e) => e.stopPropagation()}
+                            role="dialog"
+                            aria-modal="true"
+                        >
+                            <div className="sorting-modal-header">
+                                <div className="sorting-all-header-tabs">
+                                    <h3 className="sorting-modal-title">Semua Data Sampah</h3>
+                                    <div className="sorting-pill-tabs">
+                                        <button
+                                            type="button"
+                                            className={`pill-tab ${allModalTab === "all" ? "active" : ""}`}
+                                            onClick={() => setAllModalTab("all")}
+                                        >
+                                            Semua ({allRows.length})
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`pill-tab ${allModalTab === "unsorted" ? "active" : ""}`}
+                                            onClick={() => setAllModalTab("unsorted")}
+                                        >
+                                            Belum ({unsortedRows.length})
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`pill-tab ${allModalTab === "completed" ? "active" : ""}`}
+                                            onClick={() => setAllModalTab("completed")}
+                                        >
+                                            Selesai ({completedRows.length})
+                                        </button>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="sorting-modal-close-btn"
+                                    onClick={() => setShowAllModal(false)}
+                                    aria-label="Tutup"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {/* Clean Filter Controls */}
+                            <div className="sorting-clean-filter-bar">
+                                <div className="sorting-search-box">
+                                    <Search size={15} className="search-icon" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari asal sampah (contoh: CEPEK)..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            type="button"
+                                            className="search-clear-btn"
+                                            onClick={() => setSearchQuery("")}
+                                        >
+                                            <X size={13} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="sorting-filter-row-secondary">
+                                    <div className="sorting-period-chips">
+                                        <button
+                                            type="button"
+                                            className={`period-chip ${periodFilter === "all" && !startDate && !endDate ? "active" : ""}`}
+                                            onClick={() => handlePeriodChange("all")}
+                                        >
+                                            Semua
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`period-chip ${periodFilter === "weekly" ? "active" : ""}`}
+                                            onClick={() => handlePeriodChange("weekly")}
+                                        >
+                                            Mingguan
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`period-chip ${periodFilter === "monthly" ? "active" : ""}`}
+                                            onClick={() => handlePeriodChange("monthly")}
+                                        >
+                                            Bulanan
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`period-chip ${periodFilter === "yearly" ? "active" : ""}`}
+                                            onClick={() => handlePeriodChange("yearly")}
+                                        >
+                                            Tahunan
+                                        </button>
+                                    </div>
+
+                                    <div className="sorting-date-inline">
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => {
+                                                setPeriodFilter("custom");
+                                                setStartDate(e.target.value);
+                                            }}
+                                            aria-label="Tanggal Awal"
+                                        />
+                                        <span>—</span>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => {
+                                                setPeriodFilter("custom");
+                                                setEndDate(e.target.value);
+                                            }}
+                                            aria-label="Tanggal Akhir"
+                                        />
+                                        {(searchQuery || startDate || endDate || periodFilter !== "all" || allModalTab !== "all") && (
+                                            <button
+                                                type="button"
+                                                className="sorting-reset-link"
+                                                onClick={resetFilters}
+                                            >
+                                                Reset
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Clean List Scroll */}
+                            <div className="sorting-all-list-scroll">
+                                {filteredAllRows.length === 0 ? (
+                                    <div className="sorting-empty" style={{ padding: "36px 12px" }}>
+                                        <Package size={28} />
+                                        <p>Tidak ada data sampah yang cocok.</p>
+                                    </div>
+                                ) : (
+                                    <div className="sorting-select-list">
+                                        {filteredAllRows.map((row) => {
+                                            const rowRatio =
+                                                row.total_berat_kg > 0
+                                                    ? row.totalSorted / row.total_berat_kg
+                                                    : 0;
+                                            if (row.isComplete) {
+                                                return (
+                                                    <div
+                                                        key={row.id}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        className="sorting-select-item completed"
+                                                        onClick={() => setSelectedDetailRow(row)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter" || e.key === " ") {
+                                                                setSelectedDetailRow(row);
+                                                            }
+                                                        }}
+                                                        title={`Klik untuk melihat detail ${row.asal_sampah}`}
+                                                    >
+                                                        <CheckCircle2
+                                                            size={20}
+                                                            className="sorting-complete-icon"
+                                                        />
+                                                        <div className="sorting-select-item-body">
+                                                            <div className="sorting-select-item-top">
+                                                                <strong>{row.asal_sampah}</strong>
+                                                                <span className="sorting-select-item-date">
+                                                                    {fmtDateShort(row.tanggal)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="sorting-progress">
+                                                                <div
+                                                                    className="sorting-progress-fill"
+                                                                    style={{
+                                                                        width: "100%",
+                                                                        background: "var(--teal)",
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div className="sorting-select-item-meta">
+                                                                <span>
+                                                                    {row.total_berat_kg.toFixed(1)} / {row.total_berat_kg.toFixed(1)} kg terpilah
+                                                                </span>
+                                                                <span className="sorting-badge-complete">
+                                                                    Selesai
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <button
+                                                    key={row.id}
+                                                    type="button"
+                                                    className="sorting-select-item"
+                                                    onClick={() => {
+                                                        setShowAllModal(false);
+                                                        selectAndProceed(row.id);
+                                                    }}
+                                                    title={`Klik untuk memilah sampah dari ${row.asal_sampah}`}
+                                                >
+                                                    <div className="sorting-select-item-body">
+                                                        <div className="sorting-select-item-top">
+                                                            <div className="sorting-select-item-title-wrap">
+                                                                <span className="sorting-select-item-origin">
+                                                                    {row.asal_sampah}
+                                                                </span>
+                                                                <span className="sorting-select-item-date">
+                                                                    {fmtDateShort(row.tanggal)}
+                                                                </span>
+                                                            </div>
+                                                            <span className="sorting-select-item-badge">
+                                                                Kuota: {row.remaining.toFixed(1)} kg
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="sorting-progress">
+                                                            <div
+                                                                className="sorting-progress-fill"
+                                                                style={{
+                                                                    width: `${Math.min(rowRatio * 100, 100)}%`,
+                                                                    background:
+                                                                        rowRatio >= 0.7
+                                                                            ? "var(--amber)"
+                                                                            : "var(--teal)",
+                                                                }}
+                                                            />
+                                                        </div>
+
+                                                        <div className="sorting-select-item-meta">
+                                                            <span>
+                                                                {row.totalSorted.toFixed(1)} / {row.total_berat_kg.toFixed(1)} kg terpilah
+                                                            </span>
+                                                            <span className="sorting-select-item-remaining">
+                                                                Sisa kuota: {row.remaining.toFixed(1)} kg
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="sorting-select-action-cue">
+                                                        <span>Pilah</span>
+                                                        <ChevronRight size={16} />
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="sorting-modal-footer">
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={() => setShowAllModal(false)}
+                                >
+                                    Tutup
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

@@ -35,6 +35,8 @@ type PaymentRow = {
         id: string;
         kode_member?: string | null;
         nama: string;
+        nik?: string | null;
+        kategori?: string | null;
         wilayah?: {
             dusun: string;
         } | null;
@@ -365,6 +367,8 @@ export default function LaporanPage() {
                     no: number;
                     kode: string;
                     nama: string;
+                    nik: string;
+                    kategori: string;
                     dusun: string;
                     periode: string;
                     tanggal: string;
@@ -377,6 +381,8 @@ export default function LaporanPage() {
                     no: i + 1,
                     kode: r.member?.kode_member || "-",
                     nama: r.member?.nama || "Tanpa Nama",
+                    nik: r.member?.nik || "-",
+                    kategori: r.member?.kategori || "Rumahan",
                     dusun: r.member?.wilayah?.dusun || "-",
                     periode: r.periode_bulan,
                     tanggal: r.tanggal_bayar,
@@ -389,6 +395,8 @@ export default function LaporanPage() {
                     { header: "No", accessor: (r: MemberExportRow) => r.no },
                     { header: "Kode Member", accessor: (r: MemberExportRow) => r.kode },
                     { header: "Nama Member", accessor: (r: MemberExportRow) => r.nama },
+                    { header: "NIK", accessor: (r: MemberExportRow) => r.nik },
+                    { header: "Kategori (Rumahan/Industri)", accessor: (r: MemberExportRow) => r.kategori },
                     { header: "Dusun / Wilayah", accessor: (r: MemberExportRow) => r.dusun },
                     { header: "Periode Tagihan", accessor: (r: MemberExportRow) => r.periode },
                     { header: "Tanggal Bayar", accessor: (r: MemberExportRow) => r.tanggal },

@@ -41,6 +41,8 @@ type PaymentRow = {
         id: string;
         kode_member?: string | null;
         nama: string;
+        nik?: string | null;
+        kategori?: string | null;
         wilayah?: {
             id: string;
             dusun: string;
