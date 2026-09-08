@@ -15,7 +15,7 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
             return "Tabel 'pembayaran_member' belum dibuat di Supabase. Silakan jalankan file migrasi supabase/migrations/20260908_create_pembayaran_member_and_operasional.sql di Supabase SQL Editor.";
         }
         if (anyErr.code === "23505") {
-            return "Member ini sudah tercatat membayar untuk periode bulan yang dipilih.";
+            return "Data ini sudah tercatat membayar untuk periode bulan yang dipilih.";
         }
         if (anyErr.message) return anyErr.message;
     }
@@ -28,7 +28,10 @@ export async function GET(request: Request) {
         const session = await getSessionContext();
         if (!session) {
             return NextResponse.json(
-                { ok: false, error: "Anda harus login untuk mengakses data ini." },
+                {
+                    ok: false,
+                    error: "Anda harus login untuk mengakses data ini.",
+                },
                 { status: 401 },
             );
         }
@@ -44,10 +47,12 @@ export async function GET(request: Request) {
 
         let query = supabase
             .from("pembayaran_member")
-            .select(`
+            .select(
+                `
                 id,
                 desa_id,
                 member_id,
+                wilayah_id,
                 periode_bulan,
                 tanggal_bayar,
                 nominal,
@@ -69,8 +74,15 @@ export async function GET(request: Request) {
                         rw
                     )
                 ),
+                wilayah:wilayah_id (
+                    id,
+                    dusun,
+                    rt,
+                    rw
+                ),
                 desa:desa_id ( id, nama )
-            `)
+            `,
+            )
             .order("tanggal_bayar", { ascending: false })
             .order("created_at", { ascending: false });
 
@@ -108,19 +120,37 @@ export async function GET(request: Request) {
         if (search) {
             const q = search.toLowerCase();
             rows = rows.filter((r) => {
-                const member = r.member as { nama?: string; kode_member?: string; wilayah?: { dusun?: string } } | null;
+                const member = r.member as {
+                    nama?: string;
+                    kode_member?: string;
+                    wilayah?: { dusun?: string };
+                } | null;
+                const wilayah = r.wilayah as { dusun?: string } | null;
                 const nama = member?.nama?.toLowerCase() || "";
                 const kode = member?.kode_member?.toLowerCase() || "";
-                const dusun = member?.wilayah?.dusun?.toLowerCase() || "";
+                const dusun =
+                    (member?.wilayah?.dusun || wilayah?.dusun)?.toLowerCase() ||
+                    "";
                 const catatan = (r.catatan as string)?.toLowerCase() || "";
-                return nama.includes(q) || kode.includes(q) || dusun.includes(q) || catatan.includes(q);
+                return (
+                    nama.includes(q) ||
+                    kode.includes(q) ||
+                    dusun.includes(q) ||
+                    catatan.includes(q)
+                );
             });
         }
 
         return NextResponse.json({ ok: true, rows, data: rows });
     } catch (error: unknown) {
-        const message = getErrorMessage(error, "Terjadi kesalahan saat memuat data pembayaran member.");
-        return NextResponse.json({ ok: false, error: message }, { status: 500 });
+        const message = getErrorMessage(
+            error,
+            "Terjadi kesalahan saat memuat data pembayaran member.",
+        );
+        return NextResponse.json(
+            { ok: false, error: message },
+            { status: 500 },
+        );
     }
 }
 
@@ -129,49 +159,93 @@ export async function POST(request: Request) {
         const session = await getSessionContext();
         if (!session) {
             return NextResponse.json(
-                { ok: false, error: "Anda harus login untuk mencatat pembayaran." },
+                {
+                    ok: false,
+                    error: "Anda harus login untuk mencatat pembayaran.",
+                },
                 { status: 401 },
             );
         }
 
         const body = await request.json();
         const memberId = toText(body.member_id);
+        const wilayahId = toText(body.wilayah_id);
         const periodeBulan = toText(body.periode_bulan);
-        const tanggalBayar = toText(body.tanggal_bayar) || new Date().toISOString().slice(0, 10);
+        const tanggalBayar =
+            toText(body.tanggal_bayar) || new Date().toISOString().slice(0, 10);
         const nominal = Number(body.nominal);
-        const metodePembayaran = body.metode_pembayaran === "Transfer" ? "Transfer" : "Cash";
+        const metodePembayaran =
+            body.metode_pembayaran === "Transfer" ? "Transfer" : "Cash";
         const status = body.status === "Pending" ? "Pending" : "Lunas";
         const catatan = toText(body.catatan);
 
-        if (!memberId) {
-            return NextResponse.json({ ok: false, error: "Member wajib dipilih." }, { status: 400 });
+        if (!memberId && !wilayahId) {
+            return NextResponse.json(
+                { ok: false, error: "Member atau dusun wajib dipilih." },
+                { status: 400 },
+            );
         }
 
         if (!periodeBulan) {
-            return NextResponse.json({ ok: false, error: "Periode bulan wajib ditentukan (contoh: 2026-09)." }, { status: 400 });
+            return NextResponse.json(
+                {
+                    ok: false,
+                    error: "Periode bulan wajib ditentukan (contoh: 2026-09).",
+                },
+                { status: 400 },
+            );
         }
 
         if (!Number.isFinite(nominal) || nominal <= 0) {
-            return NextResponse.json({ ok: false, error: "Nominal pembayaran harus berupa angka lebih dari 0." }, { status: 400 });
+            return NextResponse.json(
+                {
+                    ok: false,
+                    error: "Nominal pembayaran harus berupa angka lebih dari 0.",
+                },
+                { status: 400 },
+            );
         }
 
         const supabase = getSupabaseServerClient();
 
-        // Retrieve member's desa_id
-        const { data: memberData, error: memberErr } = await supabase
-            .from("member_bank_sampah")
-            .select("id, desa_id, nama")
-            .eq("id", memberId)
-            .single();
+        // Resolve payer's desa_id, either from the member or the dusun/wilayah
+        let desaId: string | null = null;
+        if (memberId) {
+            const { data: memberData, error: memberErr } = await supabase
+                .from("member_bank_sampah")
+                .select("id, desa_id, nama")
+                .eq("id", memberId)
+                .single();
 
-        if (memberErr || !memberData) {
-            return NextResponse.json({ ok: false, error: "Data member tidak ditemukan." }, { status: 404 });
+            if (memberErr || !memberData) {
+                return NextResponse.json(
+                    { ok: false, error: "Data member tidak ditemukan." },
+                    { status: 404 },
+                );
+            }
+            desaId = memberData.desa_id;
+        } else {
+            const { data: wilayahData, error: wilayahErr } = await supabase
+                .from("wilayah")
+                .select("id, desa_id")
+                .eq("id", wilayahId)
+                .single();
+
+            if (wilayahErr || !wilayahData) {
+                return NextResponse.json(
+                    { ok: false, error: "Data dusun tidak ditemukan." },
+                    { status: 404 },
+                );
+            }
+            desaId = wilayahData.desa_id;
         }
 
-        const desaId = memberData.desa_id;
         if (!session.isAdmin && desaId !== session.desaId) {
             return NextResponse.json(
-                { ok: false, error: "Anda tidak memiliki izin mencatat pembayaran untuk member desa lain." },
+                {
+                    ok: false,
+                    error: "Anda tidak memiliki izin mencatat pembayaran untuk desa lain.",
+                },
                 { status: 403 },
             );
         }
@@ -181,7 +255,8 @@ export async function POST(request: Request) {
             .insert([
                 {
                     desa_id: desaId,
-                    member_id: memberId,
+                    member_id: memberId || null,
+                    wilayah_id: wilayahId || null,
                     periode_bulan: periodeBulan,
                     tanggal_bayar: tanggalBayar,
                     nominal,
@@ -191,7 +266,8 @@ export async function POST(request: Request) {
                     petugas_id: session.petugasId || null,
                 },
             ])
-            .select(`
+            .select(
+                `
                 id,
                 desa_id,
                 member_id,
@@ -201,16 +277,27 @@ export async function POST(request: Request) {
                 metode_pembayaran,
                 status,
                 catatan,
-                member:member_id ( id, kode_member, nama )
-            `)
+                member:member_id ( id, kode_member, nama ),
+                wilayah:wilayah_id ( id, dusun )
+            `,
+            )
             .single();
 
         if (error) throw error;
 
-        return NextResponse.json({ ok: true, data, row: data }, { status: 201 });
+        return NextResponse.json(
+            { ok: true, data, row: data },
+            { status: 201 },
+        );
     } catch (error: unknown) {
-        const message = getErrorMessage(error, "Gagal mencatat pembayaran member.");
-        return NextResponse.json({ ok: false, error: message }, { status: 500 });
+        const message = getErrorMessage(
+            error,
+            "Gagal mencatat pembayaran member.",
+        );
+        return NextResponse.json(
+            { ok: false, error: message },
+            { status: 500 },
+        );
     }
 }
 
@@ -219,21 +306,29 @@ export async function PUT(request: Request) {
         const session = await getSessionContext();
         if (!session) {
             return NextResponse.json(
-                { ok: false, error: "Anda harus login untuk mengedit pembayaran." },
+                {
+                    ok: false,
+                    error: "Anda harus login untuk mengedit pembayaran.",
+                },
                 { status: 401 },
             );
         }
 
         const body = await request.json();
         const id = toText(body.id);
-        const nominal = body.nominal !== undefined ? Number(body.nominal) : undefined;
+        const nominal =
+            body.nominal !== undefined ? Number(body.nominal) : undefined;
         const metodePembayaran = toText(body.metode_pembayaran);
         const tanggalBayar = toText(body.tanggal_bayar);
         const status = toText(body.status);
-        const catatan = body.catatan !== undefined ? toText(body.catatan) : undefined;
+        const catatan =
+            body.catatan !== undefined ? toText(body.catatan) : undefined;
 
         if (!id) {
-            return NextResponse.json({ ok: false, error: "ID pembayaran wajib disertakan." }, { status: 400 });
+            return NextResponse.json(
+                { ok: false, error: "ID pembayaran wajib disertakan." },
+                { status: 400 },
+            );
         }
 
         const supabase = getSupabaseServerClient();
@@ -245,12 +340,18 @@ export async function PUT(request: Request) {
             .maybeSingle();
 
         if (fetchErr || !existing) {
-            return NextResponse.json({ ok: false, error: "Data pembayaran tidak ditemukan." }, { status: 404 });
+            return NextResponse.json(
+                { ok: false, error: "Data pembayaran tidak ditemukan." },
+                { status: 404 },
+            );
         }
 
         if (!session.isAdmin && existing.desa_id !== session.desaId) {
             return NextResponse.json(
-                { ok: false, error: "Anda tidak memiliki izin mengedit data pembayaran desa lain." },
+                {
+                    ok: false,
+                    error: "Anda tidak memiliki izin mengedit data pembayaran desa lain.",
+                },
                 { status: 403 },
             );
         }
@@ -261,13 +362,20 @@ export async function PUT(request: Request) {
 
         if (nominal !== undefined) {
             if (!Number.isFinite(nominal) || nominal <= 0) {
-                return NextResponse.json({ ok: false, error: "Nominal pembayaran harus lebih dari 0." }, { status: 400 });
+                return NextResponse.json(
+                    {
+                        ok: false,
+                        error: "Nominal pembayaran harus lebih dari 0.",
+                    },
+                    { status: 400 },
+                );
             }
             updates.nominal = nominal;
         }
 
         if (metodePembayaran) {
-            updates.metode_pembayaran = metodePembayaran === "Transfer" ? "Transfer" : "Cash";
+            updates.metode_pembayaran =
+                metodePembayaran === "Transfer" ? "Transfer" : "Cash";
         }
 
         if (tanggalBayar) updates.tanggal_bayar = tanggalBayar;
@@ -285,8 +393,14 @@ export async function PUT(request: Request) {
 
         return NextResponse.json({ ok: true, data, row: data });
     } catch (error: unknown) {
-        const message = getErrorMessage(error, "Gagal memperbarui data pembayaran.");
-        return NextResponse.json({ ok: false, error: message }, { status: 500 });
+        const message = getErrorMessage(
+            error,
+            "Gagal memperbarui data pembayaran.",
+        );
+        return NextResponse.json(
+            { ok: false, error: message },
+            { status: 500 },
+        );
     }
 }
 
@@ -295,7 +409,10 @@ export async function DELETE(request: Request) {
         const session = await getSessionContext();
         if (!session) {
             return NextResponse.json(
-                { ok: false, error: "Anda harus login untuk menghapus data pembayaran." },
+                {
+                    ok: false,
+                    error: "Anda harus login untuk menghapus data pembayaran.",
+                },
                 { status: 401 },
             );
         }
@@ -313,7 +430,10 @@ export async function DELETE(request: Request) {
         }
 
         if (!id) {
-            return NextResponse.json({ ok: false, error: "ID pembayaran wajib disertakan." }, { status: 400 });
+            return NextResponse.json(
+                { ok: false, error: "ID pembayaran wajib disertakan." },
+                { status: 400 },
+            );
         }
 
         const supabase = getSupabaseServerClient();
@@ -325,22 +445,37 @@ export async function DELETE(request: Request) {
             .maybeSingle();
 
         if (fetchErr || !existing) {
-            return NextResponse.json({ ok: false, error: "Data pembayaran tidak ditemukan." }, { status: 404 });
+            return NextResponse.json(
+                { ok: false, error: "Data pembayaran tidak ditemukan." },
+                { status: 404 },
+            );
         }
 
         if (!session.isAdmin && existing.desa_id !== session.desaId) {
             return NextResponse.json(
-                { ok: false, error: "Anda tidak memiliki izin menghapus data pembayaran desa lain." },
+                {
+                    ok: false,
+                    error: "Anda tidak memiliki izin menghapus data pembayaran desa lain.",
+                },
                 { status: 403 },
             );
         }
 
-        const { error } = await supabase.from("pembayaran_member").delete().eq("id", id);
+        const { error } = await supabase
+            .from("pembayaran_member")
+            .delete()
+            .eq("id", id);
         if (error) throw error;
 
         return NextResponse.json({ ok: true });
     } catch (error: unknown) {
-        const message = getErrorMessage(error, "Gagal menghapus data pembayaran.");
-        return NextResponse.json({ ok: false, error: message }, { status: 500 });
+        const message = getErrorMessage(
+            error,
+            "Gagal menghapus data pembayaran.",
+        );
+        return NextResponse.json(
+            { ok: false, error: message },
+            { status: 500 },
+        );
     }
 }
