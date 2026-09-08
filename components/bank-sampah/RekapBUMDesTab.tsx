@@ -30,6 +30,7 @@ type OperasionalRow = {
 type Props = {
     selectedDesaId: string;
     desaName?: string;
+    isDesaDukun?: boolean;
 };
 
 function formatRupiah(num: number): string {
@@ -41,7 +42,11 @@ function formatRupiah(num: number): string {
     }).format(num);
 }
 
-export default function RekapBUMDesTab({ selectedDesaId, desaName = "TPS3R" }: Props) {
+export default function RekapBUMDesTab({
+    selectedDesaId,
+    desaName = "TPS3R",
+    isDesaDukun = true,
+}: Props) {
     const [periodeBulan, setPeriodeBulan] = useState(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -155,7 +160,7 @@ export default function RekapBUMDesTab({ selectedDesaId, desaName = "TPS3R" }: P
                         {isLoading && <span style={{ fontSize: "12px", fontWeight: 500, color: "#64748b", marginLeft: "8px" }}>Memuat data...</span>}
                     </h3>
                     <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>
-                        Perhitungan otomatis iuran member (tgl 1-7) dikurangi biaya operasional bulanan untuk disetor ke Bendahara BUMDes.
+                        Perhitungan otomatis {isDesaDukun ? "iuran member" : "iuran dusun"} (tgl 1-7) dikurangi biaya operasional bulanan untuk disetor ke Bendahara BUMDes.
                     </p>
                 </div>
 
@@ -205,11 +210,11 @@ export default function RekapBUMDesTab({ selectedDesaId, desaName = "TPS3R" }: P
                             </div>
                             <div>
                                 <span style={{ fontSize: "12px", textTransform: "uppercase", fontWeight: 700, color: "#059669" }}>Pemasukan</span>
-                                <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>Iuran Member</h4>
+                                <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>{isDesaDukun ? "Iuran Member" : "Iuran Dusun"}</h4>
                             </div>
                         </div>
                         <span style={{ fontSize: "12px", background: "#f1f5f9", padding: "4px 8px", borderRadius: "6px", color: "#475569", fontWeight: 600 }}>
-                            {summary.lunasCount} Member Lunas
+                            {summary.lunasCount} {isDesaDukun ? "Member Lunas" : "Dusun Lunas"}
                         </span>
                     </div>
 
@@ -292,7 +297,7 @@ export default function RekapBUMDesTab({ selectedDesaId, desaName = "TPS3R" }: P
                     </div>
 
                     <div style={{ borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: "14px", fontSize: "12px", color: "#d1fae5" }}>
-                        Formula: Total Iuran Member ({formatRupiah(summary.totalIuran)}) dikurangi Biaya Operasional ({formatRupiah(summary.totalBiaya)}).
+                        Formula: Total {isDesaDukun ? "Iuran Member" : "Iuran Dusun"} ({formatRupiah(summary.totalIuran)}) dikurangi Biaya Operasional ({formatRupiah(summary.totalBiaya)}).
                     </div>
                 </div>
             </div>
@@ -304,7 +309,7 @@ export default function RekapBUMDesTab({ selectedDesaId, desaName = "TPS3R" }: P
                 </h4>
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "14px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px" }}>
-                        <span style={{ fontWeight: 600, color: "#334155" }}>1. Total Penerimaan Iuran Member</span>
+                        <span style={{ fontWeight: 600, color: "#334155" }}>1. Total Penerimaan {isDesaDukun ? "Iuran Member" : "Iuran Dusun"}</span>
                         <span style={{ fontWeight: 700, color: "#059669" }}>+ {formatRupiah(summary.totalIuran)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px" }}>
@@ -325,7 +330,7 @@ export default function RekapBUMDesTab({ selectedDesaId, desaName = "TPS3R" }: P
                                 Butuh Rekap Lengkap dalam Format Excel (.xlsx)?
                             </p>
                             <p style={{ margin: 0, color: "#15803d", fontSize: "12px" }}>
-                                Unduh file resmi BUMDes dengan sheet Iuran Member dan sheet Biaya Operasional di Halaman Laporan.
+                                Unduh file resmi BUMDes dengan sheet {isDesaDukun ? "Iuran Member" : "Iuran Dusun"} dan sheet Biaya Operasional di Halaman Laporan.
                             </p>
                         </div>
                     </div>

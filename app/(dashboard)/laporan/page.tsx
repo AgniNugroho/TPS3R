@@ -14,6 +14,8 @@ type DesaItem = {
 
 type PaymentRow = {
     id: string;
+    member_id?: string | null;
+    wilayah_id?: string | null;
     periode_bulan: string;
     tanggal_bayar: string;
     nominal: number;
@@ -27,6 +29,13 @@ type PaymentRow = {
         wilayah?: {
             dusun: string;
         } | null;
+    } | null;
+    wilayah?: {
+        id: string;
+        kode: string;
+        dusun: string;
+        rt: string | null;
+        rw: string | null;
     } | null;
 };
 
@@ -147,9 +156,12 @@ export default function LaporanPage() {
             const totalOperasional = oprRows.reduce((acc, r) => acc + Number(r.nominal || 0), 0);
             const netBUMDes = totalIuran - totalOperasional;
 
+            const currentDesaObj = desaList.find((d) => d.id === selectedDesaId);
             const desaName = selectedDesaId === "all"
                 ? "Semua Desa"
-                : desaList.find((d) => d.id === selectedDesaId)?.nama || "Desa";
+                : currentDesaObj?.nama || "Desa";
+
+            const isDusunMode = selectedDesaId !== "all" && Boolean(currentDesaObj && !currentDesaObj.nama.toLowerCase().includes("dukun"));
 
             // Format nama bulan Indo
             const [year, month] = bulan.split("-");
@@ -161,44 +173,170 @@ export default function LaporanPage() {
 
             // 1. Sheet 1: Rekapitulasi BUMDes
             type RekapRow = { uraian: string; keterangan: string; nominal: number | string };
+            const titleUraian = isDusunMode
+                ? "LAPORAN REKAPITULASI IURAN DUSUN & SETORAN BUMDES"
+                : (selectedDesaId === "all"
+                    ? "LAPORAN REKAPITULASI IURAN (MEMBER & DUSUN) & SETORAN BUMDES"
+                    : "LAPORAN REKAPITULASI IURAN MEMBER & SETORAN BUMDES");
+            const countLabel = isDusunMode
+                ? `1. Total Dusun Membayar`
+                : (selectedDesaId === "all" ? `1. Total Entitas Membayar` : `1. Total Member Membayar`);
+            const countKet = isDusunMode
+                ? `${bayarRows.length} Dusun`
+                : (selectedDesaId === "all" ? `${bayarRows.length} Data` : `${bayarRows.length} Orang`);
+            const iuranLabel = isDusunMode
+                ? `2. Total Penerimaan Iuran Dusun`
+                : (selectedDesaId === "all" ? `2. Total Penerimaan Iuran` : `2. Total Penerimaan Iuran Member`);
+
             const rekapRows: RekapRow[] = [
-                { uraian: "LAPORAN REKAPITULASI IURAN MEMBER & SETORAN BUMDES", keterangan: "", nominal: "" },
+                { uraian: titleUraian, keterangan: "", nominal: "" },
                 { uraian: "Wilayah / Unit", keterangan: `TPS3R ${desaName}`, nominal: "" },
                 { uraian: "Periode Bulan", keterangan: bulanNama, nominal: "" },
                 { uraian: "Tanggal Dicetak", keterangan: new Date().toLocaleDateString("id-ID"), nominal: "" },
                 { uraian: "----------------------------------------", keterangan: "--------------------", nominal: "------------" },
-                { uraian: "1. Total Member Membayar", keterangan: `${bayarRows.length} Orang`, nominal: "" },
-                { uraian: "2. Total Penerimaan Iuran Member", keterangan: "Pemasukan Iuran", nominal: totalIuran },
+                { uraian: countLabel, keterangan: countKet, nominal: "" },
+                { uraian: iuranLabel, keterangan: "Pemasukan Iuran", nominal: totalIuran },
                 { uraian: "3. Total Biaya Operasional TPS3R", keterangan: "Pengeluaran (BBM, Listrik, Dapur, dll)", nominal: totalOperasional },
                 { uraian: "----------------------------------------", keterangan: "--------------------", nominal: "------------" },
                 { uraian: "TOTAL SETORAN BERSIH KE BENDAHARA BUMDES", keterangan: "Iuran Terkumpul - Biaya Operasional", nominal: netBUMDes },
             ];
 
-            // 2. Sheet 2: Rincian Pembayaran Member
-            type MemberExportRow = {
-                no: number;
-                kode: string;
-                nama: string;
-                dusun: string;
-                periode: string;
-                tanggal: string;
-                nominal: number;
-                metode: string;
-                status: string;
-                catatan: string;
-            };
-            const memberExportRows: MemberExportRow[] = bayarRows.map((r, i) => ({
-                no: i + 1,
-                kode: r.member?.kode_member || "-",
-                nama: r.member?.nama || "Tanpa Nama",
-                dusun: r.member?.wilayah?.dusun || "-",
-                periode: r.periode_bulan,
-                tanggal: r.tanggal_bayar,
-                nominal: Number(r.nominal || 0),
-                metode: r.metode_pembayaran,
-                status: r.status,
-                catatan: r.catatan || "-",
-            }));
+            // 2. Sheet 2: Rincian Pembayaran
+            let sheet2Name = "Iuran Member";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let sheet2Rows: any[] = [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let sheet2Columns: any[] = [];
+
+            if (isDusunMode) {
+                sheet2Name = "Iuran Dusun";
+                type DusunExportRow = {
+                    no: number;
+                    kode: string;
+                    dusun: string;
+                    rt_rw: string;
+                    periode: string;
+                    tanggal: string;
+                    nominal: number;
+                    metode: string;
+                    status: string;
+                    catatan: string;
+                };
+                sheet2Rows = bayarRows.map((r, i) => {
+                    const rt = r.wilayah?.rt ? `RT ${r.wilayah.rt}` : "";
+                    const rw = r.wilayah?.rw ? `RW ${r.wilayah.rw}` : "";
+                    const rtrw = [rt, rw].filter(Boolean).join(" / ") || "-";
+                    return {
+                        no: i + 1,
+                        kode: r.wilayah?.kode || "-",
+                        dusun: r.wilayah?.dusun || r.member?.wilayah?.dusun || "Dusun",
+                        rt_rw: rtrw,
+                        periode: r.periode_bulan,
+                        tanggal: r.tanggal_bayar,
+                        nominal: Number(r.nominal || 0),
+                        metode: r.metode_pembayaran,
+                        status: r.status,
+                        catatan: r.catatan || "-",
+                    };
+                });
+                sheet2Columns = [
+                    { header: "No", accessor: (r: DusunExportRow) => r.no },
+                    { header: "Kode Dusun", accessor: (r: DusunExportRow) => r.kode },
+                    { header: "Nama Dusun", accessor: (r: DusunExportRow) => r.dusun },
+                    { header: "RT / RW", accessor: (r: DusunExportRow) => r.rt_rw },
+                    { header: "Periode Tagihan", accessor: (r: DusunExportRow) => r.periode },
+                    { header: "Tanggal Bayar", accessor: (r: DusunExportRow) => r.tanggal },
+                    { header: "Nominal (Rp)", accessor: (r: DusunExportRow) => r.nominal },
+                    { header: "Metode Pembayaran", accessor: (r: DusunExportRow) => r.metode },
+                    { header: "Status", accessor: (r: DusunExportRow) => r.status },
+                    { header: "Catatan", accessor: (r: DusunExportRow) => r.catatan },
+                ];
+            } else if (selectedDesaId === "all") {
+                sheet2Name = "Rincian Iuran";
+                type MixedExportRow = {
+                    no: number;
+                    tipe: string;
+                    kode: string;
+                    nama_entitas: string;
+                    wilayah: string;
+                    periode: string;
+                    tanggal: string;
+                    nominal: number;
+                    metode: string;
+                    status: string;
+                    catatan: string;
+                };
+                sheet2Rows = bayarRows.map((r, i) => {
+                    const isDusunRow = Boolean(r.wilayah_id || (!r.member_id && r.wilayah));
+                    const rt = r.wilayah?.rt ? `RT ${r.wilayah.rt}` : "";
+                    const rw = r.wilayah?.rw ? `RW ${r.wilayah.rw}` : "";
+                    const rtrw = [rt, rw].filter(Boolean).join(" / ");
+                    return {
+                        no: i + 1,
+                        tipe: isDusunRow ? "Dusun" : "Member",
+                        kode: isDusunRow ? (r.wilayah?.kode || "-") : (r.member?.kode_member || "-"),
+                        nama_entitas: isDusunRow ? (r.wilayah?.dusun || "-") : (r.member?.nama || "-"),
+                        wilayah: isDusunRow ? (rtrw || "-") : (r.member?.wilayah?.dusun || "-"),
+                        periode: r.periode_bulan,
+                        tanggal: r.tanggal_bayar,
+                        nominal: Number(r.nominal || 0),
+                        metode: r.metode_pembayaran,
+                        status: r.status,
+                        catatan: r.catatan || "-",
+                    };
+                });
+                sheet2Columns = [
+                    { header: "No", accessor: (r: MixedExportRow) => r.no },
+                    { header: "Kategori", accessor: (r: MixedExportRow) => r.tipe },
+                    { header: "Kode", accessor: (r: MixedExportRow) => r.kode },
+                    { header: "Nama / Dusun", accessor: (r: MixedExportRow) => r.nama_entitas },
+                    { header: "Wilayah / RT RW", accessor: (r: MixedExportRow) => r.wilayah },
+                    { header: "Periode Tagihan", accessor: (r: MixedExportRow) => r.periode },
+                    { header: "Tanggal Bayar", accessor: (r: MixedExportRow) => r.tanggal },
+                    { header: "Nominal (Rp)", accessor: (r: MixedExportRow) => r.nominal },
+                    { header: "Metode Pembayaran", accessor: (r: MixedExportRow) => r.metode },
+                    { header: "Status", accessor: (r: MixedExportRow) => r.status },
+                    { header: "Catatan", accessor: (r: MixedExportRow) => r.catatan },
+                ];
+            } else {
+                sheet2Name = "Iuran Member";
+                type MemberExportRow = {
+                    no: number;
+                    kode: string;
+                    nama: string;
+                    dusun: string;
+                    periode: string;
+                    tanggal: string;
+                    nominal: number;
+                    metode: string;
+                    status: string;
+                    catatan: string;
+                };
+                sheet2Rows = bayarRows.map((r, i) => ({
+                    no: i + 1,
+                    kode: r.member?.kode_member || "-",
+                    nama: r.member?.nama || "Tanpa Nama",
+                    dusun: r.member?.wilayah?.dusun || "-",
+                    periode: r.periode_bulan,
+                    tanggal: r.tanggal_bayar,
+                    nominal: Number(r.nominal || 0),
+                    metode: r.metode_pembayaran,
+                    status: r.status,
+                    catatan: r.catatan || "-",
+                }));
+                sheet2Columns = [
+                    { header: "No", accessor: (r: MemberExportRow) => r.no },
+                    { header: "Kode Member", accessor: (r: MemberExportRow) => r.kode },
+                    { header: "Nama Member", accessor: (r: MemberExportRow) => r.nama },
+                    { header: "Dusun / Wilayah", accessor: (r: MemberExportRow) => r.dusun },
+                    { header: "Periode Tagihan", accessor: (r: MemberExportRow) => r.periode },
+                    { header: "Tanggal Bayar", accessor: (r: MemberExportRow) => r.tanggal },
+                    { header: "Nominal (Rp)", accessor: (r: MemberExportRow) => r.nominal },
+                    { header: "Metode Pembayaran", accessor: (r: MemberExportRow) => r.metode },
+                    { header: "Status", accessor: (r: MemberExportRow) => r.status },
+                    { header: "Catatan", accessor: (r: MemberExportRow) => r.catatan },
+                ];
+            }
 
             // 3. Sheet 3: Rincian Biaya Operasional
             type OprExportRow = {
@@ -228,20 +366,9 @@ export default function LaporanPage() {
                         ],
                     },
                     {
-                        sheetName: "Iuran Member",
-                        rows: memberExportRows,
-                        columns: [
-                            { header: "No", accessor: (r: MemberExportRow) => r.no },
-                            { header: "Kode Member", accessor: (r: MemberExportRow) => r.kode },
-                            { header: "Nama Member", accessor: (r: MemberExportRow) => r.nama },
-                            { header: "Dusun / Wilayah", accessor: (r: MemberExportRow) => r.dusun },
-                            { header: "Periode Tagihan", accessor: (r: MemberExportRow) => r.periode },
-                            { header: "Tanggal Bayar", accessor: (r: MemberExportRow) => r.tanggal },
-                            { header: "Nominal (Rp)", accessor: (r: MemberExportRow) => r.nominal },
-                            { header: "Metode Pembayaran", accessor: (r: MemberExportRow) => r.metode },
-                            { header: "Status", accessor: (r: MemberExportRow) => r.status },
-                            { header: "Catatan", accessor: (r: MemberExportRow) => r.catatan },
-                        ],
+                        sheetName: sheet2Name,
+                        rows: sheet2Rows,
+                        columns: sheet2Columns,
                     },
                     {
                         sheetName: "Biaya Operasional",
@@ -266,6 +393,9 @@ export default function LaporanPage() {
             setDownloading(null);
         }
     }
+
+    const selectedDesaObj = desaList.find((d) => d.id === selectedDesaId);
+    const isDusunView = selectedDesaId !== "all" && Boolean(selectedDesaObj && !selectedDesaObj.nama.toLowerCase().includes("dukun"));
 
     return (
         <FormShell title="Cetak Laporan" activeLabel="Laporan">
@@ -367,10 +497,10 @@ export default function LaporanPage() {
                                     <Landmark size={12} /> REKAP RESMI BUMDES
                                 </div>
                                 <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1a2522", margin: "0 0 6px 0" }}>
-                                    Laporan Keuangan Iuran Member & Setoran BUMDes
+                                    Laporan Keuangan {isDusunView ? "Iuran Dusun" : "Iuran Member"} & Setoran BUMDes
                                 </h2>
                                 <p style={{ fontSize: "14px", color: "#556b63", margin: 0, maxWidth: "600px", lineHeight: 1.5 }}>
-                                    Menghasilkan file Excel (.xlsx) multi-sheet siap serah terima ke Bendahara BUMDes, berisi lembar Rekap Setoran Bersih, Rincian Pembayaran Member (Cash/TF), dan Rincian Biaya Operasional (BBM, Listrik, Dapur).
+                                    Menghasilkan file Excel (.xlsx) multi-sheet siap serah terima ke Bendahara BUMDes, berisi lembar Rekap Setoran Bersih, Rincian Pembayaran {isDusunView ? "Dusun" : "Member"} (Cash/TF), dan Rincian Biaya Operasional (BBM, Listrik, Dapur).
                                 </p>
                             </div>
                         </div>
@@ -416,7 +546,9 @@ export default function LaporanPage() {
                             <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--teal)", marginTop: "2px" }}>
                                 Rp {summary.totalIuran.toLocaleString("id-ID")}
                             </div>
-                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>{summary.memberCount} member bayar</span>
+                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                                {summary.memberCount} {isDusunView ? "dusun bayar" : "member bayar"}
+                            </span>
                         </div>
                         <div>
                             <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Biaya Operasional</span>

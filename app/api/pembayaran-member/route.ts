@@ -48,6 +48,7 @@ export async function GET(request: Request) {
                 id,
                 desa_id,
                 member_id,
+                wilayah_id,
                 periode_bulan,
                 tanggal_bayar,
                 nominal,
@@ -68,6 +69,15 @@ export async function GET(request: Request) {
                         rt,
                         rw
                     )
+                ),
+                wilayah:wilayah_id (
+                    id,
+                    kode,
+                    dusun,
+                    rt,
+                    rw,
+                    jumlah_kk,
+                    jumlah_jiwa
                 ),
                 desa:desa_id ( id, nama )
             `)
@@ -109,9 +119,10 @@ export async function GET(request: Request) {
             const q = search.toLowerCase();
             rows = rows.filter((r) => {
                 const member = r.member as { nama?: string; kode_member?: string; wilayah?: { dusun?: string } } | null;
-                const nama = member?.nama?.toLowerCase() || "";
-                const kode = member?.kode_member?.toLowerCase() || "";
-                const dusun = member?.wilayah?.dusun?.toLowerCase() || "";
+                const wilayah = r.wilayah as { dusun?: string; kode?: string } | null;
+                const nama = (member?.nama || wilayah?.dusun || "").toLowerCase();
+                const kode = (member?.kode_member || wilayah?.kode || "").toLowerCase();
+                const dusun = (member?.wilayah?.dusun || wilayah?.dusun || "").toLowerCase();
                 const catatan = (r.catatan as string)?.toLowerCase() || "";
                 return nama.includes(q) || kode.includes(q) || dusun.includes(q) || catatan.includes(q);
             });
@@ -135,7 +146,8 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const memberId = toText(body.member_id);
+        const memberId = toText(body.member_id) || null;
+        const wilayahId = toText(body.wilayah_id) || null;
         const periodeBulan = toText(body.periode_bulan);
         const tanggalBayar = toText(body.tanggal_bayar) || new Date().toISOString().slice(0, 10);
         const nominal = Number(body.nominal);
@@ -143,8 +155,8 @@ export async function POST(request: Request) {
         const status = body.status === "Pending" ? "Pending" : "Lunas";
         const catatan = toText(body.catatan);
 
-        if (!memberId) {
-            return NextResponse.json({ ok: false, error: "Member wajib dipilih." }, { status: 400 });
+        if (!memberId && !wilayahId) {
+            return NextResponse.json({ ok: false, error: "Member atau Dusun wajib dipilih." }, { status: 400 });
         }
 
         if (!periodeBulan) {
@@ -157,21 +169,34 @@ export async function POST(request: Request) {
 
         const supabase = getSupabaseServerClient();
 
-        // Retrieve member's desa_id
-        const { data: memberData, error: memberErr } = await supabase
-            .from("member_bank_sampah")
-            .select("id, desa_id, nama")
-            .eq("id", memberId)
-            .single();
+        let desaId = toText(body.desa_id);
+        if (memberId) {
+            const { data: memberData, error: memberErr } = await supabase
+                .from("member_bank_sampah")
+                .select("id, desa_id, nama")
+                .eq("id", memberId)
+                .single();
 
-        if (memberErr || !memberData) {
-            return NextResponse.json({ ok: false, error: "Data member tidak ditemukan." }, { status: 404 });
+            if (memberErr || !memberData) {
+                return NextResponse.json({ ok: false, error: "Data member tidak ditemukan." }, { status: 404 });
+            }
+            desaId = memberData.desa_id;
+        } else if (wilayahId) {
+            const { data: wilayahData, error: wilayahErr } = await supabase
+                .from("wilayah")
+                .select("id, desa_id, dusun")
+                .eq("id", wilayahId)
+                .single();
+
+            if (wilayahErr || !wilayahData) {
+                return NextResponse.json({ ok: false, error: "Data dusun tidak ditemukan." }, { status: 404 });
+            }
+            desaId = wilayahData.desa_id;
         }
 
-        const desaId = memberData.desa_id;
         if (!session.isAdmin && desaId !== session.desaId) {
             return NextResponse.json(
-                { ok: false, error: "Anda tidak memiliki izin mencatat pembayaran untuk member desa lain." },
+                { ok: false, error: "Anda tidak memiliki izin mencatat pembayaran untuk desa lain." },
                 { status: 403 },
             );
         }
@@ -182,6 +207,7 @@ export async function POST(request: Request) {
                 {
                     desa_id: desaId,
                     member_id: memberId,
+                    wilayah_id: wilayahId,
                     periode_bulan: periodeBulan,
                     tanggal_bayar: tanggalBayar,
                     nominal,
@@ -195,17 +221,27 @@ export async function POST(request: Request) {
                 id,
                 desa_id,
                 member_id,
+                wilayah_id,
                 periode_bulan,
                 tanggal_bayar,
                 nominal,
                 metode_pembayaran,
                 status,
                 catatan,
-                member:member_id ( id, kode_member, nama )
+                member:member_id ( id, kode_member, nama ),
+                wilayah:wilayah_id ( id, kode, dusun, rt, rw )
             `)
             .single();
 
-        if (error) throw error;
+        if (error) {
+            if (error.code === "23505") {
+                return NextResponse.json(
+                    { ok: false, error: `Pembayaran untuk periode ${periodeBulan} sudah pernah dicatat sebelumnya.` },
+                    { status: 409 },
+                );
+            }
+            throw error;
+        }
 
         return NextResponse.json({ ok: true, data, row: data }, { status: 201 });
     } catch (error: unknown) {
@@ -274,11 +310,27 @@ export async function PUT(request: Request) {
         if (status) updates.status = status;
         if (catatan !== undefined) updates.catatan = catatan || null;
 
+        if (body.wilayah_id !== undefined) updates.wilayah_id = toText(body.wilayah_id) || null;
+        if (body.member_id !== undefined) updates.member_id = toText(body.member_id) || null;
+
         const { data, error } = await supabase
             .from("pembayaran_member")
             .update(updates)
             .eq("id", id)
-            .select()
+            .select(`
+                id,
+                desa_id,
+                member_id,
+                wilayah_id,
+                periode_bulan,
+                tanggal_bayar,
+                nominal,
+                metode_pembayaran,
+                status,
+                catatan,
+                member:member_id ( id, kode_member, nama ),
+                wilayah:wilayah_id ( id, kode, dusun, rt, rw )
+            `)
             .single();
 
         if (error) throw error;

@@ -634,7 +634,7 @@ function BankSampahContent() {
                         }}
                     >
                         <Banknote size={16} />
-                        Iuran Member (Tgl 1-7)
+                        {isDesaDukun ? "Iuran Member (Tgl 1-7)" : "Iuran Dusun (Tgl 1-7)"}
                     </button>
                     <button
                         type="button"
@@ -1127,7 +1127,13 @@ function BankSampahContent() {
                 )}
 
                 {activeTab === "iuran" && (
-                    <IuranMemberTab selectedDesaId={selectedDesaId} members={members} />
+                    <IuranMemberTab
+                        selectedDesaId={selectedDesaId}
+                        members={members}
+                        wilayahList={wilayahList}
+                        isDesaDukun={isDesaDukun}
+                        desaName={currentDesa?.nama}
+                    />
                 )}
 
                 {activeTab === "operasional" && (
@@ -1135,7 +1141,11 @@ function BankSampahContent() {
                 )}
 
                 {activeTab === "rekap" && (
-                    <RekapBUMDesTab selectedDesaId={selectedDesaId} desaName={currentDesa?.nama} />
+                    <RekapBUMDesTab
+                        selectedDesaId={selectedDesaId}
+                        desaName={currentDesa?.nama}
+                        isDesaDukun={isDesaDukun}
+                    />
                 )}
 
                 {/* MODALS FOR MEMBER (Desa Dukun) */}
