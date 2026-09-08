@@ -1196,7 +1196,12 @@ function PengumpulanContent() {
                                         <th className="sticky-col-total">
                                             TOTAL (KG)
                                         </th>
-                                        <th style={{ width: "55px" }}>HARI</th>
+                                        <th
+                                            className="sticky-col-freq"
+                                            style={{ width: "55px" }}
+                                        >
+                                            HARI
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1453,6 +1458,7 @@ function PengumpulanContent() {
                                                     )}
                                                 </td>
                                                 <td
+                                                    className="sticky-col-freq"
                                                     style={{
                                                         color: "#64748b",
                                                         fontSize: "12px",
@@ -1508,7 +1514,10 @@ function PengumpulanContent() {
                                             >
                                                 {kpi.totalKg}
                                             </td>
-                                            <td style={{ color: "#94a3b8" }}>
+                                            <td
+                                                className="sticky-col-freq"
+                                                style={{ color: "#94a3b8" }}
+                                            >
                                                 -
                                             </td>
                                         </tr>

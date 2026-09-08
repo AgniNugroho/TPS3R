@@ -1325,6 +1325,7 @@ button {
         top: 0;
         transition: left 0.25s ease;
         box-shadow: 10px 0 30px rgba(5, 44, 40, 0.15);
+        z-index: 50;
     }
     .sidebar-open {
         left: 0;
@@ -1333,7 +1334,7 @@ button {
         display: block;
         position: fixed;
         inset: 0;
-        z-index: 5;
+        z-index: 40;
         border: 0;
         background: rgba(13, 81, 77, 0.3);
     }
@@ -1826,7 +1827,9 @@ button {
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 6px;
-    transition: background 0.15s ease, opacity 0.15s ease;
+    transition:
+        background 0.15s ease,
+        opacity 0.15s ease;
     white-space: nowrap;
 }
 .sorting-clean-link:hover {
@@ -1999,8 +2002,12 @@ button {
     animation: fadeIn 0.15s ease-out;
 }
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 .sorting-detail-modal,
 .sorting-all-modal {
@@ -2016,8 +2023,14 @@ button {
     animation: modalPop 0.18s ease-out;
 }
 @keyframes modalPop {
-    from { transform: scale(0.97); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
+    from {
+        transform: scale(0.97);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 .sorting-detail-modal {
     max-width: 520px;
@@ -3334,6 +3347,21 @@ button {
 
 .matrix-table-clean thead .sticky-col-total {
     z-index: 15;
+}
+
+.matrix-table-clean .sticky-col-freq {
+    position: sticky;
+    right: 0;
+    background: #ffffff;
+    z-index: 5;
+    width: 55px;
+    min-width: 55px;
+    max-width: 55px;
+}
+
+.matrix-table-clean thead .sticky-col-freq {
+    z-index: 15;
+    background: #f8fafc;
 }
 
 .cell-interactive-clean {
