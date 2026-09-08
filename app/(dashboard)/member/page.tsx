@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, useCallback, FormEvent } from "react";
 import FormShell from "@/components/dashboard/FormShell";
 import { Users, Plus, CreditCard, Pencil, X, Save } from "lucide-react";
 import toast from "react-hot-toast";
@@ -15,6 +15,7 @@ type StatusBayar = "Lunas" | "Belum Lunas";
 interface Member {
   id: string;
   nama: string;
+  nik?: string;
   kategori: Kategori;
   tarif_bulanan: number;   // SQL: tarif_bulanan
   jadwal_angkut: string;   // SQL: jadwal_angkut
@@ -99,6 +100,12 @@ function MemberFormModal({ initial, onClose, onSave }: {
           </label>
 
           <label style={{ fontSize: "11px", fontWeight: 600, color: "#62736d", display: "flex", flexDirection: "column", gap: "5px" }}>
+            NIK (Nomor Induk Kependudukan)
+            <input maxLength={16} value={form.nik || ""} onChange={e => setForm(f => ({ ...f, nik: e.target.value.replace(/\D/g, "").slice(0, 16) }))}
+              style={inputStyle} placeholder="16 digit NIK warga (Opsional)" />
+          </label>
+
+          <label style={{ fontSize: "11px", fontWeight: 600, color: "#62736d", display: "flex", flexDirection: "column", gap: "5px" }}>
             Alamat / Lokasi
             <input required value={form.alamat} onChange={e => setForm(f => ({ ...f, alamat: e.target.value }))}
               style={inputStyle} placeholder="Contoh: RT 01 Tegalurung" />
@@ -154,7 +161,7 @@ function IuranTab({ members }: { members: Member[] }) {
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  async function loadIuran() {
+  const loadIuran = useCallback(async () => {
     setLoading(true);
     const supabase = getSupabaseBrowserClient();
     const { data, error } = await supabase
@@ -167,9 +174,11 @@ function IuranTab({ members }: { members: Member[] }) {
     }
     setRows(data ?? []);
     setLoading(false);
-  }
+  }, [bulan, tahun]);
 
-  useEffect(() => { loadIuran(); }, [bulan, tahun]);
+  useEffect(() => {
+    void Promise.resolve().then(() => loadIuran());
+  }, [loadIuran]);
 
   const iuranMap = new Map(rows.map(r => [r.member_id, r]));
   const grid = members.map(m => ({ member: m, pembayaran: iuranMap.get(m.id) ?? null }));
@@ -328,16 +337,18 @@ export default function MemberPage() {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Member | null>(null);
 
-  async function loadMembers() {
+  const loadMembers = useCallback(async () => {
     setLoading(true);
     const supabase = getSupabaseBrowserClient();
     const { data, error } = await supabase.from("members").select("*").order("created_at", { ascending: false });
     if (error) toast.error("Gagal memuat data member.");
     setMembers(data ?? []);
     setLoading(false);
-  }
+  }, []);
 
-  useEffect(() => { loadMembers(); }, []);
+  useEffect(() => {
+    void Promise.resolve().then(() => loadMembers());
+  }, [loadMembers]);
 
   async function saveMember(data: Partial<Member>) {
     const supabase = getSupabaseBrowserClient();

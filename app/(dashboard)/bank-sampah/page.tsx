@@ -14,14 +14,15 @@ import {
     RefreshCw,
     Search,
     Trash2,
-    UserCheck,
     Users,
     UserX,
     X,
+    Scale,
 } from "lucide-react";
 import FormShell from "@/components/dashboard/FormShell";
 import { showErrorToast, showSuccessToast } from "@/components/ui/Toast";
 import IuranMemberTab from "@/components/bank-sampah/IuranMemberTab";
+import PenjualanAnorganikTab from "@/components/bank-sampah/PenjualanAnorganikTab";
 import OperasionalTab from "@/components/bank-sampah/OperasionalTab";
 import RekapBUMDesTab from "@/components/bank-sampah/RekapBUMDesTab";
 
@@ -29,6 +30,8 @@ export type MemberItem = {
     id: string;
     kode_member: string | null;
     nama: string;
+    nik?: string | null;
+    kategori?: "Rumahan" | "Industri" | null;
     desa_id: string;
     wilayah_id: string | null;
     nomor_hp: string | null;
@@ -108,7 +111,8 @@ function BankSampahContent() {
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [wilayahFilter, setWilayahFilter] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<string>("");
-    const [activeTab, setActiveTab] = useState<"master" | "iuran" | "operasional" | "rekap">("master");
+    const [kategoriFilter, setKategoriFilter] = useState<string>("");
+    const [activeTab, setActiveTab] = useState<"master" | "iuran" | "penjualan" | "operasional" | "rekap">("master");
 
     // Active Desa
     const currentDesa = useMemo(() => {
@@ -127,6 +131,8 @@ function BankSampahContent() {
     const [deleteMember, setDeleteMember] = useState<MemberItem | null>(null);
     const [memberForm, setMemberForm] = useState({
         nama: "",
+        nik: "",
+        kategori: "Rumahan" as "Rumahan" | "Industri",
         kode_member: "",
         wilayah_id: "",
         nomor_hp: "",
@@ -242,6 +248,8 @@ function BankSampahContent() {
         const total = members.length;
         const aktif = members.filter((m) => m.status === "Aktif").length;
         const nonaktif = members.filter((m) => m.status === "Nonaktif").length;
+        const rumahan = members.filter((m) => (m.kategori || "Rumahan") === "Rumahan").length;
+        const industri = members.filter((m) => m.kategori === "Industri").length;
         const uniqueWilayah = new Set(
             members.filter((m) => m.wilayah_id).map((m) => m.wilayah_id)
         );
@@ -250,6 +258,8 @@ function BankSampahContent() {
             total,
             aktif,
             nonaktif,
+            rumahan,
+            industri,
             wilayahTerlayani: uniqueWilayah.size,
         };
     }, [members]);
@@ -279,16 +289,18 @@ function BankSampahContent() {
                 !query ||
                 m.nama.toLowerCase().includes(query) ||
                 (m.kode_member && m.kode_member.toLowerCase().includes(query)) ||
+                (m.nik && m.nik.includes(query)) ||
                 (m.nomor_hp && m.nomor_hp.includes(query)) ||
                 (m.alamat && m.alamat.toLowerCase().includes(query)) ||
                 (m.wilayah?.dusun && m.wilayah.dusun.toLowerCase().includes(query));
 
             const matchWilayah = !wilayahFilter || m.wilayah_id === wilayahFilter;
             const matchStatus = !statusFilter || m.status === statusFilter;
+            const matchKategori = !kategoriFilter || (m.kategori || "Rumahan") === kategoriFilter;
 
-            return matchQuery && matchWilayah && matchStatus;
+            return matchQuery && matchWilayah && matchStatus && matchKategori;
         });
-    }, [members, searchQuery, wilayahFilter, statusFilter]);
+    }, [members, searchQuery, wilayahFilter, statusFilter, kategoriFilter]);
 
     // Filtered Dusun (Kalibening & Banyubiru)
     const filteredDusuns = useMemo(() => {
@@ -314,6 +326,8 @@ function BankSampahContent() {
         const nextCode = `MBR-${String(members.length + 1).padStart(3, "0")}`;
         setMemberForm({
             nama: "",
+            nik: "",
+            kategori: "Rumahan",
             kode_member: nextCode,
             wilayah_id: wilayahList[0]?.id || "",
             nomor_hp: "",
@@ -327,6 +341,8 @@ function BankSampahContent() {
         setEditMember(member);
         setMemberForm({
             nama: member.nama,
+            nik: member.nik || "",
+            kategori: (member.kategori as "Rumahan" | "Industri") || "Rumahan",
             kode_member: member.kode_member || "",
             wilayah_id: member.wilayah_id || "",
             nomor_hp: member.nomor_hp || "",
@@ -350,19 +366,25 @@ function BankSampahContent() {
 
         setIsSubmitting(true);
         try {
+            const payload = {
+                nama: memberForm.nama.trim(),
+                nik: memberForm.nik.trim() || null,
+                kategori: memberForm.kategori || "Rumahan",
+                kode_member: memberForm.kode_member.trim() || null,
+                wilayah_id: memberForm.wilayah_id || null,
+                nomor_hp: memberForm.nomor_hp.trim() || null,
+                alamat: memberForm.alamat.trim() || null,
+                status: memberForm.status,
+                desa_id: selectedDesaId,
+            };
+
             if (memberModalMode === "edit" && editMember) {
                 const res = await fetch("/api/member-bank-sampah", {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         id: editMember.id,
-                        nama: memberForm.nama.trim(),
-                        kode_member: memberForm.kode_member.trim() || null,
-                        wilayah_id: memberForm.wilayah_id || null,
-                        nomor_hp: memberForm.nomor_hp.trim() || null,
-                        alamat: memberForm.alamat.trim() || null,
-                        status: memberForm.status,
-                        desa_id: selectedDesaId,
+                        ...payload,
                     }),
                 });
                 const data = await res.json();
@@ -372,15 +394,7 @@ function BankSampahContent() {
                 const res = await fetch("/api/member-bank-sampah", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        nama: memberForm.nama.trim(),
-                        kode_member: memberForm.kode_member.trim() || null,
-                        wilayah_id: memberForm.wilayah_id || null,
-                        nomor_hp: memberForm.nomor_hp.trim() || null,
-                        alamat: memberForm.alamat.trim() || null,
-                        status: memberForm.status,
-                        desa_id: selectedDesaId,
-                    }),
+                    body: JSON.stringify(payload),
                 });
                 const data = await res.json();
                 if (!data.ok) throw new Error(data.error);
@@ -638,6 +652,27 @@ function BankSampahContent() {
                     </button>
                     <button
                         type="button"
+                        onClick={() => setActiveTab("penjualan")}
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "8px 16px",
+                            borderRadius: "10px",
+                            border: "none",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: activeTab === "penjualan" ? "#059669" : "#f1f5f9",
+                            color: activeTab === "penjualan" ? "#ffffff" : "#475569",
+                            transition: "all 0.15s ease",
+                        }}
+                    >
+                        <Scale size={16} />
+                        Penjualan Anorganik
+                    </button>
+                    <button
+                        type="button"
                         onClick={() => setActiveTab("operasional")}
                         style={{
                             display: "inline-flex",
@@ -700,30 +735,30 @@ function BankSampahContent() {
 
                         <div className="kpi-card-clean">
                             <div className="kpi-icon-wrap-clean kpi-icon-green">
-                                <UserCheck size={20} />
+                                <Home size={20} />
                             </div>
                             <div className="kpi-text-clean">
-                                <span className="kpi-label-clean">Member Aktif</span>
+                                <span className="kpi-label-clean">Member Rumahan</span>
                                 <span className="kpi-value-clean">
-                                    {kpiMember.aktif} <span className="kpi-unit-clean">orang</span>
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="kpi-card-clean">
-                            <div className="kpi-icon-wrap-clean kpi-icon-orange">
-                                <UserX size={20} />
-                            </div>
-                            <div className="kpi-text-clean">
-                                <span className="kpi-label-clean">Member Nonaktif</span>
-                                <span className="kpi-value-clean">
-                                    {kpiMember.nonaktif} <span className="kpi-unit-clean">orang</span>
+                                    {kpiMember.rumahan} <span className="kpi-unit-clean">warga</span>
                                 </span>
                             </div>
                         </div>
 
                         <div className="kpi-card-clean">
                             <div className="kpi-icon-wrap-clean kpi-icon-purple">
+                                <Building2 size={20} />
+                            </div>
+                            <div className="kpi-text-clean">
+                                <span className="kpi-label-clean">Member Industri</span>
+                                <span className="kpi-value-clean">
+                                    {kpiMember.industri} <span className="kpi-unit-clean">usaha</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="kpi-card-clean">
+                            <div className="kpi-icon-wrap-clean kpi-icon-orange">
                                 <MapPin size={20} />
                             </div>
                             <div className="kpi-text-clean">
@@ -798,7 +833,7 @@ function BankSampahContent() {
                                 type="text"
                                 placeholder={
                                     isDesaDukun
-                                        ? "Cari berdasarkan nama, kode, no. hp, atau alamat..."
+                                        ? "Cari berdasarkan nama, NIK, kode, no. hp, atau alamat..."
                                         : "Cari nama dusun, kode dusun, RT/RW..."
                                 }
                                 value={searchQuery}
@@ -819,19 +854,32 @@ function BankSampahContent() {
                         {/* Filters Group */}
                         <div className="search-filter-group-clean">
                             {isDesaDukun && (
-                                <select
-                                    value={wilayahFilter}
-                                    onChange={(e) => setWilayahFilter(e.target.value)}
-                                    className="custom-select-clean"
-                                    style={{ minWidth: "160px" }}
-                                >
-                                    <option value="">Semua Dusun / Wilayah</option>
-                                    {wilayahList.map((w) => (
-                                        <option key={w.id} value={w.id}>
-                                            {w.dusun}
-                                        </option>
-                                    ))}
-                                </select>
+                                <>
+                                    <select
+                                        value={kategoriFilter}
+                                        onChange={(e) => setKategoriFilter(e.target.value)}
+                                        className="custom-select-clean"
+                                        style={{ minWidth: "140px" }}
+                                    >
+                                        <option value="">Semua Kategori</option>
+                                        <option value="Rumahan">Rumahan</option>
+                                        <option value="Industri">Industri</option>
+                                    </select>
+
+                                    <select
+                                        value={wilayahFilter}
+                                        onChange={(e) => setWilayahFilter(e.target.value)}
+                                        className="custom-select-clean"
+                                        style={{ minWidth: "160px" }}
+                                    >
+                                        <option value="">Semua Dusun / Wilayah</option>
+                                        {wilayahList.map((w) => (
+                                            <option key={w.id} value={w.id}>
+                                                {w.dusun}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </>
                             )}
 
                             <select
@@ -864,21 +912,22 @@ function BankSampahContent() {
                             <table className="table-clean">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: "50px" }}>NO</th>
-                                        <th style={{ width: "110px" }}>KODE</th>
-                                        <th>NAMA MEMBER</th>
+                                        <th style={{ width: "45px" }}>NO</th>
+                                        <th style={{ width: "95px" }}>KODE</th>
+                                        <th>NAMA & NIK MEMBER</th>
+                                        <th style={{ width: "125px" }}>KATEGORI</th>
                                         <th>DUSUN / WILAYAH</th>
                                         <th>KONTAK / NO. HP</th>
                                         <th>ALAMAT</th>
-                                        <th style={{ width: "110px" }}>STATUS</th>
+                                        <th style={{ width: "105px" }}>STATUS</th>
                                         <th>TERDAFTAR</th>
-                                        <th style={{ width: "100px", textAlign: "center" }}>AKSI</th>
+                                        <th style={{ width: "90px", textAlign: "center" }}>AKSI</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan={9} style={{ textAlign: "center", padding: "48px 16px", color: "#94a3b8" }}>
+                                            <td colSpan={10} style={{ textAlign: "center", padding: "48px 16px", color: "#94a3b8" }}>
                                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                                                     <RefreshCw size={18} className="spin" />
                                                     <span>Memuat data member bank sampah...</span>
@@ -887,14 +936,14 @@ function BankSampahContent() {
                                         </tr>
                                     ) : filteredMembers.length === 0 ? (
                                         <tr>
-                                            <td colSpan={9} style={{ textAlign: "center", padding: "48px 16px", color: "#94a3b8" }}>
+                                            <td colSpan={10} style={{ textAlign: "center", padding: "48px 16px", color: "#94a3b8" }}>
                                                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
                                                     <Users size={32} style={{ color: "#cbd5e1" }} />
                                                     <p style={{ fontWeight: 700, color: "#334155", margin: 0 }}>
                                                         Tidak ada data member yang ditemukan
                                                     </p>
                                                     <p style={{ fontSize: "13px", color: "#64748b", margin: 0, maxWidth: "420px" }}>
-                                                        {searchQuery || wilayahFilter || statusFilter
+                                                        {searchQuery || wilayahFilter || statusFilter || kategoriFilter
                                                             ? "Coba ubah filter atau kata kunci pencarian Anda."
                                                             : "Belum ada member yang terdaftar di bank sampah desa ini."}
                                                     </p>
@@ -920,14 +969,70 @@ function BankSampahContent() {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                                        <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: "#e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "13px", flexShrink: 0 }}>
-                                                            {member.nama.slice(0, 1).toUpperCase()}
+                                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                                        <div style={{
+                                                            width: "32px",
+                                                            height: "32px",
+                                                            borderRadius: "50%",
+                                                            background: member.kategori === "Industri" ? "#eff6ff" : "#ecfdf5",
+                                                            color: member.kategori === "Industri" ? "#2563eb" : "#059669",
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "center",
+                                                            fontWeight: 700,
+                                                            fontSize: "13px",
+                                                            flexShrink: 0
+                                                        }}>
+                                                            {member.kategori === "Industri" ? <Building2 size={16} /> : <Home size={16} />}
                                                         </div>
-                                                        <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                                                            {member.nama}
-                                                        </span>
+                                                        <div>
+                                                            <div style={{ fontWeight: 600, color: "#0f172a" }}>
+                                                                {member.nama}
+                                                            </div>
+                                                            {member.nik ? (
+                                                                <div style={{ fontSize: "11px", color: "#64748b", fontFamily: "monospace" }}>
+                                                                    NIK: {member.nik}
+                                                                </div>
+                                                            ) : (
+                                                                <div style={{ fontSize: "11px", color: "#94a3b8" }}>
+                                                                    NIK belum diisi
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
+                                                </td>
+                                                <td>
+                                                    {member.kategori === "Industri" ? (
+                                                        <span style={{
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            gap: "4px",
+                                                            padding: "3px 8px",
+                                                            borderRadius: "6px",
+                                                            fontSize: "11px",
+                                                            fontWeight: 700,
+                                                            background: "#eff6ff",
+                                                            color: "#1d4ed8",
+                                                            border: "1px solid #bfdbfe"
+                                                        }}>
+                                                            <Building2 size={12} /> Industri
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            gap: "4px",
+                                                            padding: "3px 8px",
+                                                            borderRadius: "6px",
+                                                            fontSize: "11px",
+                                                            fontWeight: 700,
+                                                            background: "#ecfdf5",
+                                                            color: "#047857",
+                                                            border: "1px solid #a7f3d0"
+                                                        }}>
+                                                            <Home size={12} /> Rumahan
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     {member.wilayah?.dusun ? (
@@ -949,7 +1054,7 @@ function BankSampahContent() {
                                                         <span style={{ color: "#94a3b8" }}>-</span>
                                                     )}
                                                 </td>
-                                                <td style={{ color: "#64748b", maxWidth: "200px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={member.alamat || ""}>
+                                                <td style={{ color: "#64748b", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={member.alamat || ""}>
                                                     {member.alamat || "-"}
                                                 </td>
                                                 <td>
@@ -1132,6 +1237,12 @@ function BankSampahContent() {
                         members={members}
                         wilayahList={wilayahList}
                         isDesaDukun={isDesaDukun}
+                    />
+                )}
+
+                {activeTab === "penjualan" && (
+                    <PenjualanAnorganikTab
+                        selectedDesaId={selectedDesaId}
                         desaName={currentDesa?.nama}
                     />
                 )}
@@ -1168,19 +1279,124 @@ function BankSampahContent() {
                             </div>
 
                             <form onSubmit={handleMemberSubmit} className="modal-form-clean">
+                                {/* Kategori Member: Rumahan vs Industri */}
                                 <div className="form-group-clean">
-                                    <label>Nama Lengkap Member *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        autoFocus
-                                        placeholder="Contoh: Budi Santoso"
-                                        value={memberForm.nama}
-                                        onChange={(e) =>
-                                            setMemberForm({ ...memberForm, nama: e.target.value })
-                                        }
-                                        className="form-control-clean"
-                                    />
+                                    <label style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                                        Kategori Member *
+                                    </label>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMemberForm({ ...memberForm, kategori: "Rumahan" })}
+                                            style={{
+                                                padding: "12px",
+                                                borderRadius: "10px",
+                                                border: memberForm.kategori === "Rumahan" ? "2px solid #059669" : "1px solid #e2e8f0",
+                                                background: memberForm.kategori === "Rumahan" ? "#ecfdf5" : "#ffffff",
+                                                cursor: "pointer",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "10px",
+                                                textAlign: "left",
+                                                transition: "all 0.2s ease",
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: "36px",
+                                                height: "36px",
+                                                borderRadius: "8px",
+                                                background: memberForm.kategori === "Rumahan" ? "#059669" : "#f1f5f9",
+                                                color: memberForm.kategori === "Rumahan" ? "#ffffff" : "#64748b",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                flexShrink: 0
+                                            }}>
+                                                <Home size={18} />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: "13px", color: memberForm.kategori === "Rumahan" ? "#065f46" : "#1e293b" }}>
+                                                    Rumahan
+                                                </div>
+                                                <div style={{ fontSize: "11px", color: memberForm.kategori === "Rumahan" ? "#047857" : "#64748b" }}>
+                                                    Rumah tangga / warga
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setMemberForm({ ...memberForm, kategori: "Industri" })}
+                                            style={{
+                                                padding: "12px",
+                                                borderRadius: "10px",
+                                                border: memberForm.kategori === "Industri" ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                                                background: memberForm.kategori === "Industri" ? "#eff6ff" : "#ffffff",
+                                                cursor: "pointer",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "10px",
+                                                textAlign: "left",
+                                                transition: "all 0.2s ease",
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: "36px",
+                                                height: "36px",
+                                                borderRadius: "8px",
+                                                background: memberForm.kategori === "Industri" ? "#2563eb" : "#f1f5f9",
+                                                color: memberForm.kategori === "Industri" ? "#ffffff" : "#64748b",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                flexShrink: 0
+                                            }}>
+                                                <Building2 size={18} />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: "13px", color: memberForm.kategori === "Industri" ? "#1e40af" : "#1e293b" }}>
+                                                    Industri
+                                                </div>
+                                                <div style={{ fontSize: "11px", color: memberForm.kategori === "Industri" ? "#2563eb" : "#64748b" }}>
+                                                    Usaha, toko, warung, resto
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                                    <div className="form-group-clean">
+                                        <label>Nama Lengkap Member / Usaha *</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            autoFocus
+                                            placeholder={memberForm.kategori === "Industri" ? "Contoh: Warung Berkah / Toko Sejahtera" : "Contoh: Budi Santoso"}
+                                            value={memberForm.nama}
+                                            onChange={(e) =>
+                                                setMemberForm({ ...memberForm, nama: e.target.value })
+                                            }
+                                            className="form-control-clean"
+                                        />
+                                    </div>
+
+                                    <div className="form-group-clean">
+                                        <label>NIK (Nomor Induk Kependudukan)</label>
+                                        <input
+                                            type="text"
+                                            maxLength={16}
+                                            placeholder="16 digit NIK warga (Opsional)"
+                                            value={memberForm.nik}
+                                            onChange={(e) =>
+                                                setMemberForm({
+                                                    ...memberForm,
+                                                    nik: e.target.value.replace(/\D/g, "").slice(0, 16),
+                                                })
+                                            }
+                                            className="form-control-clean font-mono"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>

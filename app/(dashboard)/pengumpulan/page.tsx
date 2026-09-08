@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+    FormEvent,
+    Suspense,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import {
     AlertCircle,
@@ -143,7 +150,9 @@ function PengumpulanContent() {
     // Month & Year Filter - defaults to current month/year
     const [bulan, setBulan] = useState<number>(() => {
         const paramBulan = searchParams.get("bulan");
-        return paramBulan ? parseInt(paramBulan, 10) : new Date().getMonth() + 1;
+        return paramBulan
+            ? parseInt(paramBulan, 10)
+            : new Date().getMonth() + 1;
     });
     const [tahun, setTahun] = useState<number>(() => {
         const paramTahun = searchParams.get("tahun");
@@ -157,7 +166,6 @@ function PengumpulanContent() {
     const [desaList, setDesaList] = useState<Desa[]>([]);
     const [petugasList, setPetugasList] = useState<Petugas[]>([]);
     const [selectedDesaId, setSelectedDesaId] = useState<string>("");
-    const [isAdmin, setIsAdmin] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
     // Filters
@@ -192,11 +200,16 @@ function PengumpulanContent() {
     } | null>(null);
     const [cellWeight, setCellWeight] = useState<string>("");
 
-    const daysInMonth = useMemo(() => getDaysInMonth(tahun, bulan), [tahun, bulan]);
+    const daysInMonth = useMemo(
+        () => getDaysInMonth(tahun, bulan),
+        [tahun, bulan],
+    );
 
     // Active Desa detection
     const currentDesa = useMemo(() => {
-        return desaList.find((d) => d.id === selectedDesaId) || desaList[0] || null;
+        return (
+            desaList.find((d) => d.id === selectedDesaId) || desaList[0] || null
+        );
     }, [desaList, selectedDesaId]);
 
     // Desa Dukun uses Member mode, while Kalibening & Banyubiru use Dusun mode
@@ -204,6 +217,20 @@ function PengumpulanContent() {
         if (!currentDesa) return true;
         return currentDesa.nama.toLowerCase().includes("dukun");
     }, [currentDesa]);
+
+    // Desa selection is controlled from the sidebar (desa_id query param)
+    useEffect(() => {
+        if (desaList.length === 0) return;
+        const paramDesaId = searchParams.get("desa_id");
+        if (paramDesaId && desaList.some((d) => d.id === paramDesaId)) {
+            setSelectedDesaId(paramDesaId);
+            return;
+        }
+        const desaDukun = desaList.find((d) =>
+            d.nama.toLowerCase().includes("dukun"),
+        );
+        setSelectedDesaId(desaDukun ? desaDukun.id : desaList[0].id);
+    }, [desaList, searchParams]);
 
     // Load initial reference data (Desa, Petugas)
     useEffect(() => {
@@ -224,13 +251,6 @@ function PengumpulanContent() {
 
                 if (desaData.ok && Array.isArray(desaData.rows)) {
                     setDesaList(desaData.rows);
-                    if (desaData.rows.length > 0) {
-                        setIsAdmin(true);
-                        const desaDukun = desaData.rows.find((d: Desa) =>
-                            d.nama.toLowerCase().includes("dukun")
-                        );
-                        setSelectedDesaId(desaDukun ? desaDukun.id : desaData.rows[0].id);
-                    }
                 }
 
                 if (petugasData.ok && Array.isArray(petugasData.rows)) {
@@ -249,7 +269,11 @@ function PengumpulanContent() {
 
     // Load bank sampah records, wilayah, and members for current month/year & desa
     const loadData = useCallback(
-        async (targetBulan = bulan, targetTahun = tahun, targetDesa = selectedDesaId) => {
+        async (
+            targetBulan = bulan,
+            targetTahun = tahun,
+            targetDesa = selectedDesaId,
+        ) => {
             setIsLoading(true);
             try {
                 const bankParams = new URLSearchParams({
@@ -259,16 +283,27 @@ function PengumpulanContent() {
                 });
                 if (targetDesa) bankParams.set("desa_id", targetDesa);
 
-                const wilayahParams = new URLSearchParams({ _t: String(Date.now()) });
+                const wilayahParams = new URLSearchParams({
+                    _t: String(Date.now()),
+                });
                 if (targetDesa) wilayahParams.set("desa_id", targetDesa);
 
-                const memberParams = new URLSearchParams({ _t: String(Date.now()) });
+                const memberParams = new URLSearchParams({
+                    _t: String(Date.now()),
+                });
                 if (targetDesa) memberParams.set("desa_id", targetDesa);
 
                 const [res, wilayahRes, memberRes] = await Promise.all([
-                    fetch(`/api/bank-sampah?${bankParams.toString()}`, { cache: "no-store" }),
-                    fetch(`/api/wilayah?${wilayahParams.toString()}`, { cache: "no-store" }),
-                    fetch(`/api/member-bank-sampah?${memberParams.toString()}`, { cache: "no-store" }),
+                    fetch(`/api/bank-sampah?${bankParams.toString()}`, {
+                        cache: "no-store",
+                    }),
+                    fetch(`/api/wilayah?${wilayahParams.toString()}`, {
+                        cache: "no-store",
+                    }),
+                    fetch(
+                        `/api/member-bank-sampah?${memberParams.toString()}`,
+                        { cache: "no-store" },
+                    ),
                 ]);
 
                 const data = await res.json();
@@ -291,17 +326,21 @@ function PengumpulanContent() {
                 }
             } catch (err) {
                 showErrorToast(
-                    err instanceof Error ? err.message : "Gagal memuat data sampah."
+                    err instanceof Error
+                        ? err.message
+                        : "Gagal memuat data sampah.",
                 );
             } finally {
                 setIsLoading(false);
             }
         },
-        [bulan, tahun, selectedDesaId]
+        [bulan, tahun, selectedDesaId],
     );
 
     useEffect(() => {
-        void Promise.resolve().then(() => loadData(bulan, tahun, selectedDesaId));
+        void Promise.resolve().then(() =>
+            loadData(bulan, tahun, selectedDesaId),
+        );
     }, [bulan, tahun, selectedDesaId, loadData]);
 
     // Map member to their wilayah/dusun
@@ -324,7 +363,10 @@ function PengumpulanContent() {
                     rowId: string | null;
                     nama: string;
                     dusun: string;
-                    dailyMap: Map<number, { id: string; berat: number; nilai: number }>;
+                    dailyMap: Map<
+                        number,
+                        { id: string; berat: number; nilai: number }
+                    >;
                     totalBerat: number;
                     totalNilai: number;
                     freqSetor: number;
@@ -400,8 +442,11 @@ function PengumpulanContent() {
             });
 
             return result.sort((a, b) => {
-                if (b.totalBerat !== a.totalBerat) return b.totalBerat - a.totalBerat;
-                return a.nama.localeCompare(b.nama, "id", { sensitivity: "base" });
+                if (b.totalBerat !== a.totalBerat)
+                    return b.totalBerat - a.totalBerat;
+                return a.nama.localeCompare(b.nama, "id", {
+                    sensitivity: "base",
+                });
             });
         } else {
             const dusunMap = new Map<
@@ -410,7 +455,10 @@ function PengumpulanContent() {
                     rowId: string | null;
                     nama: string;
                     dusun: string;
-                    dailyMap: Map<number, { id: string; berat: number; nilai: number }>;
+                    dailyMap: Map<
+                        number,
+                        { id: string; berat: number; nilai: number }
+                    >;
                     totalBerat: number;
                     totalNilai: number;
                     freqSetor: number;
@@ -435,12 +483,14 @@ function PengumpulanContent() {
                 let key = rawName.toLowerCase();
 
                 let targetDusun = wilayahList.find(
-                    (w) => w.id === rec.nasabah_id || w.dusun.toLowerCase() === key
+                    (w) =>
+                        w.id === rec.nasabah_id ||
+                        w.dusun.toLowerCase() === key,
                 );
 
                 if (!targetDusun && rawName) {
                     targetDusun = wilayahList.find((w) =>
-                        rawName.toLowerCase().includes(w.dusun.toLowerCase())
+                        rawName.toLowerCase().includes(w.dusun.toLowerCase()),
                     );
                 }
 
@@ -495,8 +545,11 @@ function PengumpulanContent() {
             });
 
             return result.sort((a, b) => {
-                if (b.totalBerat !== a.totalBerat) return b.totalBerat - a.totalBerat;
-                return a.nama.localeCompare(b.nama, "id", { sensitivity: "base" });
+                if (b.totalBerat !== a.totalBerat)
+                    return b.totalBerat - a.totalBerat;
+                return a.nama.localeCompare(b.nama, "id", {
+                    sensitivity: "base",
+                });
             });
         }
     }, [isDesaDukun, memberList, wilayahList, records, memberWilayahMap]);
@@ -534,12 +587,18 @@ function PengumpulanContent() {
             .filter((rec) => {
                 const matchSearch =
                     !searchFilter ||
-                    rec.nama_nasabah.toLowerCase().includes(searchFilter.toLowerCase()) ||
+                    rec.nama_nasabah
+                        .toLowerCase()
+                        .includes(searchFilter.toLowerCase()) ||
                     (rec.jenis_sampah &&
-                        rec.jenis_sampah.toLowerCase().includes(searchFilter.toLowerCase()));
+                        rec.jenis_sampah
+                            .toLowerCase()
+                            .includes(searchFilter.toLowerCase()));
                 const dusun = isDesaDukun
                     ? (rec.member_id && memberWilayahMap.get(rec.member_id)) ||
-                      memberWilayahMap.get(rec.nama_nasabah.toLowerCase().trim()) ||
+                      memberWilayahMap.get(
+                          rec.nama_nasabah.toLowerCase().trim(),
+                      ) ||
                       "-"
                     : rec.nama_nasabah;
                 const matchDusun = !wilayahFilter || dusun === wilayahFilter;
@@ -552,14 +611,18 @@ function PengumpulanContent() {
     const kpi = useMemo(() => {
         const totalKg = records.reduce((acc, r) => acc + Number(r.berat_kg), 0);
         const uniqueEntries = new Set(
-            records.filter((r) => Number(r.berat_kg) > 0).map((r) => r.nama_nasabah.toLowerCase())
+            records
+                .filter((r) => Number(r.berat_kg) > 0)
+                .map((r) => r.nama_nasabah.toLowerCase()),
         );
 
         const currentMonthDays =
-            tahun === new Date().getFullYear() && bulan === new Date().getMonth() + 1
+            tahun === new Date().getFullYear() &&
+            bulan === new Date().getMonth() + 1
                 ? new Date().getDate()
                 : daysInMonth;
-        const avgPerHari = currentMonthDays > 0 ? totalKg / currentMonthDays : 0;
+        const avgPerHari =
+            currentMonthDays > 0 ? totalKg / currentMonthDays : 0;
 
         let topContributor = "-";
         let topKg = 0;
@@ -586,7 +649,7 @@ function PengumpulanContent() {
             nasabah_id: !isDesaDukun ? defaultRowId : "",
             nama_nasabah: defaultName,
             tanggal: `${tahun}-${String(bulan).padStart(2, "0")}-${String(
-                Math.min(new Date().getDate(), daysInMonth)
+                Math.min(new Date().getDate(), daysInMonth),
             ).padStart(2, "0")}`,
             jenis_sampah: "Campur",
             berat_kg: "",
@@ -619,7 +682,7 @@ function PengumpulanContent() {
     function handleCellClick(
         row: (typeof matrixRows)[0],
         day: number,
-        entry?: { id: string; berat: number; nilai: number }
+        entry?: { id: string; berat: number; nilai: number },
     ) {
         setCellTarget({
             rowId: row.rowId,
@@ -649,9 +712,12 @@ function PengumpulanContent() {
 
         try {
             if (weightNum === 0 && cellTarget.existingRecordId) {
-                const res = await fetch(`/api/bank-sampah?id=${cellTarget.existingRecordId}`, {
-                    method: "DELETE",
-                });
+                const res = await fetch(
+                    `/api/bank-sampah?id=${cellTarget.existingRecordId}`,
+                    {
+                        method: "DELETE",
+                    },
+                );
                 const data = await res.json();
                 if (!data.ok) throw new Error(data.error);
                 showSuccessToast("Data berhasil dihapus.");
@@ -697,7 +763,9 @@ function PengumpulanContent() {
             setCellTarget(null);
             await loadData(bulan, tahun);
         } catch (err) {
-            showErrorToast(err instanceof Error ? err.message : "Gagal menyimpan data.");
+            showErrorToast(
+                err instanceof Error ? err.message : "Gagal menyimpan data.",
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -712,7 +780,7 @@ function PengumpulanContent() {
             showErrorToast(
                 isDesaDukun
                     ? "Nama member wajib dipilih atau diisi."
-                    : "Nama dusun wajib dipilih."
+                    : "Nama dusun wajib dipilih.",
             );
             return;
         }
@@ -771,7 +839,9 @@ function PengumpulanContent() {
                 await loadData(bulan, tahun);
             }
         } catch (err) {
-            showErrorToast(err instanceof Error ? err.message : "Gagal menyimpan data.");
+            showErrorToast(
+                err instanceof Error ? err.message : "Gagal menyimpan data.",
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -791,7 +861,9 @@ function PengumpulanContent() {
             setDeleteItem(null);
             await loadData(bulan, tahun);
         } catch (err) {
-            showErrorToast(err instanceof Error ? err.message : "Gagal menghapus data.");
+            showErrorToast(
+                err instanceof Error ? err.message : "Gagal menghapus data.",
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -804,21 +876,28 @@ function PengumpulanContent() {
             return;
         }
 
-        const namaBulanStr = BULAN_LIST.find((b) => b.value === bulan)?.label || String(bulan);
+        const namaBulanStr =
+            BULAN_LIST.find((b) => b.value === bulan)?.label || String(bulan);
 
         const matrixHeaders = isDesaDukun
             ? [
                   "No",
                   "Nama Member",
                   "Dusun / Wilayah",
-                  ...Array.from({ length: daysInMonth }, (_, i) => `Tgl ${i + 1}`),
+                  ...Array.from(
+                      { length: daysInMonth },
+                      (_, i) => `Tgl ${i + 1}`,
+                  ),
                   "Total (kg)",
                   "Frekuensi (hari)",
               ]
             : [
                   "No",
                   "Nama Dusun",
-                  ...Array.from({ length: daysInMonth }, (_, i) => `Tgl ${i + 1}`),
+                  ...Array.from(
+                      { length: daysInMonth },
+                      (_, i) => `Tgl ${i + 1}`,
+                  ),
                   "Total (kg)",
                   "Frekuensi (hari)",
               ];
@@ -879,13 +958,16 @@ function PengumpulanContent() {
                     rec.tanggal,
                     rec.nama_nasabah,
                     (rec.member_id && memberWilayahMap.get(rec.member_id)) ||
-                        memberWilayahMap.get(rec.nama_nasabah.toLowerCase().trim()) ||
+                        memberWilayahMap.get(
+                            rec.nama_nasabah.toLowerCase().trim(),
+                        ) ||
                         "-",
                     rec.jenis_sampah || "Campur",
                     rec.berat_kg,
                     rec.harga_per_kg,
                     rec.nilai_transaksi,
-                    petugasList.find((p) => p.id === rec.petugas_id)?.nama || "-",
+                    petugasList.find((p) => p.id === rec.petugas_id)?.nama ||
+                        "-",
                 ];
             } else {
                 return [
@@ -896,12 +978,15 @@ function PengumpulanContent() {
                     rec.berat_kg,
                     rec.harga_per_kg,
                     rec.nilai_transaksi,
-                    petugasList.find((p) => p.id === rec.petugas_id)?.nama || "-",
+                    petugasList.find((p) => p.id === rec.petugas_id)?.nama ||
+                        "-",
                 ];
             }
         });
 
-        const desaSlug = currentDesa?.nama ? currentDesa.nama.replace(/\s+/g, "_") : "Desa";
+        const desaSlug = currentDesa?.nama
+            ? currentDesa.nama.replace(/\s+/g, "_")
+            : "Desa";
 
         exportWorkbook(
             [
@@ -922,7 +1007,7 @@ function PengumpulanContent() {
                     rows: txData,
                 },
             ],
-            `Pengumpulan_Sampah_${desaSlug}_${namaBulanStr}_${tahun}`
+            `Pengumpulan_Sampah_${desaSlug}_${namaBulanStr}_${tahun}`,
         );
 
         showSuccessToast("Laporan Excel berhasil diunduh.");
@@ -930,7 +1015,15 @@ function PengumpulanContent() {
 
     return (
         <FormShell title="Pengumpulan" activeLabel="Pengumpulan">
-            <main className="content-wrap" style={{ display: "flex", flexDirection: "column", gap: "20px", paddingBottom: "48px" }}>
+            <main
+                className="content-wrap"
+                style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "20px",
+                    paddingBottom: "48px",
+                }}
+            >
                 {/* Header & Primary Actions */}
                 <div className="page-header-clean">
                     <div>
@@ -980,7 +1073,9 @@ function PengumpulanContent() {
                             <Layers size={20} />
                         </div>
                         <div className="kpi-text-clean">
-                            <span className="kpi-label-clean">Total Sampah Bulan Ini</span>
+                            <span className="kpi-label-clean">
+                                Total Sampah Bulan Ini
+                            </span>
                             <span className="kpi-value-clean">
                                 {kpi.totalKg.toLocaleString("id-ID")}{" "}
                                 <span className="kpi-unit-clean">kg</span>
@@ -990,11 +1085,17 @@ function PengumpulanContent() {
 
                     <div className="kpi-card-clean">
                         <div className="kpi-icon-wrap-clean kpi-icon-green">
-                            {isDesaDukun ? <UserCheck size={20} /> : <MapPin size={20} />}
+                            {isDesaDukun ? (
+                                <UserCheck size={20} />
+                            ) : (
+                                <MapPin size={20} />
+                            )}
                         </div>
                         <div className="kpi-text-clean">
                             <span className="kpi-label-clean">
-                                {isDesaDukun ? "Member Aktif Setor" : "Dusun Aktif Setor"}
+                                {isDesaDukun
+                                    ? "Member Aktif Setor"
+                                    : "Dusun Aktif Setor"}
                             </span>
                             <span className="kpi-value-clean">
                                 {kpi.activeEntities}{" "}
@@ -1010,7 +1111,9 @@ function PengumpulanContent() {
                             <TrendingUp size={20} />
                         </div>
                         <div className="kpi-text-clean">
-                            <span className="kpi-label-clean">Rata-Rata Harian</span>
+                            <span className="kpi-label-clean">
+                                Rata-Rata Harian
+                            </span>
                             <span className="kpi-value-clean">
                                 {kpi.avgPerHari}{" "}
                                 <span className="kpi-unit-clean">kg/hari</span>
@@ -1024,9 +1127,20 @@ function PengumpulanContent() {
                         </div>
                         <div className="kpi-text-clean">
                             <span className="kpi-label-clean">
-                                {isDesaDukun ? "Top Kontributor" : "Top Dusun Kontributor"}
+                                {isDesaDukun
+                                    ? "Top Kontributor"
+                                    : "Top Dusun Kontributor"}
                             </span>
-                            <span className="kpi-value-clean" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "160px" }} title={kpi.topContributor}>
+                            <span
+                                className="kpi-value-clean"
+                                style={{
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    maxWidth: "160px",
+                                }}
+                                title={kpi.topContributor}
+                            >
                                 {kpi.topContributor}
                             </span>
                         </div>
@@ -1045,7 +1159,9 @@ function PengumpulanContent() {
 
                             <select
                                 value={bulan}
-                                onChange={(e) => setBulan(parseInt(e.target.value, 10))}
+                                onChange={(e) =>
+                                    setBulan(parseInt(e.target.value, 10))
+                                }
                                 className="custom-select-clean"
                             >
                                 {BULAN_LIST.map((b) => (
@@ -1057,7 +1173,9 @@ function PengumpulanContent() {
 
                             <select
                                 value={tahun}
-                                onChange={(e) => setTahun(parseInt(e.target.value, 10))}
+                                onChange={(e) =>
+                                    setTahun(parseInt(e.target.value, 10))
+                                }
                                 className="custom-select-clean"
                                 style={{ minWidth: "85px" }}
                             >
@@ -1068,34 +1186,26 @@ function PengumpulanContent() {
                                 ))}
                             </select>
 
-                            {isAdmin && desaList.length > 0 && (
-                                <select
-                                    value={selectedDesaId}
-                                    onChange={(e) => setSelectedDesaId(e.target.value)}
-                                    className="custom-select-clean"
-                                >
-                                    {desaList.map((d) => (
-                                        <option key={d.id} value={d.id}>
-                                            {d.nama.startsWith("Desa") ? d.nama : `Desa ${d.nama}`}
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
-
                             <button
                                 type="button"
                                 className="btn-refresh-clean"
                                 onClick={() => loadData(bulan, tahun)}
                                 title="Segarkan Data"
                             >
-                                <RefreshCw size={15} className={isLoading ? "spin" : ""} />
+                                <RefreshCw
+                                    size={15}
+                                    className={isLoading ? "spin" : ""}
+                                />
                             </button>
                         </div>
 
                         {/* Search & Dusun Filter */}
                         <div className="search-filter-group-clean">
                             <div className="search-bar-clean">
-                                <Search size={15} className="search-icon-inside" />
+                                <Search
+                                    size={15}
+                                    className="search-icon-inside"
+                                />
                                 <input
                                     type="text"
                                     placeholder={
@@ -1104,7 +1214,9 @@ function PengumpulanContent() {
                                             : "Cari dusun..."
                                     }
                                     value={searchFilter}
-                                    onChange={(e) => setSearchFilter(e.target.value)}
+                                    onChange={(e) =>
+                                        setSearchFilter(e.target.value)
+                                    }
                                 />
                                 {searchFilter && (
                                     <button
@@ -1121,7 +1233,9 @@ function PengumpulanContent() {
                             {isDesaDukun && wilayahList.length > 0 && (
                                 <select
                                     value={wilayahFilter}
-                                    onChange={(e) => setWilayahFilter(e.target.value)}
+                                    onChange={(e) =>
+                                        setWilayahFilter(e.target.value)
+                                    }
                                     className="custom-select-clean"
                                     style={{ minWidth: "150px" }}
                                 >
@@ -1145,7 +1259,9 @@ function PengumpulanContent() {
                         >
                             <FileSpreadsheet size={15} />
                             <span>Matriks Harian (1 - {daysInMonth})</span>
-                            <span className="tab-pill-badge">{filteredMatrixRows.length}</span>
+                            <span className="tab-pill-badge">
+                                {filteredMatrixRows.length}
+                            </span>
                         </button>
 
                         <button
@@ -1155,7 +1271,9 @@ function PengumpulanContent() {
                         >
                             <FileText size={15} />
                             <span>Riwayat Transaksi</span>
-                            <span className="tab-pill-badge">{filteredTransactions.length}</span>
+                            <span className="tab-pill-badge">
+                                {filteredTransactions.length}
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -1170,30 +1288,58 @@ function PengumpulanContent() {
                                         <th className="sticky-col-no">NO</th>
                                         <th
                                             className="sticky-col-nama"
-                                            style={!isDesaDukun ? { left: "44px", minWidth: "200px" } : {}}
+                                            style={
+                                                !isDesaDukun
+                                                    ? {
+                                                          left: "44px",
+                                                          minWidth: "200px",
+                                                      }
+                                                    : {}
+                                            }
                                         >
-                                            {isDesaDukun ? "NAMA MEMBER" : "NAMA DUSUN"}
+                                            {isDesaDukun
+                                                ? "NAMA MEMBER"
+                                                : "NAMA DUSUN"}
                                         </th>
                                         {isDesaDukun && (
-                                            <th className="sticky-col-dusun">DUSUN</th>
+                                            <th className="sticky-col-dusun">
+                                                DUSUN
+                                            </th>
                                         )}
-                                        {Array.from({ length: daysInMonth }, (_, i) => {
-                                            const dayNum = i + 1;
-                                            const isToday =
-                                                dayNum === new Date().getDate() &&
-                                                bulan === new Date().getMonth() + 1 &&
-                                                tahun === new Date().getFullYear();
-                                            return (
-                                                <th
-                                                    key={dayNum}
-                                                    style={isToday ? { backgroundColor: "#fffbeb", color: "#b45309" } : {}}
-                                                    title={`Hari ke-${dayNum}`}
-                                                >
-                                                    {dayNum}
-                                                </th>
-                                            );
-                                        })}
-                                        <th className="sticky-col-total">TOTAL (KG)</th>
+                                        {Array.from(
+                                            { length: daysInMonth },
+                                            (_, i) => {
+                                                const dayNum = i + 1;
+                                                const isToday =
+                                                    dayNum ===
+                                                        new Date().getDate() &&
+                                                    bulan ===
+                                                        new Date().getMonth() +
+                                                            1 &&
+                                                    tahun ===
+                                                        new Date().getFullYear();
+                                                return (
+                                                    <th
+                                                        key={dayNum}
+                                                        style={
+                                                            isToday
+                                                                ? {
+                                                                      backgroundColor:
+                                                                          "#fffbeb",
+                                                                      color: "#b45309",
+                                                                  }
+                                                                : {}
+                                                        }
+                                                        title={`Hari ke-${dayNum}`}
+                                                    >
+                                                        {dayNum}
+                                                    </th>
+                                                );
+                                            },
+                                        )}
+                                        <th className="sticky-col-total">
+                                            TOTAL (KG)
+                                        </th>
                                         <th style={{ width: "55px" }}>HARI</th>
                                     </tr>
                                 </thead>
@@ -1201,33 +1347,91 @@ function PengumpulanContent() {
                                     {isLoading ? (
                                         <tr>
                                             <td
-                                                colSpan={daysInMonth + (isDesaDukun ? 5 : 4)}
-                                                style={{ textAlign: "center", padding: "48px 16px", color: "#94a3b8" }}
+                                                colSpan={
+                                                    daysInMonth +
+                                                    (isDesaDukun ? 5 : 4)
+                                                }
+                                                style={{
+                                                    textAlign: "center",
+                                                    padding: "48px 16px",
+                                                    color: "#94a3b8",
+                                                }}
                                             >
-                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                                                    <RefreshCw size={18} className="spin" />
-                                                    <span>Memuat data matriks harian...</span>
+                                                <div
+                                                    style={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent:
+                                                            "center",
+                                                        gap: "8px",
+                                                    }}
+                                                >
+                                                    <RefreshCw
+                                                        size={18}
+                                                        className="spin"
+                                                    />
+                                                    <span>
+                                                        Memuat data matriks
+                                                        harian...
+                                                    </span>
                                                 </div>
                                             </td>
                                         </tr>
                                     ) : filteredMatrixRows.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan={daysInMonth + (isDesaDukun ? 5 : 4)}
-                                                style={{ textAlign: "center", padding: "48px 16px", color: "#94a3b8" }}
+                                                colSpan={
+                                                    daysInMonth +
+                                                    (isDesaDukun ? 5 : 4)
+                                                }
+                                                style={{
+                                                    textAlign: "center",
+                                                    padding: "48px 16px",
+                                                    color: "#94a3b8",
+                                                }}
                                             >
-                                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                                                <div
+                                                    style={{
+                                                        display: "flex",
+                                                        flexDirection: "column",
+                                                        alignItems: "center",
+                                                        gap: "8px",
+                                                    }}
+                                                >
                                                     {isDesaDukun ? (
-                                                        <Users size={32} style={{ color: "#cbd5e1" }} />
+                                                        <Users
+                                                            size={32}
+                                                            style={{
+                                                                color: "#cbd5e1",
+                                                            }}
+                                                        />
                                                     ) : (
-                                                        <MapPin size={32} style={{ color: "#cbd5e1" }} />
+                                                        <MapPin
+                                                            size={32}
+                                                            style={{
+                                                                color: "#cbd5e1",
+                                                            }}
+                                                        />
                                                     )}
-                                                    <p style={{ fontWeight: 700, color: "#334155", margin: 0 }}>
+                                                    <p
+                                                        style={{
+                                                            fontWeight: 700,
+                                                            color: "#334155",
+                                                            margin: 0,
+                                                        }}
+                                                    >
                                                         {isDesaDukun
                                                             ? "Belum ada member terdaftar"
                                                             : "Belum ada dusun terdaftar"}
                                                     </p>
-                                                    <p style={{ fontSize: "13px", color: "#64748b", margin: 0, maxWidth: "420px" }}>
+                                                    <p
+                                                        style={{
+                                                            fontSize: "13px",
+                                                            color: "#64748b",
+                                                            margin: 0,
+                                                            maxWidth: "420px",
+                                                        }}
+                                                    >
                                                         {isDesaDukun
                                                             ? "Tambahkan member di menu Bank Sampah atau catat sampah member baru."
                                                             : "Tambahkan dusun di menu Bank Sampah atau catat sampah dusun."}
@@ -1235,8 +1439,12 @@ function PengumpulanContent() {
                                                     <button
                                                         type="button"
                                                         className="btn-primary-clean"
-                                                        style={{ marginTop: "8px" }}
-                                                        onClick={() => openCreateModal()}
+                                                        style={{
+                                                            marginTop: "8px",
+                                                        }}
+                                                        onClick={() =>
+                                                            openCreateModal()
+                                                        }
                                                     >
                                                         <Plus size={14} />
                                                         <span>
@@ -1251,74 +1459,149 @@ function PengumpulanContent() {
                                     ) : (
                                         filteredMatrixRows.map((row, idx) => (
                                             <tr key={row.rowId || row.nama}>
-                                                <td className="sticky-col-no" style={{ color: "#94a3b8", fontWeight: 500 }}>
+                                                <td
+                                                    className="sticky-col-no"
+                                                    style={{
+                                                        color: "#94a3b8",
+                                                        fontWeight: 500,
+                                                    }}
+                                                >
                                                     {idx + 1}
                                                 </td>
                                                 <td
                                                     className="sticky-col-nama font-medium"
-                                                    style={!isDesaDukun ? { left: "44px", minWidth: "200px" } : {}}
+                                                    style={
+                                                        !isDesaDukun
+                                                            ? {
+                                                                  left: "44px",
+                                                                  minWidth:
+                                                                      "200px",
+                                                              }
+                                                            : {}
+                                                    }
                                                 >
                                                     <span
-                                                        style={{ color: "#0f172a", cursor: "pointer", fontWeight: 600 }}
+                                                        style={{
+                                                            color: "#0f172a",
+                                                            cursor: "pointer",
+                                                            fontWeight: 600,
+                                                        }}
                                                         onClick={() =>
-                                                            openCreateModal(row.nama, row.rowId || "")
+                                                            openCreateModal(
+                                                                row.nama,
+                                                                row.rowId || "",
+                                                            )
                                                         }
                                                         title={`Klik untuk catat sampah ${row.nama}`}
                                                     >
                                                         {!isDesaDukun && (
-                                                            <MapPin size={13} style={{ display: "inline", marginRight: "4px", color: "#0b8f82" }} />
+                                                            <MapPin
+                                                                size={13}
+                                                                style={{
+                                                                    display:
+                                                                        "inline",
+                                                                    marginRight:
+                                                                        "4px",
+                                                                    color: "#0b8f82",
+                                                                }}
+                                                            />
                                                         )}
                                                         {row.nama}
                                                     </span>
                                                 </td>
                                                 {isDesaDukun && (
-                                                    <td className="sticky-col-dusun" style={{ color: "#64748b", fontSize: "12px" }}>
+                                                    <td
+                                                        className="sticky-col-dusun"
+                                                        style={{
+                                                            color: "#64748b",
+                                                            fontSize: "12px",
+                                                        }}
+                                                    >
                                                         {row.dusun}
                                                     </td>
                                                 )}
 
-                                                {Array.from({ length: daysInMonth }, (_, i) => {
-                                                    const day = i + 1;
-                                                    const entry = row.dailyMap.get(day);
-                                                    const isToday =
-                                                        day === new Date().getDate() &&
-                                                        bulan === new Date().getMonth() + 1 &&
-                                                        tahun === new Date().getFullYear();
+                                                {Array.from(
+                                                    { length: daysInMonth },
+                                                    (_, i) => {
+                                                        const day = i + 1;
+                                                        const entry =
+                                                            row.dailyMap.get(
+                                                                day,
+                                                            );
+                                                        const isToday =
+                                                            day ===
+                                                                new Date().getDate() &&
+                                                            bulan ===
+                                                                new Date().getMonth() +
+                                                                    1 &&
+                                                            tahun ===
+                                                                new Date().getFullYear();
 
-                                                    return (
-                                                        <td
-                                                            key={day}
-                                                            className={`cell-interactive-clean ${
-                                                                entry ? "cell-has-data" : ""
-                                                            } ${isToday ? "cell-today-highlight" : ""}`}
-                                                            onClick={() =>
-                                                                handleCellClick(row, day, entry)
-                                                            }
-                                                            title={
-                                                                entry
-                                                                    ? `${row.nama}, Tgl ${day}: ${entry.berat} kg (Klik untuk edit)`
-                                                                    : `Klik untuk input sampah ${row.nama} tgl ${day}`
-                                                            }
-                                                        >
-                                                            {entry ? (
-                                                                <span className="weight-badge-clean">
-                                                                    {entry.berat}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="cell-dash-muted">-</span>
-                                                            )}
-                                                        </td>
-                                                    );
-                                                })}
+                                                        return (
+                                                            <td
+                                                                key={day}
+                                                                className={`cell-interactive-clean ${
+                                                                    entry
+                                                                        ? "cell-has-data"
+                                                                        : ""
+                                                                } ${isToday ? "cell-today-highlight" : ""}`}
+                                                                onClick={() =>
+                                                                    handleCellClick(
+                                                                        row,
+                                                                        day,
+                                                                        entry,
+                                                                    )
+                                                                }
+                                                                title={
+                                                                    entry
+                                                                        ? `${row.nama}, Tgl ${day}: ${entry.berat} kg (Klik untuk edit)`
+                                                                        : `Klik untuk input sampah ${row.nama} tgl ${day}`
+                                                                }
+                                                            >
+                                                                {entry ? (
+                                                                    <span className="weight-badge-clean">
+                                                                        {
+                                                                            entry.berat
+                                                                        }
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="cell-dash-muted">
+                                                                        -
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    },
+                                                )}
 
-                                                <td className="sticky-col-total" style={{ fontWeight: 700, color: "#0b8f82" }}>
+                                                <td
+                                                    className="sticky-col-total"
+                                                    style={{
+                                                        fontWeight: 700,
+                                                        color: "#0b8f82",
+                                                    }}
+                                                >
                                                     {row.totalBerat > 0 ? (
-                                                        <span>{row.totalBerat}</span>
+                                                        <span>
+                                                            {row.totalBerat}
+                                                        </span>
                                                     ) : (
-                                                        <span style={{ color: "#cbd5e1" }}>0</span>
+                                                        <span
+                                                            style={{
+                                                                color: "#cbd5e1",
+                                                            }}
+                                                        >
+                                                            0
+                                                        </span>
                                                     )}
                                                 </td>
-                                                <td style={{ color: "#64748b", fontSize: "12px" }}>
+                                                <td
+                                                    style={{
+                                                        color: "#64748b",
+                                                        fontSize: "12px",
+                                                    }}
+                                                >
                                                     {row.freqSetor}
                                                 </td>
                                             </tr>
@@ -1327,40 +1610,107 @@ function PengumpulanContent() {
                                 </tbody>
                                 {filteredMatrixRows.length > 0 && (
                                     <tfoot>
-                                        <tr style={{ background: "#f8fafc", borderTop: "2px solid #cbd5e1" }}>
+                                        <tr
+                                            style={{
+                                                background: "#f8fafc",
+                                                borderTop: "2px solid #cbd5e1",
+                                            }}
+                                        >
                                             <td
                                                 colSpan={isDesaDukun ? 3 : 2}
                                                 className="sticky-col-no"
-                                                style={{ textAlign: "right", fontWeight: 700, paddingRight: "12px" }}
+                                                style={{
+                                                    textAlign: "right",
+                                                    fontWeight: 700,
+                                                    paddingRight: "12px",
+                                                }}
                                             >
                                                 TOTAL HARIAN (KG):
                                             </td>
-                                            {dailyColumnTotals.map((tot, idx) => (
-                                                <td
-                                                    key={idx}
-                                                    style={{ fontWeight: 700, color: tot > 0 ? "#0284c7" : "#cbd5e1" }}
-                                                >
-                                                    {tot > 0 ? tot : "-"}
-                                                </td>
-                                            ))}
-                                            <td className="sticky-col-total" style={{ fontWeight: 800, color: "#0b8f82" }}>
+                                            {dailyColumnTotals.map(
+                                                (tot, idx) => (
+                                                    <td
+                                                        key={idx}
+                                                        style={{
+                                                            fontWeight: 700,
+                                                            color:
+                                                                tot > 0
+                                                                    ? "#0284c7"
+                                                                    : "#cbd5e1",
+                                                        }}
+                                                    >
+                                                        {tot > 0 ? tot : "-"}
+                                                    </td>
+                                                ),
+                                            )}
+                                            <td
+                                                className="sticky-col-total"
+                                                style={{
+                                                    fontWeight: 800,
+                                                    color: "#0b8f82",
+                                                }}
+                                            >
                                                 {kpi.totalKg}
                                             </td>
-                                            <td style={{ color: "#94a3b8" }}>-</td>
+                                            <td style={{ color: "#94a3b8" }}>
+                                                -
+                                            </td>
                                         </tr>
                                     </tfoot>
                                 )}
                             </table>
                         </div>
                         <div className="matrix-footer-clean">
-                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#16a34a" }}></span> Angka hijau: Berat sampah (kg)
+                            <span
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        width: "8px",
+                                        height: "8px",
+                                        borderRadius: "50%",
+                                        background: "#16a34a",
+                                    }}
+                                ></span>{" "}
+                                Angka hijau: Berat sampah (kg)
                             </span>
-                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#cbd5e1" }}></span> Klik sel tanggal untuk input / edit cepat
+                            <span
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        width: "8px",
+                                        height: "8px",
+                                        borderRadius: "50%",
+                                        background: "#cbd5e1",
+                                    }}
+                                ></span>{" "}
+                                Klik sel tanggal untuk input / edit cepat
                             </span>
-                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#f59e0b" }}></span> Kolom highlight: Hari ini
+                            <span
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        width: "8px",
+                                        height: "8px",
+                                        borderRadius: "50%",
+                                        background: "#f59e0b",
+                                    }}
+                                ></span>{" "}
+                                Kolom highlight: Hari ini
                             </span>
                         </div>
                     </div>
@@ -1375,92 +1725,218 @@ function PengumpulanContent() {
                                     <tr>
                                         <th style={{ width: "50px" }}>NO</th>
                                         <th>TANGGAL</th>
-                                        <th>{isDesaDukun ? "MEMBER / NASABAH" : "NAMA DUSUN"}</th>
+                                        <th>
+                                            {isDesaDukun
+                                                ? "MEMBER / NASABAH"
+                                                : "NAMA DUSUN"}
+                                        </th>
                                         {isDesaDukun && <th>DUSUN</th>}
                                         <th>JENIS SAMPAH</th>
                                         <th>BERAT (KG)</th>
                                         <th>HARGA / KG</th>
                                         <th>NILAI TRANSAKSI</th>
                                         <th>PETUGAS</th>
-                                        <th style={{ width: "100px", textAlign: "center" }}>AKSI</th>
+                                        <th
+                                            style={{
+                                                width: "100px",
+                                                textAlign: "center",
+                                            }}
+                                        >
+                                            AKSI
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan={isDesaDukun ? 10 : 9} style={{ textAlign: "center", padding: "48px 16px", color: "#94a3b8" }}>
-                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                                                    <RefreshCw size={18} className="spin" />
-                                                    <span>Memuat riwayat transaksi...</span>
+                                            <td
+                                                colSpan={isDesaDukun ? 10 : 9}
+                                                style={{
+                                                    textAlign: "center",
+                                                    padding: "48px 16px",
+                                                    color: "#94a3b8",
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent:
+                                                            "center",
+                                                        gap: "8px",
+                                                    }}
+                                                >
+                                                    <RefreshCw
+                                                        size={18}
+                                                        className="spin"
+                                                    />
+                                                    <span>
+                                                        Memuat riwayat
+                                                        transaksi...
+                                                    </span>
                                                 </div>
                                             </td>
                                         </tr>
                                     ) : filteredTransactions.length === 0 ? (
                                         <tr>
-                                            <td colSpan={isDesaDukun ? 10 : 9} style={{ textAlign: "center", padding: "48px 16px", color: "#94a3b8" }}>
-                                                <AlertCircle size={28} style={{ margin: "0 auto 8px auto", color: "#cbd5e1" }} />
-                                                <p style={{ margin: 0, fontWeight: 600 }}>Tidak ada data transaksi untuk filter ini.</p>
+                                            <td
+                                                colSpan={isDesaDukun ? 10 : 9}
+                                                style={{
+                                                    textAlign: "center",
+                                                    padding: "48px 16px",
+                                                    color: "#94a3b8",
+                                                }}
+                                            >
+                                                <AlertCircle
+                                                    size={28}
+                                                    style={{
+                                                        margin: "0 auto 8px auto",
+                                                        color: "#cbd5e1",
+                                                    }}
+                                                />
+                                                <p
+                                                    style={{
+                                                        margin: 0,
+                                                        fontWeight: 600,
+                                                    }}
+                                                >
+                                                    Tidak ada data transaksi
+                                                    untuk filter ini.
+                                                </p>
                                             </td>
                                         </tr>
                                     ) : (
                                         filteredTransactions.map((rec, idx) => {
                                             const dusun = isDesaDukun
-                                                ? (rec.member_id && memberWilayahMap.get(rec.member_id)) ||
-                                                  memberWilayahMap.get(rec.nama_nasabah.toLowerCase().trim()) ||
+                                                ? (rec.member_id &&
+                                                      memberWilayahMap.get(
+                                                          rec.member_id,
+                                                      )) ||
+                                                  memberWilayahMap.get(
+                                                      rec.nama_nasabah
+                                                          .toLowerCase()
+                                                          .trim(),
+                                                  ) ||
                                                   "-"
                                                 : rec.nama_nasabah;
                                             const petugas = petugasList.find(
-                                                (p) => p.id === rec.petugas_id
+                                                (p) => p.id === rec.petugas_id,
                                             );
 
                                             return (
                                                 <tr key={rec.id}>
-                                                    <td style={{ color: "#94a3b8" }}>{idx + 1}</td>
-                                                    <td style={{ fontFamily: "monospace", fontSize: "12px" }}>
-                                                        {formatTglIndo(rec.tanggal)}
+                                                    <td
+                                                        style={{
+                                                            color: "#94a3b8",
+                                                        }}
+                                                    >
+                                                        {idx + 1}
                                                     </td>
-                                                    <td style={{ fontWeight: 600, color: "#0f172a" }}>{rec.nama_nasabah}</td>
+                                                    <td
+                                                        style={{
+                                                            fontFamily:
+                                                                "monospace",
+                                                            fontSize: "12px",
+                                                        }}
+                                                    >
+                                                        {formatTglIndo(
+                                                            rec.tanggal,
+                                                        )}
+                                                    </td>
+                                                    <td
+                                                        style={{
+                                                            fontWeight: 600,
+                                                            color: "#0f172a",
+                                                        }}
+                                                    >
+                                                        {rec.nama_nasabah}
+                                                    </td>
                                                     {isDesaDukun && (
-                                                        <td style={{ color: "#64748b" }}>{dusun}</td>
+                                                        <td
+                                                            style={{
+                                                                color: "#64748b",
+                                                            }}
+                                                        >
+                                                            {dusun}
+                                                        </td>
                                                     )}
                                                     <td>
                                                         <span className="badge-code-clean">
-                                                            {rec.jenis_sampah || "Campur"}
+                                                            {rec.jenis_sampah ||
+                                                                "Campur"}
                                                         </span>
                                                     </td>
-                                                    <td style={{ fontWeight: 700, color: "#0b8f82" }}>
+                                                    <td
+                                                        style={{
+                                                            fontWeight: 700,
+                                                            color: "#0b8f82",
+                                                        }}
+                                                    >
                                                         {rec.berat_kg} kg
                                                     </td>
                                                     <td>
                                                         {rec.harga_per_kg > 0
-                                                            ? formatRupiah(rec.harga_per_kg)
+                                                            ? formatRupiah(
+                                                                  rec.harga_per_kg,
+                                                              )
                                                             : "-"}
                                                     </td>
-                                                    <td style={{ fontWeight: 600 }}>
+                                                    <td
+                                                        style={{
+                                                            fontWeight: 600,
+                                                        }}
+                                                    >
                                                         {rec.nilai_transaksi > 0
-                                                            ? formatRupiah(rec.nilai_transaksi)
+                                                            ? formatRupiah(
+                                                                  rec.nilai_transaksi,
+                                                              )
                                                             : "-"}
                                                     </td>
-                                                    <td style={{ color: "#64748b" }}>
-                                                        {petugas ? petugas.nama : "-"}
+                                                    <td
+                                                        style={{
+                                                            color: "#64748b",
+                                                        }}
+                                                    >
+                                                        {petugas
+                                                            ? petugas.nama
+                                                            : "-"}
                                                     </td>
                                                     <td>
-                                                        <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                        <div
+                                                            style={{
+                                                                display: "flex",
+                                                                justifyContent:
+                                                                    "center",
+                                                                gap: "6px",
+                                                            }}
+                                                        >
                                                             <button
                                                                 type="button"
                                                                 className="action-btn-clean edit"
-                                                                onClick={() => openEditModal(rec)}
+                                                                onClick={() =>
+                                                                    openEditModal(
+                                                                        rec,
+                                                                    )
+                                                                }
                                                                 title="Edit Transaksi"
                                                             >
-                                                                <Edit3 size={14} />
+                                                                <Edit3
+                                                                    size={14}
+                                                                />
                                                             </button>
                                                             <button
                                                                 type="button"
                                                                 className="action-btn-clean delete"
-                                                                onClick={() => openDeleteModal(rec)}
+                                                                onClick={() =>
+                                                                    openDeleteModal(
+                                                                        rec,
+                                                                    )
+                                                                }
                                                                 title="Hapus Transaksi"
                                                             >
-                                                                <Trash2 size={14} />
+                                                                <Trash2
+                                                                    size={14}
+                                                                />
                                                             </button>
                                                         </div>
                                                     </td>
@@ -1488,49 +1964,83 @@ function PengumpulanContent() {
                                 </h3>
                                 <button
                                     type="button"
-                                    style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}
+                                    style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#94a3b8",
+                                        cursor: "pointer",
+                                    }}
                                     onClick={() => setModalMode(null)}
                                 >
                                     <X size={18} />
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSingleSubmit} className="modal-form-clean">
+                            <form
+                                onSubmit={handleSingleSubmit}
+                                className="modal-form-clean"
+                            >
                                 {isDesaDukun ? (
                                     <>
                                         <div className="form-group-clean">
-                                            <label>Pilih Member / Nasabah *</label>
+                                            <label>
+                                                Pilih Member / Nasabah *
+                                            </label>
                                             <select
                                                 value={form.member_id}
                                                 onChange={(e) => {
-                                                    const selectedId = e.target.value;
-                                                    const selectedM = memberList.find((m) => m.id === selectedId);
+                                                    const selectedId =
+                                                        e.target.value;
+                                                    const selectedM =
+                                                        memberList.find(
+                                                            (m) =>
+                                                                m.id ===
+                                                                selectedId,
+                                                        );
                                                     setForm({
                                                         ...form,
                                                         member_id: selectedId,
-                                                        nama_nasabah: selectedM ? selectedM.nama : form.nama_nasabah,
+                                                        nama_nasabah: selectedM
+                                                            ? selectedM.nama
+                                                            : form.nama_nasabah,
                                                     });
                                                 }}
                                                 className="form-control-clean"
                                             >
-                                                <option value="">-- Pilih dari Daftar Member --</option>
+                                                <option value="">
+                                                    -- Pilih dari Daftar Member
+                                                    --
+                                                </option>
                                                 {memberList.map((m) => (
-                                                    <option key={m.id} value={m.id}>
-                                                        {m.nama} {m.wilayah?.dusun ? `(${m.wilayah.dusun})` : ""}
+                                                    <option
+                                                        key={m.id}
+                                                        value={m.id}
+                                                    >
+                                                        {m.nama}{" "}
+                                                        {m.wilayah?.dusun
+                                                            ? `(${m.wilayah.dusun})`
+                                                            : ""}
                                                     </option>
                                                 ))}
                                             </select>
                                         </div>
 
                                         <div className="form-group-clean">
-                                            <label>Nama Member (Manual / Teks Bebas) *</label>
+                                            <label>
+                                                Nama Member (Manual / Teks
+                                                Bebas) *
+                                            </label>
                                             <input
                                                 type="text"
                                                 required
                                                 placeholder="Ketik nama jika belum terdaftar..."
                                                 value={form.nama_nasabah}
                                                 onChange={(e) =>
-                                                    setForm({ ...form, nama_nasabah: e.target.value })
+                                                    setForm({
+                                                        ...form,
+                                                        nama_nasabah:
+                                                            e.target.value,
+                                                    })
                                                 }
                                                 className="form-control-clean"
                                             />
@@ -1543,27 +2053,46 @@ function PengumpulanContent() {
                                             required
                                             value={form.nasabah_id}
                                             onChange={(e) => {
-                                                const selectedId = e.target.value;
-                                                const selectedW = wilayahList.find((w) => w.id === selectedId);
+                                                const selectedId =
+                                                    e.target.value;
+                                                const selectedW =
+                                                    wilayahList.find(
+                                                        (w) =>
+                                                            w.id === selectedId,
+                                                    );
                                                 setForm({
                                                     ...form,
                                                     nasabah_id: selectedId,
-                                                    nama_nasabah: selectedW ? selectedW.dusun : form.nama_nasabah,
+                                                    nama_nasabah: selectedW
+                                                        ? selectedW.dusun
+                                                        : form.nama_nasabah,
                                                 });
                                             }}
                                             className="form-control-clean"
                                         >
-                                            <option value="">-- Pilih Dusun di {currentDesa?.nama || "Desa"} --</option>
+                                            <option value="">
+                                                -- Pilih Dusun di{" "}
+                                                {currentDesa?.nama || "Desa"} --
+                                            </option>
                                             {wilayahList.map((w) => (
                                                 <option key={w.id} value={w.id}>
-                                                    {w.dusun} {w.kode ? `(${w.kode})` : ""}
+                                                    {w.dusun}{" "}
+                                                    {w.kode
+                                                        ? `(${w.kode})`
+                                                        : ""}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
                                 )}
 
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                                <div
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "1fr 1fr",
+                                        gap: "12px",
+                                    }}
+                                >
                                     <div className="form-group-clean">
                                         <label>Tanggal Pencatatan *</label>
                                         <input
@@ -1571,7 +2100,10 @@ function PengumpulanContent() {
                                             required
                                             value={form.tanggal}
                                             onChange={(e) =>
-                                                setForm({ ...form, tanggal: e.target.value })
+                                                setForm({
+                                                    ...form,
+                                                    tanggal: e.target.value,
+                                                })
                                             }
                                             className="form-control-clean"
                                         />
@@ -1582,7 +2114,11 @@ function PengumpulanContent() {
                                         <select
                                             value={form.jenis_sampah}
                                             onChange={(e) =>
-                                                setForm({ ...form, jenis_sampah: e.target.value })
+                                                setForm({
+                                                    ...form,
+                                                    jenis_sampah:
+                                                        e.target.value,
+                                                })
                                             }
                                             className="form-control-clean"
                                         >
@@ -1595,7 +2131,13 @@ function PengumpulanContent() {
                                     </div>
                                 </div>
 
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                                <div
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "1fr 1fr",
+                                        gap: "12px",
+                                    }}
+                                >
                                     <div className="form-group-clean">
                                         <label>Berat Sampah (kg) *</label>
                                         <input
@@ -1606,21 +2148,30 @@ function PengumpulanContent() {
                                             placeholder="Contoh: 1.5"
                                             value={form.berat_kg}
                                             onChange={(e) =>
-                                                setForm({ ...form, berat_kg: e.target.value })
+                                                setForm({
+                                                    ...form,
+                                                    berat_kg: e.target.value,
+                                                })
                                             }
                                             className="form-control-clean"
                                         />
                                     </div>
 
                                     <div className="form-group-clean">
-                                        <label>Harga per kg (Rp, Opsional)</label>
+                                        <label>
+                                            Harga per kg (Rp, Opsional)
+                                        </label>
                                         <input
                                             type="number"
                                             min="0"
                                             placeholder="0"
                                             value={form.harga_per_kg}
                                             onChange={(e) =>
-                                                setForm({ ...form, harga_per_kg: e.target.value })
+                                                setForm({
+                                                    ...form,
+                                                    harga_per_kg:
+                                                        e.target.value,
+                                                })
                                             }
                                             className="form-control-clean"
                                         />
@@ -1632,11 +2183,16 @@ function PengumpulanContent() {
                                     <select
                                         value={form.petugas_id}
                                         onChange={(e) =>
-                                            setForm({ ...form, petugas_id: e.target.value })
+                                            setForm({
+                                                ...form,
+                                                petugas_id: e.target.value,
+                                            })
                                         }
                                         className="form-control-clean"
                                     >
-                                        <option value="">Pilih Petugas (Opsional)</option>
+                                        <option value="">
+                                            Pilih Petugas (Opsional)
+                                        </option>
                                         {petugasList.map((p) => (
                                             <option key={p.id} value={p.id}>
                                                 {p.nama}
@@ -1659,7 +2215,9 @@ function PengumpulanContent() {
                                         className="btn-primary-clean"
                                         disabled={isSubmitting}
                                     >
-                                        {isSubmitting ? "Menyimpan..." : "Simpan Data"}
+                                        {isSubmitting
+                                            ? "Menyimpan..."
+                                            : "Simpan Data"}
                                     </button>
                                 </div>
                             </form>
@@ -1675,22 +2233,50 @@ function PengumpulanContent() {
                                 <h3>Quick Edit Berat Sampah</h3>
                                 <button
                                     type="button"
-                                    style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}
+                                    style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#94a3b8",
+                                        cursor: "pointer",
+                                    }}
                                     onClick={() => setModalMode(null)}
                                 >
                                     <X size={18} />
                                 </button>
                             </div>
-                            <form onSubmit={handleCellQuickSave} className="modal-form-clean">
-                                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "10px 14px", fontSize: "13px" }}>
-                                    <p style={{ margin: "2px 0", color: "#334155" }}>
+                            <form
+                                onSubmit={handleCellQuickSave}
+                                className="modal-form-clean"
+                            >
+                                <div
+                                    style={{
+                                        background: "#f8fafc",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: "8px",
+                                        padding: "10px 14px",
+                                        fontSize: "13px",
+                                    }}
+                                >
+                                    <p
+                                        style={{
+                                            margin: "2px 0",
+                                            color: "#334155",
+                                        }}
+                                    >
                                         {isDesaDukun ? "Member" : "Dusun"}:{" "}
                                         <strong>{cellTarget.labelName}</strong>
                                     </p>
-                                    <p style={{ margin: "2px 0", color: "#64748b" }}>
+                                    <p
+                                        style={{
+                                            margin: "2px 0",
+                                            color: "#64748b",
+                                        }}
+                                    >
                                         Tanggal:{" "}
                                         <strong>
-                                            {cellTarget.day} {BULAN_LIST[bulan - 1]?.label} {tahun}
+                                            {cellTarget.day}{" "}
+                                            {BULAN_LIST[bulan - 1]?.label}{" "}
+                                            {tahun}
                                         </strong>
                                     </p>
                                 </div>
@@ -1704,12 +2290,25 @@ function PengumpulanContent() {
                                         autoFocus
                                         placeholder="0"
                                         value={cellWeight}
-                                        onChange={(e) => setCellWeight(e.target.value)}
+                                        onChange={(e) =>
+                                            setCellWeight(e.target.value)
+                                        }
                                         className="form-control-clean"
-                                        style={{ textAlign: "center", fontSize: "18px", fontWeight: 700 }}
+                                        style={{
+                                            textAlign: "center",
+                                            fontSize: "18px",
+                                            fontWeight: 700,
+                                        }}
                                     />
-                                    <small style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
-                                        Isi 0 untuk menghapus catatan sampah hari ini.
+                                    <small
+                                        style={{
+                                            fontSize: "11px",
+                                            color: "#94a3b8",
+                                            marginTop: "4px",
+                                        }}
+                                    >
+                                        Isi 0 untuk menghapus catatan sampah
+                                        hari ini.
                                     </small>
                                 </div>
 
@@ -1727,7 +2326,9 @@ function PengumpulanContent() {
                                         className="btn-primary-clean"
                                         disabled={isSubmitting}
                                     >
-                                        {isSubmitting ? "Menyimpan..." : "Simpan"}
+                                        {isSubmitting
+                                            ? "Menyimpan..."
+                                            : "Simpan"}
                                     </button>
                                 </div>
                             </form>
@@ -1743,21 +2344,42 @@ function PengumpulanContent() {
                                 <h3>Hapus Catatan Sampah</h3>
                                 <button
                                     type="button"
-                                    style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}
+                                    style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#94a3b8",
+                                        cursor: "pointer",
+                                    }}
                                     onClick={() => setModalMode(null)}
                                 >
                                     <X size={18} />
                                 </button>
                             </div>
-                            <div style={{ padding: "16px 20px", fontSize: "14px", color: "#334155", lineHeight: 1.5 }}>
+                            <div
+                                style={{
+                                    padding: "16px 20px",
+                                    fontSize: "14px",
+                                    color: "#334155",
+                                    lineHeight: 1.5,
+                                }}
+                            >
                                 <p style={{ margin: 0 }}>
-                                    Apakah Anda yakin ingin menghapus data sampah untuk{" "}
-                                    <strong>{deleteItem.nama_nasabah}</strong> sebesar{" "}
-                                    <strong>{deleteItem.berat_kg} kg</strong> pada tanggal{" "}
-                                    <strong>{formatTglIndo(deleteItem.tanggal)}</strong>?
+                                    Apakah Anda yakin ingin menghapus data
+                                    sampah untuk{" "}
+                                    <strong>{deleteItem.nama_nasabah}</strong>{" "}
+                                    sebesar{" "}
+                                    <strong>{deleteItem.berat_kg} kg</strong>{" "}
+                                    pada tanggal{" "}
+                                    <strong>
+                                        {formatTglIndo(deleteItem.tanggal)}
+                                    </strong>
+                                    ?
                                 </p>
                             </div>
-                            <div className="modal-actions-clean" style={{ padding: "0 20px 16px 20px" }}>
+                            <div
+                                className="modal-actions-clean"
+                                style={{ padding: "0 20px 16px 20px" }}
+                            >
                                 <button
                                     type="button"
                                     className="btn-secondary-clean"
@@ -1772,7 +2394,9 @@ function PengumpulanContent() {
                                     onClick={handleDeleteConfirm}
                                     disabled={isSubmitting}
                                 >
-                                    {isSubmitting ? "Menghapus..." : "Hapus Data"}
+                                    {isSubmitting
+                                        ? "Menghapus..."
+                                        : "Hapus Data"}
                                 </button>
                             </div>
                         </div>

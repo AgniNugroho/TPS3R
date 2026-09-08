@@ -11,6 +11,7 @@ import {
     FileSpreadsheet,
     Banknote,
     ExternalLink,
+    Scale,
 } from "lucide-react";
 import { showErrorToast } from "@/components/ui/Toast";
 
@@ -25,6 +26,14 @@ type OperasionalRow = {
     id: string;
     kategori: string;
     nominal: number;
+};
+
+type PenjualanRow = {
+    id: string;
+    kategori: string;
+    berat_kg: number;
+    total_pendapatan: number;
+    status_setoran: string;
 };
 
 type Props = {
@@ -54,6 +63,7 @@ export default function RekapBUMDesTab({
 
     const [payments, setPayments] = useState<PaymentRow[]>([]);
     const [operasional, setOperasional] = useState<OperasionalRow[]>([]);
+    const [penjualan, setPenjualan] = useState<PenjualanRow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const loadData = useCallback(async () => {
@@ -64,13 +74,20 @@ export default function RekapBUMDesTab({
                 params.set("desa_id", selectedDesaId);
             }
 
-            const [pembayaranRes, operasionalRes] = await Promise.all([
+            const pjParams = new URLSearchParams({ bulan: periodeBulan });
+            if (selectedDesaId && selectedDesaId !== "all") {
+                pjParams.set("desa_id", selectedDesaId);
+            }
+
+            const [pembayaranRes, operasionalRes, penjualanRes] = await Promise.all([
                 fetch(`/api/pembayaran-member?${params.toString()}`),
                 fetch(`/api/operasional-tps3r?${params.toString()}`),
+                fetch(`/api/penjualan-anorganik?${pjParams.toString()}`),
             ]);
 
             const pData = await pembayaranRes.json();
             const oData = await operasionalRes.json();
+            const pjData = await penjualanRes.json();
 
             const pRows: PaymentRow[] = Array.isArray(pData.rows)
                 ? pData.rows
@@ -82,9 +99,13 @@ export default function RekapBUMDesTab({
                 : Array.isArray(oData.data)
                 ? oData.data
                 : [];
+            const pjRows: PenjualanRow[] = Array.isArray(pjData.rows)
+                ? pjData.rows
+                : [];
 
             setPayments(pRows);
             setOperasional(oRows);
+            setPenjualan(pjRows);
         } catch (err) {
             showErrorToast(err instanceof Error ? err.message : "Gagal mengambil ringkasan rekap BUMDes.");
         } finally {
@@ -132,7 +153,24 @@ export default function RekapBUMDesTab({
             else lainnya += n;
         });
 
-        const setoranBUMDes = totalIuran - totalBiaya;
+        let totalPenjualan = 0;
+        let totalPenjualanDisetor = 0;
+        let totalPenjualanBelumDisetor = 0;
+        let totalBeratTerjual = 0;
+
+        penjualan.forEach((pj) => {
+            const n = Number(pj.total_pendapatan) || 0;
+            totalPenjualan += n;
+            totalBeratTerjual += Number(pj.berat_kg) || 0;
+            if (pj.status_setoran === "Sudah Disetor") {
+                totalPenjualanDisetor += n;
+            } else {
+                totalPenjualanBelumDisetor += n;
+            }
+        });
+
+        const totalPemasukan = totalIuran + totalPenjualan;
+        const setoranBUMDes = totalPemasukan - totalBiaya;
 
         return {
             totalIuran,
@@ -146,9 +184,14 @@ export default function RekapBUMDesTab({
             dapur,
             mesin,
             lainnya,
+            totalPenjualan,
+            totalPenjualanDisetor,
+            totalPenjualanBelumDisetor,
+            totalBeratTerjual: Math.round(totalBeratTerjual * 100) / 100,
+            totalPemasukan,
             setoranBUMDes,
         };
-    }, [payments, operasional]);
+    }, [payments, operasional, penjualan]);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -200,66 +243,99 @@ export default function RekapBUMDesTab({
             </div>
 
             {/* Main Financial Statement Card */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
                 {/* 1. Total Iuran */}
-                <div style={{ background: "#ffffff", borderRadius: "16px", border: "1px solid #e2e8f0", padding: "22px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                <div style={{ background: "#ffffff", borderRadius: "16px", border: "1px solid #e2e8f0", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <div style={{ background: "#ecfdf5", padding: "10px", borderRadius: "12px" }}>
                                 <ArrowUpRight size={22} color="#059669" />
                             </div>
                             <div>
-                                <span style={{ fontSize: "12px", textTransform: "uppercase", fontWeight: 700, color: "#059669" }}>Pemasukan</span>
-                                <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>{isDesaDukun ? "Iuran Member" : "Iuran Dusun"}</h4>
+                                <span style={{ fontSize: "11px", textTransform: "uppercase", fontWeight: 700, color: "#059669" }}>Pemasukan Rutin</span>
+                                <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{isDesaDukun ? "Iuran Member" : "Iuran Dusun"}</h4>
                             </div>
                         </div>
-                        <span style={{ fontSize: "12px", background: "#f1f5f9", padding: "4px 8px", borderRadius: "6px", color: "#475569", fontWeight: 600 }}>
-                            {summary.lunasCount} {isDesaDukun ? "Member Lunas" : "Dusun Lunas"}
+                        <span style={{ fontSize: "11px", background: "#f1f5f9", padding: "3px 8px", borderRadius: "6px", color: "#475569", fontWeight: 600 }}>
+                            {summary.lunasCount} {isDesaDukun ? "Member" : "Dusun"} Lunas
                         </span>
                     </div>
 
-                    <div style={{ fontSize: "28px", fontWeight: 800, color: "#059669", letterSpacing: "-0.02em", marginBottom: "18px" }}>
+                    <div style={{ fontSize: "24px", fontWeight: 800, color: "#059669", letterSpacing: "-0.02em", marginBottom: "14px" }}>
                         {formatRupiah(summary.totalIuran)}
                     </div>
 
-                    <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "14px", display: "flex", flexDirection: "column", gap: "8px", fontSize: "13px" }}>
+                    <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                <Banknote size={14} color="#16a34a" /> Penerimaan Cash / Tunai:
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                <Banknote size={13} color="#16a34a" /> Tunai:
                             </span>
                             <span style={{ fontWeight: 700, color: "#0f172a" }}>{formatRupiah(summary.totalCash)}</span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                <Wallet size={14} color="#0284c7" /> Penerimaan Transfer Bank:
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                <Wallet size={13} color="#0284c7" /> Transfer:
                             </span>
                             <span style={{ fontWeight: 700, color: "#0f172a" }}>{formatRupiah(summary.totalTransfer)}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* 2. Total Operasional */}
-                <div style={{ background: "#ffffff", borderRadius: "16px", border: "1px solid #e2e8f0", padding: "22px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                {/* 2. Total Penjualan Sampah Anorganik */}
+                <div style={{ background: "#ffffff", borderRadius: "16px", border: "1px solid #e2e8f0", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <div style={{ background: "#eff6ff", padding: "10px", borderRadius: "12px" }}>
+                                <Scale size={22} color="#2563eb" />
+                            </div>
+                            <div>
+                                <span style={{ fontSize: "11px", textTransform: "uppercase", fontWeight: 700, color: "#2563eb" }}>Pemasukan Penjualan</span>
+                                <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>Penjualan Anorganik</h4>
+                            </div>
+                        </div>
+                        <span style={{ fontSize: "11px", background: "#eff6ff", padding: "3px 8px", borderRadius: "6px", color: "#2563eb", fontWeight: 600 }}>
+                            {summary.totalBeratTerjual} kg Terjual
+                        </span>
+                    </div>
+
+                    <div style={{ fontSize: "24px", fontWeight: 800, color: "#2563eb", letterSpacing: "-0.02em", marginBottom: "14px" }}>
+                        {formatRupiah(summary.totalPenjualan)}
+                    </div>
+
+                    <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                            <span style={{ color: "#166534", fontWeight: 600 }}>Sudah Disetor:</span>
+                            <span style={{ fontWeight: 700, color: "#166534" }}>{formatRupiah(summary.totalPenjualanDisetor)}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                            <span style={{ color: "#b45309", fontWeight: 600 }}>Belum Disetor:</span>
+                            <span style={{ fontWeight: 700, color: "#b45309" }}>{formatRupiah(summary.totalPenjualanBelumDisetor)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. Total Operasional */}
+                <div style={{ background: "#ffffff", borderRadius: "16px", border: "1px solid #e2e8f0", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <div style={{ background: "#fef2f2", padding: "10px", borderRadius: "12px" }}>
                                 <ArrowDownRight size={22} color="#dc2626" />
                             </div>
                             <div>
-                                <span style={{ fontSize: "12px", textTransform: "uppercase", fontWeight: 700, color: "#dc2626" }}>Pengeluaran</span>
-                                <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>Biaya Operasional</h4>
+                                <span style={{ fontSize: "11px", textTransform: "uppercase", fontWeight: 700, color: "#dc2626" }}>Pengeluaran</span>
+                                <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>Biaya Operasional</h4>
                             </div>
                         </div>
-                        <span style={{ fontSize: "12px", background: "#fef2f2", padding: "4px 8px", borderRadius: "6px", color: "#dc2626", fontWeight: 600 }}>
+                        <span style={{ fontSize: "11px", background: "#fef2f2", padding: "3px 8px", borderRadius: "6px", color: "#dc2626", fontWeight: 600 }}>
                             {operasional.length} Transaksi
                         </span>
                     </div>
 
-                    <div style={{ fontSize: "28px", fontWeight: 800, color: "#dc2626", letterSpacing: "-0.02em", marginBottom: "18px" }}>
+                    <div style={{ fontSize: "24px", fontWeight: 800, color: "#dc2626", letterSpacing: "-0.02em", marginBottom: "14px" }}>
                         {formatRupiah(summary.totalBiaya)}
                     </div>
 
-                    <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "12px" }}>
+                    <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", fontSize: "11px" }}>
                         <div style={{ color: "#475569" }}>
                             <span style={{ color: "#b45309", fontWeight: 600 }}>BBM:</span> {formatRupiah(summary.bbm)}
                         </div>
@@ -270,34 +346,34 @@ export default function RekapBUMDesTab({
                             <span style={{ color: "#15803d", fontWeight: 600 }}>Dapur:</span> {formatRupiah(summary.dapur)}
                         </div>
                         <div style={{ color: "#475569" }}>
-                            <span style={{ color: "#6d28d9", fontWeight: 600 }}>Mesin & Lainnya:</span> {formatRupiah(summary.mesin + summary.lainnya)}
+                            <span style={{ color: "#6d28d9", fontWeight: 600 }}>Lain:</span> {formatRupiah(summary.mesin + summary.lainnya)}
                         </div>
                     </div>
                 </div>
 
-                {/* 3. Sisa Bersih BUMDes */}
-                <div style={{ background: "linear-gradient(135deg, #064e3b 0%, #022c22 100%)", borderRadius: "16px", padding: "22px", color: "#ffffff", boxShadow: "0 8px 20px rgba(6,78,59,0.2)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                {/* 4. Sisa Bersih BUMDes */}
+                <div style={{ background: "linear-gradient(135deg, #064e3b 0%, #022c22 100%)", borderRadius: "16px", padding: "20px", color: "#ffffff", boxShadow: "0 8px 20px rgba(6,78,59,0.2)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <div style={{ background: "rgba(255,255,255,0.15)", padding: "10px", borderRadius: "12px" }}>
                                 <Building2 size={22} color="#34d399" />
                             </div>
                             <div>
-                                <span style={{ fontSize: "12px", textTransform: "uppercase", fontWeight: 700, color: "#a7f3d0" }}>Setoran Bersih</span>
-                                <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#ffffff" }}>Bendahara BUMDes</h4>
+                                <span style={{ fontSize: "11px", textTransform: "uppercase", fontWeight: 700, color: "#a7f3d0" }}>Setoran Bersih</span>
+                                <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#ffffff" }}>Bendahara BUMDes</h4>
                             </div>
                         </div>
-                        <span style={{ fontSize: "12px", background: "rgba(255,255,255,0.15)", padding: "4px 8px", borderRadius: "6px", color: "#ffffff", fontWeight: 600 }}>
+                        <span style={{ fontSize: "11px", background: "rgba(255,255,255,0.15)", padding: "3px 8px", borderRadius: "6px", color: "#ffffff", fontWeight: 600 }}>
                             Periode {periodeBulan}
                         </span>
                     </div>
 
-                    <div style={{ fontSize: "30px", fontWeight: 900, color: summary.setoranBUMDes >= 0 ? "#34d399" : "#f87171", letterSpacing: "-0.02em", marginBottom: "18px" }}>
+                    <div style={{ fontSize: "26px", fontWeight: 900, color: summary.setoranBUMDes >= 0 ? "#34d399" : "#f87171", letterSpacing: "-0.02em", marginBottom: "14px" }}>
                         {formatRupiah(summary.setoranBUMDes)}
                     </div>
 
-                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: "14px", fontSize: "12px", color: "#d1fae5" }}>
-                        Formula: Total {isDesaDukun ? "Iuran Member" : "Iuran Dusun"} ({formatRupiah(summary.totalIuran)}) dikurangi Biaya Operasional ({formatRupiah(summary.totalBiaya)}).
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: "12px", fontSize: "11px", color: "#d1fae5" }}>
+                        Total Pemasukan ({formatRupiah(summary.totalPemasukan)}) dikurangi Operasional ({formatRupiah(summary.totalBiaya)}).
                     </div>
                 </div>
             </div>
@@ -309,15 +385,19 @@ export default function RekapBUMDesTab({
                 </h4>
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "14px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px" }}>
-                        <span style={{ fontWeight: 600, color: "#334155" }}>1. Total Penerimaan {isDesaDukun ? "Iuran Member" : "Iuran Dusun"}</span>
+                        <span style={{ fontWeight: 600, color: "#334155" }}>1. Penerimaan {isDesaDukun ? "Iuran Member" : "Iuran Dusun"}</span>
                         <span style={{ fontWeight: 700, color: "#059669" }}>+ {formatRupiah(summary.totalIuran)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px" }}>
-                        <span style={{ fontWeight: 600, color: "#334155" }}>2. Total Pengeluaran Biaya Operasional (BBM, Listrik, Konsumsi, Mesin)</span>
+                        <span style={{ fontWeight: 600, color: "#334155" }}>2. Penerimaan Hasil Penjualan Sampah Anorganik ke Pengepul</span>
+                        <span style={{ fontWeight: 700, color: "#2563eb" }}>+ {formatRupiah(summary.totalPenjualan)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px" }}>
+                        <span style={{ fontWeight: 600, color: "#334155" }}>3. Pengeluaran Biaya Operasional (BBM, Listrik, Konsumsi, Mesin)</span>
                         <span style={{ fontWeight: 700, color: "#dc2626" }}>- {formatRupiah(summary.totalBiaya)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 14px", background: "#ecfdf5", borderRadius: "8px", border: "1px solid #a7f3d0" }}>
-                        <span style={{ fontWeight: 800, color: "#065f46" }}>3. Sisa Saldo Bersih untuk Disetor ke Bendahara BUMDes</span>
+                        <span style={{ fontWeight: 800, color: "#065f46" }}>4. Sisa Saldo Bersih untuk Disetor ke Bendahara BUMDes</span>
                         <span style={{ fontWeight: 800, color: "#065f46", fontSize: "16px" }}>= {formatRupiah(summary.setoranBUMDes)}</span>
                     </div>
                 </div>
