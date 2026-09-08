@@ -409,9 +409,6 @@ function DashboardContent() {
                                     <h3>Performa per Wilayah</h3>
                                     <p>Total sampah masuk berdasarkan asal</p>
                                 </div>
-                                <button className="text-button">
-                                    Data SQL <ArrowUpRight size={15} />
-                                </button>
                             </div>
                             <div
                                 className="region-list"

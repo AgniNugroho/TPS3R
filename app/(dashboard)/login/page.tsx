@@ -12,6 +12,7 @@ function LoginForm() {
     const searchParams = useSearchParams();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
@@ -119,7 +120,7 @@ function LoginForm() {
                             <div className="input-with-icon">
                                 <Lock size={16} />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     required
                                     placeholder="••••••••"
                                     value={password}
@@ -128,6 +129,24 @@ function LoginForm() {
                                     }
                                     autoComplete="current-password"
                                 />
+                                <button
+                                    type="button"
+                                    className="icon-button password-toggle"
+                                    onClick={() =>
+                                        setShowPassword((show) => !show)
+                                    }
+                                    aria-label={
+                                        showPassword
+                                            ? "Sembunyikan kata sandi"
+                                            : "Tampilkan kata sandi"
+                                    }
+                                >
+                                    {showPassword ? (
+                                        <EyeOff size={16} />
+                                    ) : (
+                                        <Eye size={16} />
+                                    )}
+                                </button>
                             </div>
                         </label>
                         {error && <p className="auth-error">{error}</p>}
