@@ -18,10 +18,12 @@ import {
     Users,
     UserX,
     X,
+    Scale,
 } from "lucide-react";
 import FormShell from "@/components/dashboard/FormShell";
 import { showErrorToast, showSuccessToast } from "@/components/ui/Toast";
 import IuranMemberTab from "@/components/bank-sampah/IuranMemberTab";
+import PenjualanAnorganikTab from "@/components/bank-sampah/PenjualanAnorganikTab";
 import OperasionalTab from "@/components/bank-sampah/OperasionalTab";
 import RekapBUMDesTab from "@/components/bank-sampah/RekapBUMDesTab";
 
@@ -108,7 +110,7 @@ function BankSampahContent() {
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [wilayahFilter, setWilayahFilter] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<string>("");
-    const [activeTab, setActiveTab] = useState<"master" | "iuran" | "operasional" | "rekap">("master");
+    const [activeTab, setActiveTab] = useState<"master" | "iuran" | "penjualan" | "operasional" | "rekap">("master");
 
     // Active Desa
     const currentDesa = useMemo(() => {
@@ -638,6 +640,27 @@ function BankSampahContent() {
                     </button>
                     <button
                         type="button"
+                        onClick={() => setActiveTab("penjualan")}
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "8px 16px",
+                            borderRadius: "10px",
+                            border: "none",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: activeTab === "penjualan" ? "#059669" : "#f1f5f9",
+                            color: activeTab === "penjualan" ? "#ffffff" : "#475569",
+                            transition: "all 0.15s ease",
+                        }}
+                    >
+                        <Scale size={16} />
+                        Penjualan Anorganik
+                    </button>
+                    <button
+                        type="button"
                         onClick={() => setActiveTab("operasional")}
                         style={{
                             display: "inline-flex",
@@ -1132,6 +1155,13 @@ function BankSampahContent() {
                         members={members}
                         wilayahList={wilayahList}
                         isDesaDukun={isDesaDukun}
+                        desaName={currentDesa?.nama}
+                    />
+                )}
+
+                {activeTab === "penjualan" && (
+                    <PenjualanAnorganikTab
+                        selectedDesaId={selectedDesaId}
                         desaName={currentDesa?.nama}
                     />
                 )}
