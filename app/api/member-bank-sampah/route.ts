@@ -8,6 +8,8 @@ type MemberPayload = {
     id?: unknown;
     kode_member?: unknown;
     nama?: unknown;
+    nik?: unknown;
+    kategori?: unknown;
     desa_id?: unknown;
     wilayah_id?: unknown;
     nomor_hp?: unknown;
@@ -50,6 +52,7 @@ export async function GET(request: Request) {
         const requestedDesaId = url.searchParams.get("desa_id");
         const wilayahId = url.searchParams.get("wilayah_id");
         const status = url.searchParams.get("status");
+        const kategori = url.searchParams.get("kategori");
         const search = url.searchParams.get("search");
 
         const desaId = auth.session.isAdmin
@@ -84,8 +87,12 @@ export async function GET(request: Request) {
             query = query.eq("status", status);
         }
 
+        if (kategori) {
+            query = query.eq("kategori", kategori);
+        }
+
         if (search) {
-            query = query.or(`nama.ilike.%${search}%,kode_member.ilike.%${search}%`);
+            query = query.or(`nama.ilike.%${search}%,kode_member.ilike.%${search}%,nik.ilike.%${search}%`);
         }
 
         const { data, error } = await query
@@ -149,9 +156,15 @@ export async function POST(request: Request) {
             kodeMember = `MBR-${String((count ?? 0) + 1).padStart(3, "0")}`;
         }
 
-        const payload = {
+        const kategoriRaw = toText(body.kategori);
+        const kategori = kategoriRaw.toLowerCase() === "industri" ? "Industri" : "Rumahan";
+        const nik = toNullableText(body.nik);
+
+        const payload: Record<string, unknown> = {
             kode_member: kodeMember,
             nama,
+            nik,
+            kategori,
             desa_id: targetDesaId,
             wilayah_id: toNullableText(body.wilayah_id),
             nomor_hp: toNullableText(body.nomor_hp),
@@ -248,6 +261,15 @@ export async function PUT(request: Request) {
             alamat: toNullableText(body.alamat),
             status: toText(body.status) || "Aktif",
         };
+
+        if (body.kategori !== undefined) {
+            const kat = toText(body.kategori);
+            payload.kategori = kat.toLowerCase() === "industri" ? "Industri" : "Rumahan";
+        }
+
+        if (body.nik !== undefined) {
+            payload.nik = toNullableText(body.nik);
+        }
 
         if (auth.session.isAdmin && body.desa_id) {
             payload.desa_id = toText(body.desa_id);

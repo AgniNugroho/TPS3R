@@ -176,6 +176,8 @@ create table if not exists member_bank_sampah (
   id uuid primary key default gen_random_uuid(),
   kode_member text unique,
   nama text not null,
+  nik text,
+  kategori text not null default 'Rumahan' check (kategori in ('Rumahan', 'Industri')),
   desa_id uuid not null references desa(id) on delete cascade,
   wilayah_id uuid references wilayah(id) on delete set null,
   nomor_hp text,

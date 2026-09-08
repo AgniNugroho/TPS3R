@@ -31,6 +31,8 @@ type PaymentRow = {
         id: string;
         kode_member?: string | null;
         nama: string;
+        nik?: string | null;
+        kategori?: string | null;
         wilayah?: {
             id: string;
             dusun: string;
@@ -530,8 +532,24 @@ export default function IuranMemberTab({
                                         <td style={{ padding: "14px 16px" }}>
                                             {isDesaDukun ? (
                                                 <>
-                                                    <div style={{ fontWeight: 700, color: "#1a2522" }}>{row.member?.nama || "Tanpa Nama"}</div>
-                                                    <div style={{ fontSize: "11px", color: "#64748b" }}>{row.member?.kode_member || "-"}</div>
+                                                    <div style={{ fontWeight: 700, color: "#1a2522", display: "flex", alignItems: "center", gap: "6px" }}>
+                                                        <span>{row.member?.nama || "Tanpa Nama"}</span>
+                                                        <span style={{
+                                                            fontSize: "10px",
+                                                            padding: "2px 6px",
+                                                            borderRadius: "4px",
+                                                            fontWeight: 700,
+                                                            background: row.member?.kategori === "Industri" ? "#eff6ff" : "#ecfdf5",
+                                                            color: row.member?.kategori === "Industri" ? "#1d4ed8" : "#047857",
+                                                            border: row.member?.kategori === "Industri" ? "1px solid #bfdbfe" : "1px solid #a7f3d0"
+                                                        }}>
+                                                            {row.member?.kategori || "Rumahan"}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ fontSize: "11px", color: "#64748b" }}>
+                                                        {row.member?.kode_member || "-"}
+                                                        {row.member?.nik ? ` • NIK: ${row.member.nik}` : ""}
+                                                    </div>
                                                 </>
                                             ) : (
                                                 <>
@@ -644,7 +662,7 @@ export default function IuranMemberTab({
                                             ) : (
                                                 members.map((m) => (
                                                     <option key={m.id} value={m.id}>
-                                                        {m.nama} ({m.kode_member || "No-Code"}) {m.wilayah ? ` - ${m.wilayah.dusun}` : ""}
+                                                        {m.nama} [{m.kategori || "Rumahan"}]{m.nik ? ` • NIK: ${m.nik}` : ""} ({m.kode_member || "No-Code"}){m.wilayah ? ` - ${m.wilayah.dusun}` : ""}
                                                     </option>
                                                 ))
                                             )}
