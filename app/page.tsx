@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Leaf, LogIn, Recycle, ShieldCheck, AlertCircle, Phone, Send, Info, CheckCircle2, Sparkles, Eye, X, PackageOpen, Loader2, Megaphone, Bell, Calendar, AlertTriangle } from "lucide-react";
+import { LogIn, Recycle, ShieldCheck, AlertCircle, Phone, Send, Info, CheckCircle2, Sparkles, Eye, X, PackageOpen, Loader2, Megaphone, Bell, Calendar, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 import { showSuccessToast, showErrorToast } from "@/components/ui/Toast";
 
@@ -37,6 +37,8 @@ type PemberitahuanItem = {
     desa?: { id: string; nama: string };
 };
 
+const HERO_SLIDES = ["/merapi.jpg", "/borobudur.webp"];
+
 export default function LandingPage() {
     const [nama, setNama] = useState("");
     const [kontak, setKontak] = useState("");
@@ -57,6 +59,31 @@ export default function LandingPage() {
     const [loadingPemberitahuan, setLoadingPemberitahuan] = useState(true);
     const [selectedDesaNoticeFilter, setSelectedDesaNoticeFilter] = useState("all");
     const [selectedNoticeDetail, setSelectedNoticeDetail] = useState<PemberitahuanItem | null>(null);
+
+    // Navbar transparan di atas hero, jadi putih setelah scroll
+    const [scrolled, setScrolled] = useState(false);
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 24);
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, []);
+
+    // Carousel foto hero (auto + panah manual)
+    const [heroSlide, setHeroSlide] = useState(0);
+    const [heroPaused, setHeroPaused] = useState(false);
+    const goHeroSlide = (dir: number) =>
+        setHeroSlide(
+            (current) =>
+                (current + dir + HERO_SLIDES.length) % HERO_SLIDES.length,
+        );
+    useEffect(() => {
+        if (heroPaused) return;
+        const timer = window.setInterval(() => {
+            setHeroSlide((current) => (current + 1) % HERO_SLIDES.length);
+        }, 4000);
+        return () => window.clearInterval(timer);
+    }, [heroPaused, heroSlide]);
 
     useEffect(() => {
         const fetchDesa = async () => {
@@ -140,17 +167,20 @@ export default function LandingPage() {
     return (
         <div style={{ minHeight: "100vh", backgroundColor: "#f8faf9", fontFamily: "var(--font-body)" }}>
             {/* ── NAVBAR ── */}
-            <nav style={{ 
-                position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, 
-                backgroundColor: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", 
-                borderBottom: "1px solid #eef2ef", padding: "16px 24px",
-                display: "flex", justifyContent: "space-between", alignItems: "center"
+            <nav style={{
+                position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+                backgroundColor: scrolled ? "rgba(255,255,255,0.85)" : "transparent",
+                backdropFilter: scrolled ? "blur(12px)" : "none",
+                borderBottom: scrolled ? "1px solid #eef2ef" : "1px solid transparent",
+                padding: "16px 24px",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                transition: "background-color 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease"
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                     <Image src="/icon.png" alt="Logo TPS3R" width={38} height={38} style={{ objectFit: "contain" }} />
                     <div>
-                        <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "var(--teal)", fontFamily: "var(--font-display)", letterSpacing: "-0.5px" }}>TPS3R DUKUN</h1>
-                        <p style={{ margin: 0, fontSize: "11px", color: "#62736d", fontWeight: 600, letterSpacing: "1px" }}>BUMDES BERSAMA</p>
+                        <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: scrolled ? "var(--teal)" : "white", fontFamily: "var(--font-display)", letterSpacing: "-0.5px", textShadow: scrolled ? "none" : "0 1px 8px rgba(0,0,0,0.35)", transition: "color 0.3s ease" }}>TPS3R DUKUN</h1>
+                        <p style={{ margin: 0, fontSize: "11px", color: scrolled ? "#62736d" : "rgba(255,255,255,0.82)", fontWeight: 600, letterSpacing: "1px", textShadow: scrolled ? "none" : "0 1px 8px rgba(0,0,0,0.35)", transition: "color 0.3s ease" }}>BUMDES BERSAMA</p>
                     </div>
                 </div>
                 <Link href="/login" style={{ 
@@ -164,26 +194,52 @@ export default function LandingPage() {
             </nav>
 
             {/* ── HERO SECTION ── */}
-            <section style={{ 
-                minHeight: "100vh", 
-                padding: "100px 24px 60px", 
-                display: "flex", alignItems: "center", justifyContent: "center",
-                textAlign: "center", 
-                background: "linear-gradient(180deg, #e6f0ed 0%, #f8faf9 100%)",
-                position: "relative", overflow: "hidden"
-            }}>
-                <div style={{ maxWidth: "800px", margin: "0 auto", position: "relative", zIndex: 2 }}>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", backgroundColor: "rgba(11, 143, 130, 0.1)", color: "var(--teal)", padding: "6px 16px", borderRadius: "100px", fontSize: "13px", fontWeight: 700, marginBottom: "24px" }}>
+            <section
+                onMouseEnter={() => setHeroPaused(true)}
+                onMouseLeave={() => setHeroPaused(false)}
+                style={{
+                    minHeight: "100vh",
+                    padding: "100px 24px 60px",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    textAlign: "center",
+                    backgroundColor: "#0a2e2a",
+                    position: "relative", overflow: "hidden"
+                }}>
+                {HERO_SLIDES.map((src, index) => (
+                    <div
+                        key={src}
+                        className={`hero-bg ${index === heroSlide ? "is-active" : ""}`}
+                        style={{ backgroundImage: `url("${src}")` }}
+                        aria-hidden="true"
+                    />
+                ))}
+                <div className="hero-overlay" aria-hidden="true" />
+                <button
+                    className="hero-arrow prev"
+                    onClick={() => goHeroSlide(-1)}
+                    aria-label="Foto sebelumnya"
+                >
+                    <ChevronLeft size={22} />
+                </button>
+                <button
+                    className="hero-arrow next"
+                    onClick={() => goHeroSlide(1)}
+                    aria-label="Foto berikutnya"
+                >
+                    <ChevronRight size={22} />
+                </button>
+                <div style={{ width: "100%", maxWidth: "820px", margin: "0 auto", position: "relative", zIndex: 2 }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", backgroundColor: "rgba(255, 255, 255, 0.16)", color: "white", padding: "6px 16px", borderRadius: "100px", fontSize: "13px", fontWeight: 700, marginBottom: "24px", backdropFilter: "blur(4px)", border: "1px solid rgba(255, 255, 255, 0.25)" }}>
                         <Recycle size={16} /> Desa Bersih, Warga Sehat
                     </div>
-                    <h2 style={{ fontSize: "56px", fontWeight: 800, color: "#1a2522", fontFamily: "var(--font-display)", lineHeight: 1.1, marginBottom: "24px", letterSpacing: "-1.5px" }}>
+                    <h2 style={{ fontSize: "56px", fontWeight: 800, color: "white", fontFamily: "var(--font-display)", lineHeight: 1.1, marginBottom: "24px", letterSpacing: "-1.5px", textShadow: "0 2px 18px rgba(0, 0, 0, 0.35)" }}>
                         Layanan Pengelolaan Sampah <br />
-                        <span style={{ color: "var(--teal)" }}>Modern & Berkelanjutan</span>
+                        <span style={{ color: "var(--lime)" }}>Modern & Berkelanjutan</span>
                     </h2>
-                    <p style={{ fontSize: "18px", color: "#4a5a55", lineHeight: 1.6, marginBottom: "40px", maxWidth: "600px", margin: "0 auto 40px" }}>
+                    <p style={{ fontSize: "18px", color: "rgba(255, 255, 255, 0.88)", lineHeight: 1.6, marginBottom: "40px", maxWidth: "600px", margin: "0 auto 40px", textShadow: "0 1px 10px rgba(0, 0, 0, 0.3)" }}>
                         TPS3R Dukun hadir untuk mengatasi permasalahan sampah di wilayah kita melalui pendekatan Reduce, Reuse, dan Recycle.
                     </p>
-                    <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: "16px", justifyContent: "center", alignItems: "center", flexWrap: "wrap", width: "100%" }}>
                         <a href="#pemberitahuan" className="hover-lift" style={{ 
                             backgroundColor: "#0284c7", color: "white", padding: "16px 32px", 
                             borderRadius: "100px", fontSize: "15px", fontWeight: 700, textDecoration: "none",
@@ -214,10 +270,6 @@ export default function LandingPage() {
                         </a>
                     </div>
                 </div>
-                
-                {/* Decorative Elements */}
-                <div style={{ position: "absolute", top: "10%", left: "-5%", color: "var(--lime)", opacity: 0.1, transform: "rotate(-15deg)" }}><Leaf size={250} /></div>
-                <div style={{ position: "absolute", bottom: "10%", right: "-5%", color: "var(--teal)", opacity: 0.05, transform: "rotate(15deg)" }}><Recycle size={350} /></div>
             </section>
 
             {/* ── PEMBERITAHUAN & PENGUMUMAN TPS3R ── */}
@@ -1131,6 +1183,67 @@ export default function LandingPage() {
                     transform: translateY(-5px);
                 }
                 html { scroll-behavior: smooth; }
+                .hero-bg {
+                    position: absolute;
+                    inset: 0;
+                    z-index: 0;
+                    background-size: cover;
+                    background-position: center 35%;
+                    background-repeat: no-repeat;
+                    opacity: 0;
+                    transition: opacity 1s ease-in-out;
+                }
+                .hero-bg.is-active {
+                    opacity: 1;
+                }
+                .hero-overlay {
+                    position: absolute;
+                    inset: 0;
+                    z-index: 1;
+                    background: linear-gradient(
+                        180deg,
+                        rgba(9, 46, 42, 0.5) 0%,
+                        rgba(9, 46, 42, 0.8) 100%
+                    );
+                }
+                .hero-arrow {
+                    position: absolute;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    z-index: 3;
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 50%;
+                    border: 1px solid rgba(255, 255, 255, 0.4);
+                    background: rgba(0, 0, 0, 0.25);
+                    color: white;
+                    display: grid;
+                    place-items: center;
+                    cursor: pointer;
+                    backdrop-filter: blur(4px);
+                    transition: background 0.2s ease;
+                }
+                .hero-arrow:hover {
+                    background: rgba(0, 0, 0, 0.45);
+                }
+                .hero-arrow.prev {
+                    left: 24px;
+                }
+                .hero-arrow.next {
+                    right: 24px;
+                }
+                @media (max-width: 700px) {
+                    .hero-arrow {
+                        width: 38px;
+                        height: 38px;
+                    }
+                    .hero-arrow.prev {
+                        left: 10px;
+                    }
+                    .hero-arrow.next {
+                        right: 10px;
+                    }
+                }
             `}</style>
         </div>
     );

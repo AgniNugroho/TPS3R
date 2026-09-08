@@ -514,13 +514,52 @@ button {
     overflow-y: auto;
 }
 .notif-list li {
-    padding: 10px 10px;
-    border-radius: 8px;
-    font-size: 12px;
-    color: var(--ink);
+    list-style: none;
 }
-.notif-list li:hover {
+.notif-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    color: var(--ink);
+    text-decoration: none;
+}
+.notif-item:hover {
     background: #f0f4f2;
+}
+.notif-item-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+}
+.notif-item-icon.pengaduan {
+    background: var(--lime);
+    color: var(--teal);
+}
+.notif-item-icon.reminder {
+    background: #fdf0e2;
+    color: #c9772f;
+}
+.notif-item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.notif-item-body strong {
+    font-size: 12px;
+}
+.notif-item-body > span {
+    font-size: 11px;
+    color: #6d7c77;
+}
+.notif-item-time {
+    font-size: 10px;
+    color: #9aa8a3;
+    margin-top: 2px;
 }
 .topbar-date {
     display: flex;
