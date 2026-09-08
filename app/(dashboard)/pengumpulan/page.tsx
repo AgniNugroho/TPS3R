@@ -65,7 +65,13 @@ export type MemberItem = {
 };
 
 type Desa = { id: string; kode: string; nama: string };
-type Wilayah = { id: string; kode: string; dusun: string; desa_id?: string };
+type Wilayah = {
+    id: string;
+    kode: string;
+    dusun: string;
+    desa_id?: string;
+    status?: string | null;
+};
 type Petugas = { id: string; nama: string; desa_id: string | null };
 
 type ModalMode = "create" | "edit" | "delete" | "cellQuickEdit" | null;
@@ -318,7 +324,12 @@ function PengumpulanContent() {
                 }
 
                 if (wilayahData.ok && Array.isArray(wilayahData.rows)) {
-                    setWilayahList(wilayahData.rows);
+                    setWilayahList(
+                        wilayahData.rows.filter(
+                            (w: Wilayah) =>
+                                !w.status || w.status.toLowerCase() === "aktif",
+                        ),
+                    );
                 }
 
                 if (memberData.ok && Array.isArray(memberData.rows)) {

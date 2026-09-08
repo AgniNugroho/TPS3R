@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import FormShell from "@/components/dashboard/FormShell";
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { exportWorkbook } from "@/lib/utils/exportExcel";
 import {
     Calendar,
@@ -48,6 +50,10 @@ type PaymentRow = {
         rt: string | null;
         rw: string | null;
     } | null;
+    desa?: {
+        id: string;
+        nama: string;
+    } | null;
 };
 
 type ExpenseRow = {
@@ -57,6 +63,10 @@ type ExpenseRow = {
     kategori: string;
     keterangan: string;
     nominal: number;
+    desa?: {
+        id: string;
+        nama: string;
+    } | null;
 };
 
 type PenjualanRow = {
@@ -71,18 +81,39 @@ type PenjualanRow = {
     status_setoran: string;
     tanggal_setor?: string | null;
     catatan?: string | null;
+    desa?: {
+        id: string;
+        nama: string;
+    } | null;
 };
 
 export default function LaporanPage() {
+    return (
+        <Suspense fallback={<div>Memuat halaman laporan...</div>}>
+            <LaporanContent />
+        </Suspense>
+    );
+}
+
+function LaporanContent() {
+    const searchParams = useSearchParams();
+    const user = useCurrentUser();
+
     const [bulan, setBulan] = useState(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     });
 
     const [desaList, setDesaList] = useState<DesaItem[]>([]);
-    const [selectedDesaId, setSelectedDesaId] = useState<string>("all");
-    const [isAdmin, setIsAdmin] = useState(false);
     const [downloading, setDownloading] = useState<string | null>(null);
+
+    // Admins pick a desa via the sidebar (desa_id query param); petugas has no
+    // selector and is always scoped to their own desa, so fall back to it here
+    // instead of showing a misleading "Semua Desa" label.
+    const selectedDesaId =
+        user?.role === "admin"
+            ? searchParams.get("desa_id") || "all"
+            : user?.desaId || "all";
 
     // Summary data for preview cards
     const [summary, setSummary] = useState<{
@@ -119,7 +150,6 @@ export default function LaporanPage() {
                 const json = await res.json();
                 if (json.ok && Array.isArray(json.rows)) {
                     setDesaList(json.rows);
-                    setIsAdmin(true);
                 }
             } catch (err) {
                 console.error("Gagal memuat desa", err);
@@ -143,21 +173,44 @@ export default function LaporanPage() {
             }
 
             const [resBayar, resOpr, resPj] = await Promise.all([
-                fetch(`/api/pembayaran-member?${params.toString()}`).then((r) => r.json()),
-                fetch(`/api/operasional-tps3r?${params.toString()}`).then((r) => r.json()),
-                fetch(`/api/penjualan-anorganik?${pjParams.toString()}`).then((r) => r.json()),
+                fetch(`/api/pembayaran-member?${params.toString()}`).then((r) =>
+                    r.json(),
+                ),
+                fetch(`/api/operasional-tps3r?${params.toString()}`).then((r) =>
+                    r.json(),
+                ),
+                fetch(`/api/penjualan-anorganik?${pjParams.toString()}`).then(
+                    (r) => r.json(),
+                ),
             ]);
 
-            const bayarRows: PaymentRow[] = resBayar.ok && Array.isArray(resBayar.rows) ? resBayar.rows : [];
-            const oprRows: ExpenseRow[] = resOpr.ok && Array.isArray(resOpr.rows) ? resOpr.rows : [];
-            const pjRows: PenjualanRow[] = resPj.ok && Array.isArray(resPj.rows) ? resPj.rows : [];
+            const bayarRows: PaymentRow[] =
+                resBayar.ok && Array.isArray(resBayar.rows)
+                    ? resBayar.rows
+                    : [];
+            const oprRows: ExpenseRow[] =
+                resOpr.ok && Array.isArray(resOpr.rows) ? resOpr.rows : [];
+            const pjRows: PenjualanRow[] =
+                resPj.ok && Array.isArray(resPj.rows) ? resPj.rows : [];
 
-            const totalIuran = bayarRows.reduce((acc, r) => acc + Number(r.nominal || 0), 0);
-            const totalOperasional = oprRows.reduce((acc, r) => acc + Number(r.nominal || 0), 0);
+            const totalIuran = bayarRows.reduce(
+                (acc, r) => acc + Number(r.nominal || 0),
+                0,
+            );
+            const totalOperasional = oprRows.reduce(
+                (acc, r) => acc + Number(r.nominal || 0),
+                0,
+            );
             const netIuranBUMDes = totalIuran - totalOperasional;
 
-            const totalPenjualan = pjRows.reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
-            const totalBeratPenjualan = pjRows.reduce((acc, r) => acc + Number(r.berat_kg || 0), 0);
+            const totalPenjualan = pjRows.reduce(
+                (acc, r) => acc + Number(r.total_pendapatan || 0),
+                0,
+            );
+            const totalBeratPenjualan = pjRows.reduce(
+                (acc, r) => acc + Number(r.berat_kg || 0),
+                0,
+            );
             const totalPenjualanDisetor = pjRows
                 .filter((r) => r.status_setoran === "sudah_disetor")
                 .reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
@@ -171,7 +224,8 @@ export default function LaporanPage() {
                 totalOperasional,
                 netIuranBUMDes,
                 totalPenjualan,
-                totalBeratPenjualan: Math.round(totalBeratPenjualan * 100) / 100,
+                totalBeratPenjualan:
+                    Math.round(totalBeratPenjualan * 100) / 100,
                 penjualanCount: pjRows.length,
                 totalPenjualanDisetor,
                 totalPenjualanBelumDisetor,
@@ -191,11 +245,45 @@ export default function LaporanPage() {
     const getNamaBulanIndo = (periodeStr: string) => {
         const [year, month] = periodeStr.split("-");
         const namaBulanArr = [
-            "", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-            "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+            "",
+            "Januari",
+            "Februari",
+            "Maret",
+            "April",
+            "Mei",
+            "Juni",
+            "Juli",
+            "Agustus",
+            "September",
+            "Oktober",
+            "November",
+            "Desember",
         ];
         return `${namaBulanArr[parseInt(month, 10)] || month} ${year}`;
     };
+
+    // Resolve the report's desa name from the actual (already desa-scoped) rows
+    // returned by the API, rather than trusting the client-side selectedDesaId,
+    // which can briefly be "all" for petugas while useCurrentUser() is loading.
+    function resolveDesaName(
+        rowsGroups: Array<
+            Array<{ desa?: { id: string; nama: string } | null }>
+        >,
+        fallbackDesaObj: DesaItem | undefined,
+    ): string {
+        const distinctDesa = new Map<string, string>();
+        for (const rows of rowsGroups) {
+            for (const row of rows) {
+                if (row.desa) distinctDesa.set(row.desa.id, row.desa.nama);
+            }
+        }
+        if (distinctDesa.size === 1) {
+            return Array.from(distinctDesa.values())[0];
+        }
+        if (distinctDesa.size > 1) return "Semua Desa";
+        if (fallbackDesaObj) return fallbackDesaObj.nama;
+        return selectedDesaId === "all" ? "Semua Desa" : "Desa";
+    }
 
     // ─────────────────────────────────────────────────────────────
     // 1. EXPORT EXCEL LAPORAN KEUANGAN MEMBER & OPERASIONAL
@@ -209,59 +297,121 @@ export default function LaporanPage() {
             }
 
             const [resBayar, resOpr] = await Promise.all([
-                fetch(`/api/pembayaran-member?${params.toString()}`).then((r) => r.json()),
-                fetch(`/api/operasional-tps3r?${params.toString()}`).then((r) => r.json()),
+                fetch(`/api/pembayaran-member?${params.toString()}`).then((r) =>
+                    r.json(),
+                ),
+                fetch(`/api/operasional-tps3r?${params.toString()}`).then((r) =>
+                    r.json(),
+                ),
             ]);
 
-            const bayarRows: PaymentRow[] = resBayar.ok && Array.isArray(resBayar.rows) ? resBayar.rows : [];
-            const oprRows: ExpenseRow[] = resOpr.ok && Array.isArray(resOpr.rows) ? resOpr.rows : [];
+            const bayarRows: PaymentRow[] =
+                resBayar.ok && Array.isArray(resBayar.rows)
+                    ? resBayar.rows
+                    : [];
+            const oprRows: ExpenseRow[] =
+                resOpr.ok && Array.isArray(resOpr.rows) ? resOpr.rows : [];
 
             if (bayarRows.length === 0 && oprRows.length === 0) {
-                toast.error(`Belum ada data pembayaran iuran atau operasional pada periode ${bulan}.`);
+                toast.error(
+                    `Belum ada data pembayaran iuran atau operasional pada periode ${bulan}.`,
+                );
                 setDownloading(null);
                 return;
             }
 
-            const totalIuran = bayarRows.reduce((acc, r) => acc + Number(r.nominal || 0), 0);
-            const totalOperasional = oprRows.reduce((acc, r) => acc + Number(r.nominal || 0), 0);
+            const totalIuran = bayarRows.reduce(
+                (acc, r) => acc + Number(r.nominal || 0),
+                0,
+            );
+            const totalOperasional = oprRows.reduce(
+                (acc, r) => acc + Number(r.nominal || 0),
+                0,
+            );
             const netIuranBUMDes = totalIuran - totalOperasional;
 
-            const currentDesaObj = desaList.find((d) => d.id === selectedDesaId);
-            const desaName = selectedDesaId === "all"
-                ? "Semua Desa"
-                : currentDesaObj?.nama || "Desa";
+            const currentDesaObj = desaList.find(
+                (d) => d.id === selectedDesaId,
+            );
+            const desaName = resolveDesaName(
+                [bayarRows, oprRows],
+                currentDesaObj,
+            );
 
-            const isDusunMode = selectedDesaId !== "all" && Boolean(currentDesaObj && !currentDesaObj.nama.toLowerCase().includes("dukun"));
+            const isDusunMode =
+                selectedDesaId !== "all" &&
+                Boolean(
+                    currentDesaObj &&
+                    !currentDesaObj.nama.toLowerCase().includes("dukun"),
+                );
             const bulanNama = getNamaBulanIndo(bulan);
 
             // Sheet 1: Rekapitulasi Keuangan Member & Operasional
-            type RekapIuranRow = { uraian: string; keterangan: string; nominal: number | string };
+            type RekapIuranRow = {
+                uraian: string;
+                keterangan: string;
+                nominal: number | string;
+            };
             const titleUraian = isDusunMode
                 ? "LAPORAN REKAPITULASI IURAN DUSUN & OPERASIONAL TPS3R"
-                : (selectedDesaId === "all"
-                    ? "LAPORAN REKAPITULASI IURAN (MEMBER & DUSUN) & OPERASIONAL TPS3R"
-                    : "LAPORAN REKAPITULASI IURAN MEMBER & OPERASIONAL TPS3R");
+                : selectedDesaId === "all"
+                  ? "LAPORAN REKAPITULASI IURAN (MEMBER & DUSUN) & OPERASIONAL TPS3R"
+                  : "LAPORAN REKAPITULASI IURAN MEMBER & OPERASIONAL TPS3R";
             const countLabel = isDusunMode
                 ? "1. Total Dusun Membayar"
-                : (selectedDesaId === "all" ? "1. Total Entitas Membayar" : "1. Total Member Membayar");
+                : selectedDesaId === "all"
+                  ? "1. Total Entitas Membayar"
+                  : "1. Total Member Membayar";
             const countKet = isDusunMode
                 ? `${bayarRows.length} Dusun`
-                : (selectedDesaId === "all" ? `${bayarRows.length} Data` : `${bayarRows.length} Orang`);
+                : selectedDesaId === "all"
+                  ? `${bayarRows.length} Data`
+                  : `${bayarRows.length} Orang`;
             const iuranLabel = isDusunMode
                 ? "2. Total Penerimaan Iuran Dusun"
-                : (selectedDesaId === "all" ? "2. Total Penerimaan Iuran" : "2. Total Penerimaan Iuran Member");
+                : selectedDesaId === "all"
+                  ? "2. Total Penerimaan Iuran"
+                  : "2. Total Penerimaan Iuran Member";
 
             const rekapRows: RekapIuranRow[] = [
                 { uraian: titleUraian, keterangan: "", nominal: "" },
-                { uraian: "Wilayah / Unit", keterangan: `TPS3R ${desaName}`, nominal: "" },
+                {
+                    uraian: "Wilayah / Unit",
+                    keterangan: `TPS3R ${desaName}`,
+                    nominal: "",
+                },
                 { uraian: "Periode Bulan", keterangan: bulanNama, nominal: "" },
-                { uraian: "Tanggal Dicetak", keterangan: new Date().toLocaleDateString("id-ID"), nominal: "" },
-                { uraian: "----------------------------------------", keterangan: "--------------------", nominal: "------------" },
+                {
+                    uraian: "Tanggal Dicetak",
+                    keterangan: new Date().toLocaleDateString("id-ID"),
+                    nominal: "",
+                },
+                {
+                    uraian: "----------------------------------------",
+                    keterangan: "--------------------",
+                    nominal: "------------",
+                },
                 { uraian: countLabel, keterangan: countKet, nominal: "" },
-                { uraian: iuranLabel, keterangan: "Pemasukan Iuran", nominal: totalIuran },
-                { uraian: "3. Total Biaya Operasional TPS3R", keterangan: "Pengeluaran (BBM, Listrik, Dapur, dll)", nominal: totalOperasional },
-                { uraian: "----------------------------------------", keterangan: "--------------------", nominal: "------------" },
-                { uraian: "SISA SETORAN BERSIH IURAN KE BENDAHARA BUMDES", keterangan: "Iuran - Operasional", nominal: netIuranBUMDes },
+                {
+                    uraian: iuranLabel,
+                    keterangan: "Pemasukan Iuran",
+                    nominal: totalIuran,
+                },
+                {
+                    uraian: "3. Total Biaya Operasional TPS3R",
+                    keterangan: "Pengeluaran (BBM, Listrik, Dapur, dll)",
+                    nominal: totalOperasional,
+                },
+                {
+                    uraian: "----------------------------------------",
+                    keterangan: "--------------------",
+                    nominal: "------------",
+                },
+                {
+                    uraian: "SISA SETORAN BERSIH IURAN KE BENDAHARA BUMDES",
+                    keterangan: "Iuran - Operasional",
+                    nominal: netIuranBUMDes,
+                },
             ];
 
             // Sheet 2: Rincian Pembayaran Iuran
@@ -292,7 +442,10 @@ export default function LaporanPage() {
                     return {
                         no: i + 1,
                         kode: r.wilayah?.kode || "-",
-                        dusun: r.wilayah?.dusun || r.member?.wilayah?.dusun || "Dusun",
+                        dusun:
+                            r.wilayah?.dusun ||
+                            r.member?.wilayah?.dusun ||
+                            "Dusun",
                         rt_rw: rtrw,
                         periode: r.periode_bulan,
                         tanggal: r.tanggal_bayar,
@@ -304,15 +457,42 @@ export default function LaporanPage() {
                 });
                 sheet2Columns = [
                     { header: "No", accessor: (r: DusunExportRow) => r.no },
-                    { header: "Kode Dusun", accessor: (r: DusunExportRow) => r.kode },
-                    { header: "Nama Dusun", accessor: (r: DusunExportRow) => r.dusun },
-                    { header: "RT / RW", accessor: (r: DusunExportRow) => r.rt_rw },
-                    { header: "Periode Tagihan", accessor: (r: DusunExportRow) => r.periode },
-                    { header: "Tanggal Bayar", accessor: (r: DusunExportRow) => r.tanggal },
-                    { header: "Nominal (Rp)", accessor: (r: DusunExportRow) => r.nominal },
-                    { header: "Metode Pembayaran", accessor: (r: DusunExportRow) => r.metode },
-                    { header: "Status", accessor: (r: DusunExportRow) => r.status },
-                    { header: "Catatan", accessor: (r: DusunExportRow) => r.catatan },
+                    {
+                        header: "Kode Dusun",
+                        accessor: (r: DusunExportRow) => r.kode,
+                    },
+                    {
+                        header: "Nama Dusun",
+                        accessor: (r: DusunExportRow) => r.dusun,
+                    },
+                    {
+                        header: "RT / RW",
+                        accessor: (r: DusunExportRow) => r.rt_rw,
+                    },
+                    {
+                        header: "Periode Tagihan",
+                        accessor: (r: DusunExportRow) => r.periode,
+                    },
+                    {
+                        header: "Tanggal Bayar",
+                        accessor: (r: DusunExportRow) => r.tanggal,
+                    },
+                    {
+                        header: "Nominal (Rp)",
+                        accessor: (r: DusunExportRow) => r.nominal,
+                    },
+                    {
+                        header: "Metode Pembayaran",
+                        accessor: (r: DusunExportRow) => r.metode,
+                    },
+                    {
+                        header: "Status",
+                        accessor: (r: DusunExportRow) => r.status,
+                    },
+                    {
+                        header: "Catatan",
+                        accessor: (r: DusunExportRow) => r.catatan,
+                    },
                 ];
             } else if (selectedDesaId === "all") {
                 sheet2Name = "Rincian Iuran";
@@ -330,16 +510,24 @@ export default function LaporanPage() {
                     catatan: string;
                 };
                 sheet2Rows = bayarRows.map((r, i) => {
-                    const isDusunRow = Boolean(r.wilayah_id || (!r.member_id && r.wilayah));
+                    const isDusunRow = Boolean(
+                        r.wilayah_id || (!r.member_id && r.wilayah),
+                    );
                     const rt = r.wilayah?.rt ? `RT ${r.wilayah.rt}` : "";
                     const rw = r.wilayah?.rw ? `RW ${r.wilayah.rw}` : "";
                     const rtrw = [rt, rw].filter(Boolean).join(" / ");
                     return {
                         no: i + 1,
                         tipe: isDusunRow ? "Dusun" : "Member",
-                        kode: isDusunRow ? (r.wilayah?.kode || "-") : (r.member?.kode_member || "-"),
-                        nama_entitas: isDusunRow ? (r.wilayah?.dusun || "-") : (r.member?.nama || "-"),
-                        wilayah: isDusunRow ? (rtrw || "-") : (r.member?.wilayah?.dusun || "-"),
+                        kode: isDusunRow
+                            ? r.wilayah?.kode || "-"
+                            : r.member?.kode_member || "-",
+                        nama_entitas: isDusunRow
+                            ? r.wilayah?.dusun || "-"
+                            : r.member?.nama || "-",
+                        wilayah: isDusunRow
+                            ? rtrw || "-"
+                            : r.member?.wilayah?.dusun || "-",
                         periode: r.periode_bulan,
                         tanggal: r.tanggal_bayar,
                         nominal: Number(r.nominal || 0),
@@ -350,16 +538,43 @@ export default function LaporanPage() {
                 });
                 sheet2Columns = [
                     { header: "No", accessor: (r: MixedExportRow) => r.no },
-                    { header: "Kategori", accessor: (r: MixedExportRow) => r.tipe },
+                    {
+                        header: "Kategori",
+                        accessor: (r: MixedExportRow) => r.tipe,
+                    },
                     { header: "Kode", accessor: (r: MixedExportRow) => r.kode },
-                    { header: "Nama / Dusun", accessor: (r: MixedExportRow) => r.nama_entitas },
-                    { header: "Wilayah / RT RW", accessor: (r: MixedExportRow) => r.wilayah },
-                    { header: "Periode Tagihan", accessor: (r: MixedExportRow) => r.periode },
-                    { header: "Tanggal Bayar", accessor: (r: MixedExportRow) => r.tanggal },
-                    { header: "Nominal (Rp)", accessor: (r: MixedExportRow) => r.nominal },
-                    { header: "Metode Pembayaran", accessor: (r: MixedExportRow) => r.metode },
-                    { header: "Status", accessor: (r: MixedExportRow) => r.status },
-                    { header: "Catatan", accessor: (r: MixedExportRow) => r.catatan },
+                    {
+                        header: "Nama / Dusun",
+                        accessor: (r: MixedExportRow) => r.nama_entitas,
+                    },
+                    {
+                        header: "Wilayah / RT RW",
+                        accessor: (r: MixedExportRow) => r.wilayah,
+                    },
+                    {
+                        header: "Periode Tagihan",
+                        accessor: (r: MixedExportRow) => r.periode,
+                    },
+                    {
+                        header: "Tanggal Bayar",
+                        accessor: (r: MixedExportRow) => r.tanggal,
+                    },
+                    {
+                        header: "Nominal (Rp)",
+                        accessor: (r: MixedExportRow) => r.nominal,
+                    },
+                    {
+                        header: "Metode Pembayaran",
+                        accessor: (r: MixedExportRow) => r.metode,
+                    },
+                    {
+                        header: "Status",
+                        accessor: (r: MixedExportRow) => r.status,
+                    },
+                    {
+                        header: "Catatan",
+                        accessor: (r: MixedExportRow) => r.catatan,
+                    },
                 ];
             } else {
                 sheet2Name = "Iuran Member";
@@ -393,17 +608,47 @@ export default function LaporanPage() {
                 }));
                 sheet2Columns = [
                     { header: "No", accessor: (r: MemberExportRow) => r.no },
-                    { header: "Kode Member", accessor: (r: MemberExportRow) => r.kode },
-                    { header: "Nama Member", accessor: (r: MemberExportRow) => r.nama },
+                    {
+                        header: "Kode Member",
+                        accessor: (r: MemberExportRow) => r.kode,
+                    },
+                    {
+                        header: "Nama Member",
+                        accessor: (r: MemberExportRow) => r.nama,
+                    },
                     { header: "NIK", accessor: (r: MemberExportRow) => r.nik },
-                    { header: "Kategori (Rumahan/Industri)", accessor: (r: MemberExportRow) => r.kategori },
-                    { header: "Dusun / Wilayah", accessor: (r: MemberExportRow) => r.dusun },
-                    { header: "Periode Tagihan", accessor: (r: MemberExportRow) => r.periode },
-                    { header: "Tanggal Bayar", accessor: (r: MemberExportRow) => r.tanggal },
-                    { header: "Nominal (Rp)", accessor: (r: MemberExportRow) => r.nominal },
-                    { header: "Metode Pembayaran", accessor: (r: MemberExportRow) => r.metode },
-                    { header: "Status", accessor: (r: MemberExportRow) => r.status },
-                    { header: "Catatan", accessor: (r: MemberExportRow) => r.catatan },
+                    {
+                        header: "Kategori (Rumahan/Industri)",
+                        accessor: (r: MemberExportRow) => r.kategori,
+                    },
+                    {
+                        header: "Dusun / Wilayah",
+                        accessor: (r: MemberExportRow) => r.dusun,
+                    },
+                    {
+                        header: "Periode Tagihan",
+                        accessor: (r: MemberExportRow) => r.periode,
+                    },
+                    {
+                        header: "Tanggal Bayar",
+                        accessor: (r: MemberExportRow) => r.tanggal,
+                    },
+                    {
+                        header: "Nominal (Rp)",
+                        accessor: (r: MemberExportRow) => r.nominal,
+                    },
+                    {
+                        header: "Metode Pembayaran",
+                        accessor: (r: MemberExportRow) => r.metode,
+                    },
+                    {
+                        header: "Status",
+                        accessor: (r: MemberExportRow) => r.status,
+                    },
+                    {
+                        header: "Catatan",
+                        accessor: (r: MemberExportRow) => r.catatan,
+                    },
                 ];
             }
 
@@ -429,9 +674,18 @@ export default function LaporanPage() {
                         sheetName: "Rekap Iuran BUMDes",
                         rows: rekapRows,
                         columns: [
-                            { header: "Uraian / Komponen", accessor: (r: RekapIuranRow) => r.uraian },
-                            { header: "Keterangan", accessor: (r: RekapIuranRow) => r.keterangan },
-                            { header: "Jumlah (Rp)", accessor: (r: RekapIuranRow) => r.nominal },
+                            {
+                                header: "Uraian / Komponen",
+                                accessor: (r: RekapIuranRow) => r.uraian,
+                            },
+                            {
+                                header: "Keterangan",
+                                accessor: (r: RekapIuranRow) => r.keterangan,
+                            },
+                            {
+                                header: "Jumlah (Rp)",
+                                accessor: (r: RekapIuranRow) => r.nominal,
+                            },
                         ],
                     },
                     {
@@ -443,11 +697,26 @@ export default function LaporanPage() {
                         sheetName: "Biaya Operasional",
                         rows: oprExportRows,
                         columns: [
-                            { header: "No", accessor: (r: OprExportRow) => r.no },
-                            { header: "Tanggal", accessor: (r: OprExportRow) => r.tanggal },
-                            { header: "Kategori Pengeluaran", accessor: (r: OprExportRow) => r.kategori },
-                            { header: "Keterangan Pengeluaran", accessor: (r: OprExportRow) => r.keterangan },
-                            { header: "Nominal (Rp)", accessor: (r: OprExportRow) => r.nominal },
+                            {
+                                header: "No",
+                                accessor: (r: OprExportRow) => r.no,
+                            },
+                            {
+                                header: "Tanggal",
+                                accessor: (r: OprExportRow) => r.tanggal,
+                            },
+                            {
+                                header: "Kategori Pengeluaran",
+                                accessor: (r: OprExportRow) => r.kategori,
+                            },
+                            {
+                                header: "Keterangan Pengeluaran",
+                                accessor: (r: OprExportRow) => r.keterangan,
+                            },
+                            {
+                                header: "Nominal (Rp)",
+                                accessor: (r: OprExportRow) => r.nominal,
+                            },
                         ],
                     },
                 ],
@@ -474,17 +743,28 @@ export default function LaporanPage() {
                 pjParams.set("desa_id", selectedDesaId);
             }
 
-            const resPj = await fetch(`/api/penjualan-anorganik?${pjParams.toString()}`).then((r) => r.json());
-            const pjRows: PenjualanRow[] = resPj.ok && Array.isArray(resPj.rows) ? resPj.rows : [];
+            const resPj = await fetch(
+                `/api/penjualan-anorganik?${pjParams.toString()}`,
+            ).then((r) => r.json());
+            const pjRows: PenjualanRow[] =
+                resPj.ok && Array.isArray(resPj.rows) ? resPj.rows : [];
 
             if (pjRows.length === 0) {
-                toast.error(`Belum ada transaksi penjualan sampah anorganik pada periode ${bulan}.`);
+                toast.error(
+                    `Belum ada transaksi penjualan sampah anorganik pada periode ${bulan}.`,
+                );
                 setDownloading(null);
                 return;
             }
 
-            const totalPenjualan = pjRows.reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
-            const totalBeratPenjualan = pjRows.reduce((acc, r) => acc + Number(r.berat_kg || 0), 0);
+            const totalPenjualan = pjRows.reduce(
+                (acc, r) => acc + Number(r.total_pendapatan || 0),
+                0,
+            );
+            const totalBeratPenjualan = pjRows.reduce(
+                (acc, r) => acc + Number(r.berat_kg || 0),
+                0,
+            );
             const totalDisetor = pjRows
                 .filter((r) => r.status_setoran === "sudah_disetor")
                 .reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
@@ -492,27 +772,71 @@ export default function LaporanPage() {
                 .filter((r) => r.status_setoran !== "sudah_disetor")
                 .reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
 
-            const currentDesaObj = desaList.find((d) => d.id === selectedDesaId);
-            const desaName = selectedDesaId === "all"
-                ? "Semua Desa"
-                : currentDesaObj?.nama || "Desa";
+            const currentDesaObj = desaList.find(
+                (d) => d.id === selectedDesaId,
+            );
+            const desaName = resolveDesaName([pjRows], currentDesaObj);
 
             const bulanNama = getNamaBulanIndo(bulan);
 
             // Sheet 1: Rekapitulasi Penjualan Anorganik
-            type RekapPjRow = { uraian: string; keterangan: string; nilai: number | string };
+            type RekapPjRow = {
+                uraian: string;
+                keterangan: string;
+                nilai: number | string;
+            };
             const rekapPjRows: RekapPjRow[] = [
-                { uraian: "LAPORAN REKAPITULASI PENJUALAN SAMPAH ANORGANIK", keterangan: "", nilai: "" },
-                { uraian: "Wilayah / Unit", keterangan: `TPS3R ${desaName}`, nilai: "" },
+                {
+                    uraian: "LAPORAN REKAPITULASI PENJUALAN SAMPAH ANORGANIK",
+                    keterangan: "",
+                    nilai: "",
+                },
+                {
+                    uraian: "Wilayah / Unit",
+                    keterangan: `TPS3R ${desaName}`,
+                    nilai: "",
+                },
                 { uraian: "Periode Bulan", keterangan: bulanNama, nilai: "" },
-                { uraian: "Tanggal Dicetak", keterangan: new Date().toLocaleDateString("id-ID"), nilai: "" },
-                { uraian: "----------------------------------------", keterangan: "--------------------", nilai: "------------" },
-                { uraian: "1. Total Frekuensi Transaksi Pengepul", keterangan: `${pjRows.length} Transaksi`, nilai: pjRows.length },
-                { uraian: "2. Total Berat Sampah Terjual", keterangan: "Kilogram (kg)", nilai: Math.round(totalBeratPenjualan * 100) / 100 },
-                { uraian: "3. Total Omset / Pendapatan Penjualan", keterangan: "Pemasukan Kas Penjualan", nilai: totalPenjualan },
-                { uraian: "----------------------------------------", keterangan: "--------------------", nilai: "------------" },
-                { uraian: "4. Status Setoran: Sudah Disetor ke BUMDes", keterangan: "Telah Diserahkan", nilai: totalDisetor },
-                { uraian: "5. Status Setoran: Belum Disetor ke BUMDes", keterangan: "Menunggu Penyetoran", nilai: totalBelumDisetor },
+                {
+                    uraian: "Tanggal Dicetak",
+                    keterangan: new Date().toLocaleDateString("id-ID"),
+                    nilai: "",
+                },
+                {
+                    uraian: "----------------------------------------",
+                    keterangan: "--------------------",
+                    nilai: "------------",
+                },
+                {
+                    uraian: "1. Total Frekuensi Transaksi Pengepul",
+                    keterangan: `${pjRows.length} Transaksi`,
+                    nilai: pjRows.length,
+                },
+                {
+                    uraian: "2. Total Berat Sampah Terjual",
+                    keterangan: "Kilogram (kg)",
+                    nilai: Math.round(totalBeratPenjualan * 100) / 100,
+                },
+                {
+                    uraian: "3. Total Omset / Pendapatan Penjualan",
+                    keterangan: "Pemasukan Kas Penjualan",
+                    nilai: totalPenjualan,
+                },
+                {
+                    uraian: "----------------------------------------",
+                    keterangan: "--------------------",
+                    nilai: "------------",
+                },
+                {
+                    uraian: "4. Status Setoran: Sudah Disetor ke BUMDes",
+                    keterangan: "Telah Diserahkan",
+                    nilai: totalDisetor,
+                },
+                {
+                    uraian: "5. Status Setoran: Belum Disetor ke BUMDes",
+                    keterangan: "Menunggu Penyetoran",
+                    nilai: totalBelumDisetor,
+                },
             ];
 
             // Sheet 2: Rincian Transaksi Penjualan ke Pengepul
@@ -538,13 +862,23 @@ export default function LaporanPage() {
                 berat_kg: Number(r.berat_kg || 0),
                 harga_per_kg: Number(r.harga_per_kg || 0),
                 total: Number(r.total_pendapatan || 0),
-                status_setoran: r.status_setoran === "sudah_disetor" ? "Sudah Disetor" : "Belum Disetor",
+                status_setoran:
+                    r.status_setoran === "sudah_disetor"
+                        ? "Sudah Disetor"
+                        : "Belum Disetor",
                 tanggal_setor: r.tanggal_setor || "-",
                 catatan: r.catatan || "-",
             }));
 
             // Sheet 3: Rekap Penjualan per Kategori Sampah
-            const kategoriList = ["Plastik", "Kardus", "Kaca", "Besi", "Medis", "Lainnya"];
+            const kategoriList = [
+                "Plastik",
+                "Kardus",
+                "Kaca",
+                "Besi",
+                "Medis",
+                "Lainnya",
+            ];
             type KategoriSummaryRow = {
                 no: number;
                 kategori: string;
@@ -552,18 +886,28 @@ export default function LaporanPage() {
                 total_berat_kg: number;
                 total_nilai: number;
             };
-            const kategoriSummaryRows: KategoriSummaryRow[] = kategoriList.map((kat, idx) => {
-                const matched = pjRows.filter((r) => r.kategori.toLowerCase() === kat.toLowerCase());
-                const totalKg = matched.reduce((sum, r) => sum + Number(r.berat_kg || 0), 0);
-                const totalNilai = matched.reduce((sum, r) => sum + Number(r.total_pendapatan || 0), 0);
-                return {
-                    no: idx + 1,
-                    kategori: kat,
-                    transaksi: matched.length,
-                    total_berat_kg: Math.round(totalKg * 100) / 100,
-                    total_nilai: totalNilai,
-                };
-            }).filter((k) => k.transaksi > 0 || pjRows.length === 0);
+            const kategoriSummaryRows: KategoriSummaryRow[] = kategoriList
+                .map((kat, idx) => {
+                    const matched = pjRows.filter(
+                        (r) => r.kategori.toLowerCase() === kat.toLowerCase(),
+                    );
+                    const totalKg = matched.reduce(
+                        (sum, r) => sum + Number(r.berat_kg || 0),
+                        0,
+                    );
+                    const totalNilai = matched.reduce(
+                        (sum, r) => sum + Number(r.total_pendapatan || 0),
+                        0,
+                    );
+                    return {
+                        no: idx + 1,
+                        kategori: kat,
+                        transaksi: matched.length,
+                        total_berat_kg: Math.round(totalKg * 100) / 100,
+                        total_nilai: totalNilai,
+                    };
+                })
+                .filter((k) => k.transaksi > 0 || pjRows.length === 0);
 
             await exportWorkbook(
                 [
@@ -571,44 +915,109 @@ export default function LaporanPage() {
                         sheetName: "Rekap Penjualan",
                         rows: rekapPjRows,
                         columns: [
-                            { header: "Uraian / Komponen", accessor: (r: RekapPjRow) => r.uraian },
-                            { header: "Keterangan", accessor: (r: RekapPjRow) => r.keterangan },
-                            { header: "Nilai / Jumlah", accessor: (r: RekapPjRow) => r.nilai },
+                            {
+                                header: "Uraian / Komponen",
+                                accessor: (r: RekapPjRow) => r.uraian,
+                            },
+                            {
+                                header: "Keterangan",
+                                accessor: (r: RekapPjRow) => r.keterangan,
+                            },
+                            {
+                                header: "Nilai / Jumlah",
+                                accessor: (r: RekapPjRow) => r.nilai,
+                            },
                         ],
                     },
                     {
                         sheetName: "Rincian Transaksi Pengepul",
                         rows: pjExportRows,
                         columns: [
-                            { header: "No", accessor: (r: PenjualanExportRow) => r.no },
-                            { header: "Tanggal Penjualan", accessor: (r: PenjualanExportRow) => r.tanggal },
-                            { header: "Nama Pengepul (Pembeli)", accessor: (r: PenjualanExportRow) => r.pembeli },
-                            { header: "No. HP / Kontak", accessor: (r: PenjualanExportRow) => r.kontak },
-                            { header: "Kategori Sampah", accessor: (r: PenjualanExportRow) => r.kategori },
-                            { header: "Berat (kg)", accessor: (r: PenjualanExportRow) => r.berat_kg },
-                            { header: "Harga / kg (Rp)", accessor: (r: PenjualanExportRow) => r.harga_per_kg },
-                            { header: "Total Pendapatan (Rp)", accessor: (r: PenjualanExportRow) => r.total },
-                            { header: "Status Setoran BUMDes", accessor: (r: PenjualanExportRow) => r.status_setoran },
-                            { header: "Tanggal Setor", accessor: (r: PenjualanExportRow) => r.tanggal_setor },
-                            { header: "Catatan", accessor: (r: PenjualanExportRow) => r.catatan },
+                            {
+                                header: "No",
+                                accessor: (r: PenjualanExportRow) => r.no,
+                            },
+                            {
+                                header: "Tanggal Penjualan",
+                                accessor: (r: PenjualanExportRow) => r.tanggal,
+                            },
+                            {
+                                header: "Nama Pengepul (Pembeli)",
+                                accessor: (r: PenjualanExportRow) => r.pembeli,
+                            },
+                            {
+                                header: "No. HP / Kontak",
+                                accessor: (r: PenjualanExportRow) => r.kontak,
+                            },
+                            {
+                                header: "Kategori Sampah",
+                                accessor: (r: PenjualanExportRow) => r.kategori,
+                            },
+                            {
+                                header: "Berat (kg)",
+                                accessor: (r: PenjualanExportRow) => r.berat_kg,
+                            },
+                            {
+                                header: "Harga / kg (Rp)",
+                                accessor: (r: PenjualanExportRow) =>
+                                    r.harga_per_kg,
+                            },
+                            {
+                                header: "Total Pendapatan (Rp)",
+                                accessor: (r: PenjualanExportRow) => r.total,
+                            },
+                            {
+                                header: "Status Setoran BUMDes",
+                                accessor: (r: PenjualanExportRow) =>
+                                    r.status_setoran,
+                            },
+                            {
+                                header: "Tanggal Setor",
+                                accessor: (r: PenjualanExportRow) =>
+                                    r.tanggal_setor,
+                            },
+                            {
+                                header: "Catatan",
+                                accessor: (r: PenjualanExportRow) => r.catatan,
+                            },
                         ],
                     },
                     {
                         sheetName: "Rekap Kategori Sampah",
                         rows: kategoriSummaryRows,
                         columns: [
-                            { header: "No", accessor: (r: KategoriSummaryRow) => r.no },
-                            { header: "Kategori Sampah", accessor: (r: KategoriSummaryRow) => r.kategori },
-                            { header: "Jumlah Transaksi", accessor: (r: KategoriSummaryRow) => r.transaksi },
-                            { header: "Total Berat Terjual (kg)", accessor: (r: KategoriSummaryRow) => r.total_berat_kg },
-                            { header: "Total Nilai Penjualan (Rp)", accessor: (r: KategoriSummaryRow) => r.total_nilai },
+                            {
+                                header: "No",
+                                accessor: (r: KategoriSummaryRow) => r.no,
+                            },
+                            {
+                                header: "Kategori Sampah",
+                                accessor: (r: KategoriSummaryRow) => r.kategori,
+                            },
+                            {
+                                header: "Jumlah Transaksi",
+                                accessor: (r: KategoriSummaryRow) =>
+                                    r.transaksi,
+                            },
+                            {
+                                header: "Total Berat Terjual (kg)",
+                                accessor: (r: KategoriSummaryRow) =>
+                                    r.total_berat_kg,
+                            },
+                            {
+                                header: "Total Nilai Penjualan (Rp)",
+                                accessor: (r: KategoriSummaryRow) =>
+                                    r.total_nilai,
+                            },
                         ],
                     },
                 ],
                 `Laporan_Penjualan_Anorganik_${desaName.replace(/\s+/g, "_")}_${bulan}.xlsx`,
             );
 
-            toast.success("Laporan Penjualan Anorganik (.xlsx) berhasil diunduh!");
+            toast.success(
+                "Laporan Penjualan Anorganik (.xlsx) berhasil diunduh!",
+            );
         } catch (err) {
             console.error("Gagal mengekspor Excel Penjualan Anorganik", err);
             toast.error("Terjadi kesalahan saat membuat file Excel.");
@@ -618,38 +1027,81 @@ export default function LaporanPage() {
     }
 
     const selectedDesaObj = desaList.find((d) => d.id === selectedDesaId);
-    const isDusunView = selectedDesaId !== "all" && Boolean(selectedDesaObj && !selectedDesaObj.nama.toLowerCase().includes("dukun"));
+    const isDusunView =
+        selectedDesaId !== "all" &&
+        Boolean(
+            selectedDesaObj &&
+            !selectedDesaObj.nama.toLowerCase().includes("dukun"),
+        );
 
     return (
         <FormShell title="Cetak Laporan" activeLabel="Laporan">
-            <main className="content-wrap" style={{ maxWidth: "1050px", paddingBottom: "60px" }}>
+            <main
+                className="content-wrap"
+                style={{ maxWidth: "1050px", paddingBottom: "60px" }}
+            >
                 <div className="page-heading" style={{ marginBottom: "28px" }}>
                     <div>
-                        <p className="eyebrow"><span className="live-dot" /> PELAPORAN & KEUANGAN</p>
+                        <p className="eyebrow">
+                            <span className="live-dot" /> PELAPORAN & KEUANGAN
+                        </p>
                         <h1>Cetak Laporan Keuangan</h1>
                         <p className="heading-copy">
-                            Unduh laporan terpisah untuk penerimaan iuran member & operasional, serta laporan transaksi penjualan sampah anorganik dalam format Excel resmi (.xlsx) multi-sheet siap serah terima ke BUMDes.
+                            Unduh laporan terpisah untuk penerimaan iuran member
+                            & operasional, serta laporan transaksi penjualan
+                            sampah anorganik dalam format Excel resmi (.xlsx)
+                            multi-sheet siap serah terima ke BUMDes.
                         </p>
                     </div>
                 </div>
 
                 {/* Toolbar Periode & Filter Desa */}
-                <div style={{
-                    background: "white",
-                    padding: "20px 24px",
-                    borderRadius: "16px",
-                    border: "1px solid var(--line)",
-                    marginBottom: "28px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "20px",
-                    flexWrap: "wrap",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.02)"
-                }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#4a5a55" }}>Pilih Periode Bulan</span>
-                        <div style={{ position: "relative", width: "fit-content" }}>
-                            <Calendar size={16} color="#a0aaa6" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)" }} />
+                <div
+                    style={{
+                        background: "white",
+                        padding: "20px 24px",
+                        borderRadius: "16px",
+                        border: "1px solid var(--line)",
+                        marginBottom: "28px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "20px",
+                        flexWrap: "wrap",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "6px",
+                        }}
+                    >
+                        <span
+                            style={{
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                color: "#4a5a55",
+                            }}
+                        >
+                            Pilih Periode Bulan
+                        </span>
+                        <div
+                            style={{
+                                position: "relative",
+                                width: "fit-content",
+                            }}
+                        >
+                            <Calendar
+                                size={16}
+                                color="#a0aaa6"
+                                style={{
+                                    position: "absolute",
+                                    left: "14px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                }}
+                            />
                             <input
                                 type="month"
                                 value={bulan}
@@ -660,70 +1112,107 @@ export default function LaporanPage() {
                                     border: "1px solid var(--line)",
                                     fontSize: "13px",
                                     outline: "none",
-                                    background: "#fbfdfb"
+                                    background: "#fbfdfb",
                                 }}
                             />
                         </div>
                     </div>
-
-                    {isAdmin && desaList.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#4a5a55" }}>Filter Desa</span>
-                            <select
-                                value={selectedDesaId}
-                                onChange={(e) => setSelectedDesaId(e.target.value)}
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: "10px",
-                                    border: "1px solid var(--line)",
-                                    fontSize: "13px",
-                                    outline: "none",
-                                    background: "#fbfdfb",
-                                    minWidth: "180px",
-                                    cursor: "pointer"
-                                }}
-                            >
-                                <option value="all">Semua Desa</option>
-                                {desaList.map((d) => (
-                                    <option key={d.id} value={d.id}>
-                                        {d.nama.startsWith("Desa") ? d.nama : `Desa ${d.nama}`}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
                 </div>
 
                 {/* ── CARD 1: LAPORAN KEUANGAN MEMBER & OPERASIONAL ── */}
-                <div style={{
-                    background: "linear-gradient(135deg, #ffffff 0%, #f0fdf9 100%)",
-                    borderRadius: "20px",
-                    border: "2px solid #a7f3d0",
-                    padding: "28px",
-                    marginBottom: "28px",
-                    boxShadow: "0 10px 30px rgba(11, 143, 130, 0.08)",
-                    position: "relative",
-                    overflow: "hidden"
-                }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
-                        <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
-                            <div style={{
-                                width: "48px", height: "48px", borderRadius: "14px",
-                                background: "var(--teal)", color: "white",
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                flexShrink: 0
-                            }}>
+                <div
+                    style={{
+                        background:
+                            "linear-gradient(135deg, #ffffff 0%, #f0fdf9 100%)",
+                        borderRadius: "20px",
+                        border: "2px solid #a7f3d0",
+                        padding: "28px",
+                        marginBottom: "28px",
+                        boxShadow: "0 10px 30px rgba(11, 143, 130, 0.08)",
+                        position: "relative",
+                        overflow: "hidden",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: "20px",
+                            flexWrap: "wrap",
+                            marginBottom: "20px",
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: "16px",
+                                alignItems: "flex-start",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: "48px",
+                                    height: "48px",
+                                    borderRadius: "14px",
+                                    background: "var(--teal)",
+                                    color: "white",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                }}
+                            >
                                 <FileSpreadsheet size={24} />
                             </div>
                             <div>
-                                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(11, 143, 130, 0.12)", color: "var(--teal)", padding: "4px 10px", borderRadius: "100px", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", marginBottom: "6px" }}>
-                                    <Landmark size={12} /> IURAN & OPERASIONAL BUMDES
+                                <div
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        background: "rgba(11, 143, 130, 0.12)",
+                                        color: "var(--teal)",
+                                        padding: "4px 10px",
+                                        borderRadius: "100px",
+                                        fontSize: "11px",
+                                        fontWeight: 800,
+                                        textTransform: "uppercase",
+                                        marginBottom: "6px",
+                                    }}
+                                >
+                                    <Landmark size={12} /> IURAN & OPERASIONAL
+                                    BUMDES
                                 </div>
-                                <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1a2522", margin: "0 0 6px 0" }}>
-                                    Laporan Keuangan {isDusunView ? "Iuran Dusun" : "Iuran Member"} & Operasional
+                                <h2
+                                    style={{
+                                        fontSize: "20px",
+                                        fontWeight: 800,
+                                        color: "#1a2522",
+                                        margin: "0 0 6px 0",
+                                    }}
+                                >
+                                    Laporan Keuangan{" "}
+                                    {isDusunView
+                                        ? "Iuran Dusun"
+                                        : "Iuran Member"}{" "}
+                                    & Operasional
                                 </h2>
-                                <p style={{ fontSize: "14px", color: "#556b63", margin: 0, maxWidth: "600px", lineHeight: 1.5 }}>
-                                    Menghasilkan file Excel (.xlsx) terpisah berisi rekap penerimaan iuran warga ({isDusunView ? "per dusun" : "per member"}), rincian pengeluaran operasional TPS3R (BBM, listrik, dapur), dan sisa setoran bersih ke BUMDes.
+                                <p
+                                    style={{
+                                        fontSize: "14px",
+                                        color: "#556b63",
+                                        margin: 0,
+                                        maxWidth: "600px",
+                                        lineHeight: 1.5,
+                                    }}
+                                >
+                                    Menghasilkan file Excel (.xlsx) terpisah
+                                    berisi rekap penerimaan iuran warga (
+                                    {isDusunView ? "per dusun" : "per member"}),
+                                    rincian pengeluaran operasional TPS3R (BBM,
+                                    listrik, dapur), dan sisa setoran bersih ke
+                                    BUMDes.
                                 </p>
                             </div>
                         </div>
@@ -741,87 +1230,236 @@ export default function LaporanPage() {
                                 borderRadius: "100px",
                                 fontSize: "13.5px",
                                 fontWeight: 700,
-                                cursor: downloading !== null ? "not-allowed" : "pointer",
+                                cursor:
+                                    downloading !== null
+                                        ? "not-allowed"
+                                        : "pointer",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "10px",
                                 boxShadow: "0 6px 18px rgba(11, 143, 130, 0.3)",
-                                transition: "transform 0.2s, background 0.2s"
+                                transition: "transform 0.2s, background 0.2s",
                             }}
                         >
                             <Download size={16} />
-                            <span>{downloading === "member_excel" ? "Menyiapkan File..." : `Unduh Excel Keuangan ${isDusunView ? "Dusun" : "Member"} (.xlsx)`}</span>
+                            <span>
+                                {downloading === "member_excel"
+                                    ? "Menyiapkan File..."
+                                    : `Unduh Excel Keuangan ${isDusunView ? "Dusun" : "Member"} (.xlsx)`}
+                            </span>
                         </button>
                     </div>
 
                     {/* Preview Ringkasan Angka Keuangan Member */}
-                    <div style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                        gap: "14px",
-                        background: "white",
-                        padding: "18px 20px",
-                        borderRadius: "14px",
-                        border: "1px solid #d1fae5"
-                    }}>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                                "repeat(auto-fit, minmax(200px, 1fr))",
+                            gap: "14px",
+                            background: "white",
+                            padding: "18px 20px",
+                            borderRadius: "14px",
+                            border: "1px solid #d1fae5",
+                        }}
+                    >
                         <div>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Iuran Terkumpul</span>
-                            <div style={{ fontSize: "19px", fontWeight: 800, color: "var(--teal)", marginTop: "2px" }}>
+                            <span
+                                style={{
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    color: "#64748b",
+                                    textTransform: "uppercase",
+                                }}
+                            >
+                                Iuran Terkumpul
+                            </span>
+                            <div
+                                style={{
+                                    fontSize: "19px",
+                                    fontWeight: 800,
+                                    color: "var(--teal)",
+                                    marginTop: "2px",
+                                }}
+                            >
                                 Rp {summary.totalIuran.toLocaleString("id-ID")}
                             </div>
-                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
-                                {summary.memberCount} {isDusunView ? "dusun terdata bayar" : "member terdata bayar"}
+                            <span
+                                style={{ fontSize: "11px", color: "#94a3b8" }}
+                            >
+                                {summary.memberCount}{" "}
+                                {isDusunView
+                                    ? "dusun terdata bayar"
+                                    : "member terdata bayar"}
                             </span>
                         </div>
                         <div>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#dc2626", textTransform: "uppercase" }}>Biaya Operasional TPS3R</span>
-                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#dc2626", marginTop: "2px" }}>
-                                - Rp {summary.totalOperasional.toLocaleString("id-ID")}
+                            <span
+                                style={{
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    color: "#dc2626",
+                                    textTransform: "uppercase",
+                                }}
+                            >
+                                Biaya Operasional TPS3R
+                            </span>
+                            <div
+                                style={{
+                                    fontSize: "19px",
+                                    fontWeight: 800,
+                                    color: "#dc2626",
+                                    marginTop: "2px",
+                                }}
+                            >
+                                - Rp{" "}
+                                {summary.totalOperasional.toLocaleString(
+                                    "id-ID",
+                                )}
                             </div>
-                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>BBM, listrik, dapur, perawatan</span>
+                            <span
+                                style={{ fontSize: "11px", color: "#94a3b8" }}
+                            >
+                                BBM, listrik, dapur, perawatan
+                            </span>
                         </div>
-                        <div style={{ borderLeft: "2px dashed #e2e8f0", paddingLeft: "14px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#0d9488", textTransform: "uppercase" }}>Sisa Setoran Iuran ke BUMDes</span>
-                            <div style={{ fontSize: "21px", fontWeight: 900, color: summary.netIuranBUMDes >= 0 ? "#0f766e" : "#dc2626", marginTop: "2px" }}>
-                                = Rp {summary.netIuranBUMDes.toLocaleString("id-ID")}
+                        <div
+                            style={{
+                                borderLeft: "2px dashed #e2e8f0",
+                                paddingLeft: "14px",
+                            }}
+                        >
+                            <span
+                                style={{
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    color: "#0d9488",
+                                    textTransform: "uppercase",
+                                }}
+                            >
+                                Sisa Setoran Iuran ke BUMDes
+                            </span>
+                            <div
+                                style={{
+                                    fontSize: "21px",
+                                    fontWeight: 900,
+                                    color:
+                                        summary.netIuranBUMDes >= 0
+                                            ? "#0f766e"
+                                            : "#dc2626",
+                                    marginTop: "2px",
+                                }}
+                            >
+                                = Rp{" "}
+                                {summary.netIuranBUMDes.toLocaleString("id-ID")}
                             </div>
-                            <span style={{ fontSize: "11px", color: summary.netIuranBUMDes >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
-                                {summary.netIuranBUMDes >= 0 ? "Surplus kas siap setor" : "Defisit biaya operasional"}
+                            <span
+                                style={{
+                                    fontSize: "11px",
+                                    color:
+                                        summary.netIuranBUMDes >= 0
+                                            ? "#16a34a"
+                                            : "#dc2626",
+                                    fontWeight: 600,
+                                }}
+                            >
+                                {summary.netIuranBUMDes >= 0
+                                    ? "Surplus kas siap setor"
+                                    : "Defisit biaya operasional"}
                             </span>
                         </div>
                     </div>
                 </div>
 
                 {/* ── CARD 2: LAPORAN KEUANGAN PENJUALAN SAMPAH ANORGANIK ── */}
-                <div style={{
-                    background: "linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)",
-                    borderRadius: "20px",
-                    border: "2px solid #bfdbfe",
-                    padding: "28px",
-                    marginBottom: "32px",
-                    boxShadow: "0 10px 30px rgba(37, 99, 235, 0.08)",
-                    position: "relative",
-                    overflow: "hidden"
-                }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
-                        <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
-                            <div style={{
-                                width: "48px", height: "48px", borderRadius: "14px",
-                                background: "#2563eb", color: "white",
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                flexShrink: 0
-                            }}>
+                <div
+                    style={{
+                        background:
+                            "linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)",
+                        borderRadius: "20px",
+                        border: "2px solid #bfdbfe",
+                        padding: "28px",
+                        marginBottom: "32px",
+                        boxShadow: "0 10px 30px rgba(37, 99, 235, 0.08)",
+                        position: "relative",
+                        overflow: "hidden",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: "20px",
+                            flexWrap: "wrap",
+                            marginBottom: "20px",
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: "16px",
+                                alignItems: "flex-start",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: "48px",
+                                    height: "48px",
+                                    borderRadius: "14px",
+                                    background: "#2563eb",
+                                    color: "white",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                }}
+                            >
                                 <Scale size={24} />
                             </div>
                             <div>
-                                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(37, 99, 235, 0.12)", color: "#2563eb", padding: "4px 10px", borderRadius: "100px", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", marginBottom: "6px" }}>
-                                    <TrendingUp size={12} /> PENJUALAN SAMPAH ANORGANIK
+                                <div
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        background: "rgba(37, 99, 235, 0.12)",
+                                        color: "#2563eb",
+                                        padding: "4px 10px",
+                                        borderRadius: "100px",
+                                        fontSize: "11px",
+                                        fontWeight: 800,
+                                        textTransform: "uppercase",
+                                        marginBottom: "6px",
+                                    }}
+                                >
+                                    <TrendingUp size={12} /> PENJUALAN SAMPAH
+                                    ANORGANIK
                                 </div>
-                                <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1e293b", margin: "0 0 6px 0" }}>
+                                <h2
+                                    style={{
+                                        fontSize: "20px",
+                                        fontWeight: 800,
+                                        color: "#1e293b",
+                                        margin: "0 0 6px 0",
+                                    }}
+                                >
                                     Laporan Keuangan Penjualan Sampah Anorganik
                                 </h2>
-                                <p style={{ fontSize: "14px", color: "#475569", margin: 0, maxWidth: "600px", lineHeight: 1.5 }}>
-                                    Menghasilkan file Excel (.xlsx) terpisah untuk rekap transaksi penjualan sampah anorganik (plastik, kardus, kaca, besi, dll) ke pengepul, volume berat tonase (kg), omset penerimaan, dan status setoran ke BUMDes.
+                                <p
+                                    style={{
+                                        fontSize: "14px",
+                                        color: "#475569",
+                                        margin: 0,
+                                        maxWidth: "600px",
+                                        lineHeight: 1.5,
+                                    }}
+                                >
+                                    Menghasilkan file Excel (.xlsx) terpisah
+                                    untuk rekap transaksi penjualan sampah
+                                    anorganik (plastik, kardus, kaca, besi, dll)
+                                    ke pengepul, volume berat tonase (kg), omset
+                                    penerimaan, dan status setoran ke BUMDes.
                                 </p>
                             </div>
                         </div>
@@ -839,66 +1477,165 @@ export default function LaporanPage() {
                                 borderRadius: "100px",
                                 fontSize: "13.5px",
                                 fontWeight: 700,
-                                cursor: downloading !== null ? "not-allowed" : "pointer",
+                                cursor:
+                                    downloading !== null
+                                        ? "not-allowed"
+                                        : "pointer",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "10px",
                                 boxShadow: "0 6px 18px rgba(37, 99, 235, 0.3)",
-                                transition: "transform 0.2s, background 0.2s"
+                                transition: "transform 0.2s, background 0.2s",
                             }}
                         >
                             <Download size={16} />
-                            <span>{downloading === "anorganik_excel" ? "Menyiapkan File..." : "Unduh Excel Penjualan Anorganik (.xlsx)"}</span>
+                            <span>
+                                {downloading === "anorganik_excel"
+                                    ? "Menyiapkan File..."
+                                    : "Unduh Excel Penjualan Anorganik (.xlsx)"}
+                            </span>
                         </button>
                     </div>
 
                     {/* Preview Ringkasan Angka Penjualan Anorganik */}
-                    <div style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                        gap: "14px",
-                        background: "white",
-                        padding: "18px 20px",
-                        borderRadius: "14px",
-                        border: "1px solid #dbeafe"
-                    }}>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                                "repeat(auto-fit, minmax(180px, 1fr))",
+                            gap: "14px",
+                            background: "white",
+                            padding: "18px 20px",
+                            borderRadius: "14px",
+                            border: "1px solid #dbeafe",
+                        }}
+                    >
                         <div>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Total Omset Penjualan</span>
-                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#2563eb", marginTop: "2px" }}>
-                                Rp {summary.totalPenjualan.toLocaleString("id-ID")}
+                            <span
+                                style={{
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    color: "#64748b",
+                                    textTransform: "uppercase",
+                                }}
+                            >
+                                Total Omset Penjualan
+                            </span>
+                            <div
+                                style={{
+                                    fontSize: "19px",
+                                    fontWeight: 800,
+                                    color: "#2563eb",
+                                    marginTop: "2px",
+                                }}
+                            >
+                                Rp{" "}
+                                {summary.totalPenjualan.toLocaleString("id-ID")}
                             </div>
-                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                            <span
+                                style={{ fontSize: "11px", color: "#94a3b8" }}
+                            >
                                 {summary.penjualanCount} transaksi pengepul
                             </span>
                         </div>
                         <div>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Volume Sampah Terjual</span>
-                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#0f172a", marginTop: "2px" }}>
-                                {summary.totalBeratPenjualan.toLocaleString("id-ID")} kg
+                            <span
+                                style={{
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    color: "#64748b",
+                                    textTransform: "uppercase",
+                                }}
+                            >
+                                Volume Sampah Terjual
+                            </span>
+                            <div
+                                style={{
+                                    fontSize: "19px",
+                                    fontWeight: 800,
+                                    color: "#0f172a",
+                                    marginTop: "2px",
+                                }}
+                            >
+                                {summary.totalBeratPenjualan.toLocaleString(
+                                    "id-ID",
+                                )}{" "}
+                                kg
                             </div>
-                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                            <span
+                                style={{ fontSize: "11px", color: "#94a3b8" }}
+                            >
                                 Total material terpilah terjual
                             </span>
                         </div>
                         <div>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#16a34a", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <span
+                                style={{
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    color: "#16a34a",
+                                    textTransform: "uppercase",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                }}
+                            >
                                 <CheckCircle2 size={12} /> Sudah Disetor BUMDes
                             </span>
-                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#16a34a", marginTop: "2px" }}>
-                                Rp {summary.totalPenjualanDisetor.toLocaleString("id-ID")}
+                            <div
+                                style={{
+                                    fontSize: "19px",
+                                    fontWeight: 800,
+                                    color: "#16a34a",
+                                    marginTop: "2px",
+                                }}
+                            >
+                                Rp{" "}
+                                {summary.totalPenjualanDisetor.toLocaleString(
+                                    "id-ID",
+                                )}
                             </div>
-                            <span style={{ fontSize: "11px", color: "#86efac" }}>
+                            <span
+                                style={{ fontSize: "11px", color: "#86efac" }}
+                            >
                                 Telah diserahkan ke kas BUMDes
                             </span>
                         </div>
-                        <div style={{ borderLeft: "2px dashed #e2e8f0", paddingLeft: "14px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#d97706", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <div
+                            style={{
+                                borderLeft: "2px dashed #e2e8f0",
+                                paddingLeft: "14px",
+                            }}
+                        >
+                            <span
+                                style={{
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    color: "#d97706",
+                                    textTransform: "uppercase",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                }}
+                            >
                                 <Clock size={12} /> Belum Disetor BUMDes
                             </span>
-                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#d97706", marginTop: "2px" }}>
-                                Rp {summary.totalPenjualanBelumDisetor.toLocaleString("id-ID")}
+                            <div
+                                style={{
+                                    fontSize: "19px",
+                                    fontWeight: 800,
+                                    color: "#d97706",
+                                    marginTop: "2px",
+                                }}
+                            >
+                                Rp{" "}
+                                {summary.totalPenjualanBelumDisetor.toLocaleString(
+                                    "id-ID",
+                                )}
                             </div>
-                            <span style={{ fontSize: "11px", color: "#f59e0b" }}>
+                            <span
+                                style={{ fontSize: "11px", color: "#f59e0b" }}
+                            >
                                 Menunggu transfer / penyerahan
                             </span>
                         </div>
