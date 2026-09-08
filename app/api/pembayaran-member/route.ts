@@ -271,6 +271,7 @@ export async function POST(request: Request) {
                 id,
                 desa_id,
                 member_id,
+                wilayah_id,
                 periode_bulan,
                 tanggal_bayar,
                 nominal,
@@ -283,7 +284,18 @@ export async function POST(request: Request) {
             )
             .single();
 
-        if (error) throw error;
+        if (error) {
+            if (error.code === "23505") {
+                return NextResponse.json(
+                    {
+                        ok: false,
+                        error: `Pembayaran untuk periode ${periodeBulan} sudah pernah dicatat sebelumnya.`,
+                    },
+                    { status: 409 },
+                );
+            }
+            throw error;
+        }
 
         return NextResponse.json(
             { ok: true, data, row: data },
@@ -382,11 +394,31 @@ export async function PUT(request: Request) {
         if (status) updates.status = status;
         if (catatan !== undefined) updates.catatan = catatan || null;
 
+        if (body.wilayah_id !== undefined)
+            updates.wilayah_id = toText(body.wilayah_id) || null;
+        if (body.member_id !== undefined)
+            updates.member_id = toText(body.member_id) || null;
+
         const { data, error } = await supabase
             .from("pembayaran_member")
             .update(updates)
             .eq("id", id)
-            .select()
+            .select(
+                `
+                id,
+                desa_id,
+                member_id,
+                wilayah_id,
+                periode_bulan,
+                tanggal_bayar,
+                nominal,
+                metode_pembayaran,
+                status,
+                catatan,
+                member:member_id ( id, kode_member, nama ),
+                wilayah:wilayah_id ( id, kode, dusun, rt, rw )
+            `,
+            )
             .single();
 
         if (error) throw error;

@@ -25,10 +25,12 @@ import {
     Users,
     UserX,
     X,
+    Scale,
 } from "lucide-react";
 import FormShell from "@/components/dashboard/FormShell";
 import { showErrorToast, showSuccessToast } from "@/components/ui/Toast";
 import IuranMemberTab from "@/components/bank-sampah/IuranMemberTab";
+import PenjualanAnorganikTab from "@/components/bank-sampah/PenjualanAnorganikTab";
 import OperasionalTab from "@/components/bank-sampah/OperasionalTab";
 import RekapBUMDesTab from "@/components/bank-sampah/RekapBUMDesTab";
 

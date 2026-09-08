@@ -3,7 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import FormShell from "@/components/dashboard/FormShell";
 import { exportWorkbook } from "@/lib/utils/exportExcel";
-import { Calendar, Download, FileSpreadsheet, Landmark } from "lucide-react";
+import {
+    Calendar,
+    Download,
+    FileSpreadsheet,
+    Landmark,
+    Scale,
+    TrendingUp,
+    CheckCircle2,
+    Clock,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 type DesaItem = {
@@ -14,6 +23,8 @@ type DesaItem = {
 
 type PaymentRow = {
     id: string;
+    member_id?: string | null;
+    wilayah_id?: string | null;
     periode_bulan: string;
     tanggal_bayar: string;
     nominal: number;
@@ -28,6 +39,13 @@ type PaymentRow = {
             dusun: string;
         } | null;
     } | null;
+    wilayah?: {
+        id: string;
+        kode: string;
+        dusun: string;
+        rt: string | null;
+        rw: string | null;
+    } | null;
 };
 
 type ExpenseRow = {
@@ -37,6 +55,20 @@ type ExpenseRow = {
     kategori: string;
     keterangan: string;
     nominal: number;
+};
+
+type PenjualanRow = {
+    id: string;
+    tanggal: string;
+    pembeli: string;
+    kontak_pembeli?: string | null;
+    kategori: string;
+    berat_kg: number;
+    harga_per_kg: number;
+    total_pendapatan: number;
+    status_setoran: string;
+    tanggal_setor?: string | null;
+    catatan?: string | null;
 };
 
 export default function LaporanPage() {
@@ -50,18 +82,30 @@ export default function LaporanPage() {
     const [isAdmin, setIsAdmin] = useState(false);
     const [downloading, setDownloading] = useState<string | null>(null);
 
-    // Summary data for preview card
+    // Summary data for preview cards
     const [summary, setSummary] = useState<{
+        // Keuangan Member & Operasional
         totalIuran: number;
         memberCount: number;
         totalOperasional: number;
-        netBUMDes: number;
+        netIuranBUMDes: number;
+        // Keuangan Penjualan Anorganik
+        totalPenjualan: number;
+        totalBeratPenjualan: number;
+        penjualanCount: number;
+        totalPenjualanDisetor: number;
+        totalPenjualanBelumDisetor: number;
         loading: boolean;
     }>({
         totalIuran: 0,
         memberCount: 0,
         totalOperasional: 0,
-        netBUMDes: 0,
+        netIuranBUMDes: 0,
+        totalPenjualan: 0,
+        totalBeratPenjualan: 0,
+        penjualanCount: 0,
+        totalPenjualanDisetor: 0,
+        totalPenjualanBelumDisetor: 0,
         loading: false,
     });
 
@@ -91,23 +135,44 @@ export default function LaporanPage() {
                 params.set("desa_id", selectedDesaId);
             }
 
-            const [resBayar, resOpr] = await Promise.all([
+            const pjParams = new URLSearchParams({ bulan });
+            if (selectedDesaId && selectedDesaId !== "all") {
+                pjParams.set("desa_id", selectedDesaId);
+            }
+
+            const [resBayar, resOpr, resPj] = await Promise.all([
                 fetch(`/api/pembayaran-member?${params.toString()}`).then((r) => r.json()),
                 fetch(`/api/operasional-tps3r?${params.toString()}`).then((r) => r.json()),
+                fetch(`/api/penjualan-anorganik?${pjParams.toString()}`).then((r) => r.json()),
             ]);
 
             const bayarRows: PaymentRow[] = resBayar.ok && Array.isArray(resBayar.rows) ? resBayar.rows : [];
             const oprRows: ExpenseRow[] = resOpr.ok && Array.isArray(resOpr.rows) ? resOpr.rows : [];
+            const pjRows: PenjualanRow[] = resPj.ok && Array.isArray(resPj.rows) ? resPj.rows : [];
 
             const totalIuran = bayarRows.reduce((acc, r) => acc + Number(r.nominal || 0), 0);
             const totalOperasional = oprRows.reduce((acc, r) => acc + Number(r.nominal || 0), 0);
-            const netBUMDes = totalIuran - totalOperasional;
+            const netIuranBUMDes = totalIuran - totalOperasional;
+
+            const totalPenjualan = pjRows.reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
+            const totalBeratPenjualan = pjRows.reduce((acc, r) => acc + Number(r.berat_kg || 0), 0);
+            const totalPenjualanDisetor = pjRows
+                .filter((r) => r.status_setoran === "sudah_disetor")
+                .reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
+            const totalPenjualanBelumDisetor = pjRows
+                .filter((r) => r.status_setoran !== "sudah_disetor")
+                .reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
 
             setSummary({
                 totalIuran,
                 memberCount: bayarRows.length,
                 totalOperasional,
-                netBUMDes,
+                netIuranBUMDes,
+                totalPenjualan,
+                totalBeratPenjualan: Math.round(totalBeratPenjualan * 100) / 100,
+                penjualanCount: pjRows.length,
+                totalPenjualanDisetor,
+                totalPenjualanBelumDisetor,
                 loading: false,
             });
         } catch (err) {
@@ -120,9 +185,21 @@ export default function LaporanPage() {
         void Promise.resolve().then(() => loadSummaryPreview());
     }, [loadSummaryPreview]);
 
-    // Export Rekap BUMDes & Iuran Member to Multi-sheet Excel (.xlsx)
-    async function exportExcelBUMDes() {
-        setDownloading("bumdes_excel");
+    // Format nama bulan Indo helper
+    const getNamaBulanIndo = (periodeStr: string) => {
+        const [year, month] = periodeStr.split("-");
+        const namaBulanArr = [
+            "", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+        ];
+        return `${namaBulanArr[parseInt(month, 10)] || month} ${year}`;
+    };
+
+    // ─────────────────────────────────────────────────────────────
+    // 1. EXPORT EXCEL LAPORAN KEUANGAN MEMBER & OPERASIONAL
+    // ─────────────────────────────────────────────────────────────
+    async function exportExcelKeuanganMember() {
+        setDownloading("member_excel");
         try {
             const params = new URLSearchParams({ periode_bulan: bulan });
             if (selectedDesaId && selectedDesaId !== "all") {
@@ -138,69 +215,191 @@ export default function LaporanPage() {
             const oprRows: ExpenseRow[] = resOpr.ok && Array.isArray(resOpr.rows) ? resOpr.rows : [];
 
             if (bayarRows.length === 0 && oprRows.length === 0) {
-                toast.error(`Belum ada data pembayaran atau operasional pada periode ${bulan}.`);
+                toast.error(`Belum ada data pembayaran iuran atau operasional pada periode ${bulan}.`);
                 setDownloading(null);
                 return;
             }
 
             const totalIuran = bayarRows.reduce((acc, r) => acc + Number(r.nominal || 0), 0);
             const totalOperasional = oprRows.reduce((acc, r) => acc + Number(r.nominal || 0), 0);
-            const netBUMDes = totalIuran - totalOperasional;
+            const netIuranBUMDes = totalIuran - totalOperasional;
 
+            const currentDesaObj = desaList.find((d) => d.id === selectedDesaId);
             const desaName = selectedDesaId === "all"
                 ? "Semua Desa"
-                : desaList.find((d) => d.id === selectedDesaId)?.nama || "Desa";
+                : currentDesaObj?.nama || "Desa";
 
-            // Format nama bulan Indo
-            const [year, month] = bulan.split("-");
-            const namaBulanArr = [
-                "", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-                "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-            ];
-            const bulanNama = `${namaBulanArr[parseInt(month, 10)] || month} ${year}`;
+            const isDusunMode = selectedDesaId !== "all" && Boolean(currentDesaObj && !currentDesaObj.nama.toLowerCase().includes("dukun"));
+            const bulanNama = getNamaBulanIndo(bulan);
 
-            // 1. Sheet 1: Rekapitulasi BUMDes
-            type RekapRow = { uraian: string; keterangan: string; nominal: number | string };
-            const rekapRows: RekapRow[] = [
-                { uraian: "LAPORAN REKAPITULASI IURAN MEMBER & SETORAN BUMDES", keterangan: "", nominal: "" },
+            // Sheet 1: Rekapitulasi Keuangan Member & Operasional
+            type RekapIuranRow = { uraian: string; keterangan: string; nominal: number | string };
+            const titleUraian = isDusunMode
+                ? "LAPORAN REKAPITULASI IURAN DUSUN & OPERASIONAL TPS3R"
+                : (selectedDesaId === "all"
+                    ? "LAPORAN REKAPITULASI IURAN (MEMBER & DUSUN) & OPERASIONAL TPS3R"
+                    : "LAPORAN REKAPITULASI IURAN MEMBER & OPERASIONAL TPS3R");
+            const countLabel = isDusunMode
+                ? "1. Total Dusun Membayar"
+                : (selectedDesaId === "all" ? "1. Total Entitas Membayar" : "1. Total Member Membayar");
+            const countKet = isDusunMode
+                ? `${bayarRows.length} Dusun`
+                : (selectedDesaId === "all" ? `${bayarRows.length} Data` : `${bayarRows.length} Orang`);
+            const iuranLabel = isDusunMode
+                ? "2. Total Penerimaan Iuran Dusun"
+                : (selectedDesaId === "all" ? "2. Total Penerimaan Iuran" : "2. Total Penerimaan Iuran Member");
+
+            const rekapRows: RekapIuranRow[] = [
+                { uraian: titleUraian, keterangan: "", nominal: "" },
                 { uraian: "Wilayah / Unit", keterangan: `TPS3R ${desaName}`, nominal: "" },
                 { uraian: "Periode Bulan", keterangan: bulanNama, nominal: "" },
                 { uraian: "Tanggal Dicetak", keterangan: new Date().toLocaleDateString("id-ID"), nominal: "" },
                 { uraian: "----------------------------------------", keterangan: "--------------------", nominal: "------------" },
-                { uraian: "1. Total Member Membayar", keterangan: `${bayarRows.length} Orang`, nominal: "" },
-                { uraian: "2. Total Penerimaan Iuran Member", keterangan: "Pemasukan Iuran", nominal: totalIuran },
+                { uraian: countLabel, keterangan: countKet, nominal: "" },
+                { uraian: iuranLabel, keterangan: "Pemasukan Iuran", nominal: totalIuran },
                 { uraian: "3. Total Biaya Operasional TPS3R", keterangan: "Pengeluaran (BBM, Listrik, Dapur, dll)", nominal: totalOperasional },
                 { uraian: "----------------------------------------", keterangan: "--------------------", nominal: "------------" },
-                { uraian: "TOTAL SETORAN BERSIH KE BENDAHARA BUMDES", keterangan: "Iuran Terkumpul - Biaya Operasional", nominal: netBUMDes },
+                { uraian: "SISA SETORAN BERSIH IURAN KE BENDAHARA BUMDES", keterangan: "Iuran - Operasional", nominal: netIuranBUMDes },
             ];
 
-            // 2. Sheet 2: Rincian Pembayaran Member
-            type MemberExportRow = {
-                no: number;
-                kode: string;
-                nama: string;
-                dusun: string;
-                periode: string;
-                tanggal: string;
-                nominal: number;
-                metode: string;
-                status: string;
-                catatan: string;
-            };
-            const memberExportRows: MemberExportRow[] = bayarRows.map((r, i) => ({
-                no: i + 1,
-                kode: r.member?.kode_member || "-",
-                nama: r.member?.nama || "Tanpa Nama",
-                dusun: r.member?.wilayah?.dusun || "-",
-                periode: r.periode_bulan,
-                tanggal: r.tanggal_bayar,
-                nominal: Number(r.nominal || 0),
-                metode: r.metode_pembayaran,
-                status: r.status,
-                catatan: r.catatan || "-",
-            }));
+            // Sheet 2: Rincian Pembayaran Iuran
+            let sheet2Name = "Iuran Member";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let sheet2Rows: any[] = [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let sheet2Columns: any[] = [];
 
-            // 3. Sheet 3: Rincian Biaya Operasional
+            if (isDusunMode) {
+                sheet2Name = "Iuran Dusun";
+                type DusunExportRow = {
+                    no: number;
+                    kode: string;
+                    dusun: string;
+                    rt_rw: string;
+                    periode: string;
+                    tanggal: string;
+                    nominal: number;
+                    metode: string;
+                    status: string;
+                    catatan: string;
+                };
+                sheet2Rows = bayarRows.map((r, i) => {
+                    const rt = r.wilayah?.rt ? `RT ${r.wilayah.rt}` : "";
+                    const rw = r.wilayah?.rw ? `RW ${r.wilayah.rw}` : "";
+                    const rtrw = [rt, rw].filter(Boolean).join(" / ") || "-";
+                    return {
+                        no: i + 1,
+                        kode: r.wilayah?.kode || "-",
+                        dusun: r.wilayah?.dusun || r.member?.wilayah?.dusun || "Dusun",
+                        rt_rw: rtrw,
+                        periode: r.periode_bulan,
+                        tanggal: r.tanggal_bayar,
+                        nominal: Number(r.nominal || 0),
+                        metode: r.metode_pembayaran,
+                        status: r.status,
+                        catatan: r.catatan || "-",
+                    };
+                });
+                sheet2Columns = [
+                    { header: "No", accessor: (r: DusunExportRow) => r.no },
+                    { header: "Kode Dusun", accessor: (r: DusunExportRow) => r.kode },
+                    { header: "Nama Dusun", accessor: (r: DusunExportRow) => r.dusun },
+                    { header: "RT / RW", accessor: (r: DusunExportRow) => r.rt_rw },
+                    { header: "Periode Tagihan", accessor: (r: DusunExportRow) => r.periode },
+                    { header: "Tanggal Bayar", accessor: (r: DusunExportRow) => r.tanggal },
+                    { header: "Nominal (Rp)", accessor: (r: DusunExportRow) => r.nominal },
+                    { header: "Metode Pembayaran", accessor: (r: DusunExportRow) => r.metode },
+                    { header: "Status", accessor: (r: DusunExportRow) => r.status },
+                    { header: "Catatan", accessor: (r: DusunExportRow) => r.catatan },
+                ];
+            } else if (selectedDesaId === "all") {
+                sheet2Name = "Rincian Iuran";
+                type MixedExportRow = {
+                    no: number;
+                    tipe: string;
+                    kode: string;
+                    nama_entitas: string;
+                    wilayah: string;
+                    periode: string;
+                    tanggal: string;
+                    nominal: number;
+                    metode: string;
+                    status: string;
+                    catatan: string;
+                };
+                sheet2Rows = bayarRows.map((r, i) => {
+                    const isDusunRow = Boolean(r.wilayah_id || (!r.member_id && r.wilayah));
+                    const rt = r.wilayah?.rt ? `RT ${r.wilayah.rt}` : "";
+                    const rw = r.wilayah?.rw ? `RW ${r.wilayah.rw}` : "";
+                    const rtrw = [rt, rw].filter(Boolean).join(" / ");
+                    return {
+                        no: i + 1,
+                        tipe: isDusunRow ? "Dusun" : "Member",
+                        kode: isDusunRow ? (r.wilayah?.kode || "-") : (r.member?.kode_member || "-"),
+                        nama_entitas: isDusunRow ? (r.wilayah?.dusun || "-") : (r.member?.nama || "-"),
+                        wilayah: isDusunRow ? (rtrw || "-") : (r.member?.wilayah?.dusun || "-"),
+                        periode: r.periode_bulan,
+                        tanggal: r.tanggal_bayar,
+                        nominal: Number(r.nominal || 0),
+                        metode: r.metode_pembayaran,
+                        status: r.status,
+                        catatan: r.catatan || "-",
+                    };
+                });
+                sheet2Columns = [
+                    { header: "No", accessor: (r: MixedExportRow) => r.no },
+                    { header: "Kategori", accessor: (r: MixedExportRow) => r.tipe },
+                    { header: "Kode", accessor: (r: MixedExportRow) => r.kode },
+                    { header: "Nama / Dusun", accessor: (r: MixedExportRow) => r.nama_entitas },
+                    { header: "Wilayah / RT RW", accessor: (r: MixedExportRow) => r.wilayah },
+                    { header: "Periode Tagihan", accessor: (r: MixedExportRow) => r.periode },
+                    { header: "Tanggal Bayar", accessor: (r: MixedExportRow) => r.tanggal },
+                    { header: "Nominal (Rp)", accessor: (r: MixedExportRow) => r.nominal },
+                    { header: "Metode Pembayaran", accessor: (r: MixedExportRow) => r.metode },
+                    { header: "Status", accessor: (r: MixedExportRow) => r.status },
+                    { header: "Catatan", accessor: (r: MixedExportRow) => r.catatan },
+                ];
+            } else {
+                sheet2Name = "Iuran Member";
+                type MemberExportRow = {
+                    no: number;
+                    kode: string;
+                    nama: string;
+                    dusun: string;
+                    periode: string;
+                    tanggal: string;
+                    nominal: number;
+                    metode: string;
+                    status: string;
+                    catatan: string;
+                };
+                sheet2Rows = bayarRows.map((r, i) => ({
+                    no: i + 1,
+                    kode: r.member?.kode_member || "-",
+                    nama: r.member?.nama || "Tanpa Nama",
+                    dusun: r.member?.wilayah?.dusun || "-",
+                    periode: r.periode_bulan,
+                    tanggal: r.tanggal_bayar,
+                    nominal: Number(r.nominal || 0),
+                    metode: r.metode_pembayaran,
+                    status: r.status,
+                    catatan: r.catatan || "-",
+                }));
+                sheet2Columns = [
+                    { header: "No", accessor: (r: MemberExportRow) => r.no },
+                    { header: "Kode Member", accessor: (r: MemberExportRow) => r.kode },
+                    { header: "Nama Member", accessor: (r: MemberExportRow) => r.nama },
+                    { header: "Dusun / Wilayah", accessor: (r: MemberExportRow) => r.dusun },
+                    { header: "Periode Tagihan", accessor: (r: MemberExportRow) => r.periode },
+                    { header: "Tanggal Bayar", accessor: (r: MemberExportRow) => r.tanggal },
+                    { header: "Nominal (Rp)", accessor: (r: MemberExportRow) => r.nominal },
+                    { header: "Metode Pembayaran", accessor: (r: MemberExportRow) => r.metode },
+                    { header: "Status", accessor: (r: MemberExportRow) => r.status },
+                    { header: "Catatan", accessor: (r: MemberExportRow) => r.catatan },
+                ];
+            }
+
+            // Sheet 3: Rincian Biaya Operasional
             type OprExportRow = {
                 no: number;
                 tanggal: string;
@@ -219,29 +418,18 @@ export default function LaporanPage() {
             await exportWorkbook(
                 [
                     {
-                        sheetName: "Rekap BUMDes",
+                        sheetName: "Rekap Iuran BUMDes",
                         rows: rekapRows,
                         columns: [
-                            { header: "Uraian / Komponen", accessor: (r: RekapRow) => r.uraian },
-                            { header: "Keterangan", accessor: (r: RekapRow) => r.keterangan },
-                            { header: "Jumlah (Rp)", accessor: (r: RekapRow) => r.nominal },
+                            { header: "Uraian / Komponen", accessor: (r: RekapIuranRow) => r.uraian },
+                            { header: "Keterangan", accessor: (r: RekapIuranRow) => r.keterangan },
+                            { header: "Jumlah (Rp)", accessor: (r: RekapIuranRow) => r.nominal },
                         ],
                     },
                     {
-                        sheetName: "Iuran Member",
-                        rows: memberExportRows,
-                        columns: [
-                            { header: "No", accessor: (r: MemberExportRow) => r.no },
-                            { header: "Kode Member", accessor: (r: MemberExportRow) => r.kode },
-                            { header: "Nama Member", accessor: (r: MemberExportRow) => r.nama },
-                            { header: "Dusun / Wilayah", accessor: (r: MemberExportRow) => r.dusun },
-                            { header: "Periode Tagihan", accessor: (r: MemberExportRow) => r.periode },
-                            { header: "Tanggal Bayar", accessor: (r: MemberExportRow) => r.tanggal },
-                            { header: "Nominal (Rp)", accessor: (r: MemberExportRow) => r.nominal },
-                            { header: "Metode Pembayaran", accessor: (r: MemberExportRow) => r.metode },
-                            { header: "Status", accessor: (r: MemberExportRow) => r.status },
-                            { header: "Catatan", accessor: (r: MemberExportRow) => r.catatan },
-                        ],
+                        sheetName: sheet2Name,
+                        rows: sheet2Rows,
+                        columns: sheet2Columns,
                     },
                     {
                         sheetName: "Biaya Operasional",
@@ -255,38 +443,195 @@ export default function LaporanPage() {
                         ],
                     },
                 ],
-                `Laporan_Setoran_BUMDes_${desaName.replace(/\s+/g, "_")}_${bulan}.xlsx`,
+                `Laporan_Keuangan_Iuran_${desaName.replace(/\s+/g, "_")}_${bulan}.xlsx`,
             );
 
-            toast.success("Laporan Excel (.xlsx) berhasil diunduh!");
+            toast.success("Laporan Keuangan Member (.xlsx) berhasil diunduh!");
         } catch (err) {
-            console.error("Gagal mengekspor Excel", err);
+            console.error("Gagal mengekspor Excel Keuangan Member", err);
             toast.error("Terjadi kesalahan saat membuat file Excel.");
         } finally {
             setDownloading(null);
         }
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // 2. EXPORT EXCEL LAPORAN PENJUALAN SAMPAH ANORGANIK
+    // ─────────────────────────────────────────────────────────────
+    async function exportExcelPenjualanAnorganik() {
+        setDownloading("anorganik_excel");
+        try {
+            const pjParams = new URLSearchParams({ bulan });
+            if (selectedDesaId && selectedDesaId !== "all") {
+                pjParams.set("desa_id", selectedDesaId);
+            }
+
+            const resPj = await fetch(`/api/penjualan-anorganik?${pjParams.toString()}`).then((r) => r.json());
+            const pjRows: PenjualanRow[] = resPj.ok && Array.isArray(resPj.rows) ? resPj.rows : [];
+
+            if (pjRows.length === 0) {
+                toast.error(`Belum ada transaksi penjualan sampah anorganik pada periode ${bulan}.`);
+                setDownloading(null);
+                return;
+            }
+
+            const totalPenjualan = pjRows.reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
+            const totalBeratPenjualan = pjRows.reduce((acc, r) => acc + Number(r.berat_kg || 0), 0);
+            const totalDisetor = pjRows
+                .filter((r) => r.status_setoran === "sudah_disetor")
+                .reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
+            const totalBelumDisetor = pjRows
+                .filter((r) => r.status_setoran !== "sudah_disetor")
+                .reduce((acc, r) => acc + Number(r.total_pendapatan || 0), 0);
+
+            const currentDesaObj = desaList.find((d) => d.id === selectedDesaId);
+            const desaName = selectedDesaId === "all"
+                ? "Semua Desa"
+                : currentDesaObj?.nama || "Desa";
+
+            const bulanNama = getNamaBulanIndo(bulan);
+
+            // Sheet 1: Rekapitulasi Penjualan Anorganik
+            type RekapPjRow = { uraian: string; keterangan: string; nilai: number | string };
+            const rekapPjRows: RekapPjRow[] = [
+                { uraian: "LAPORAN REKAPITULASI PENJUALAN SAMPAH ANORGANIK", keterangan: "", nilai: "" },
+                { uraian: "Wilayah / Unit", keterangan: `TPS3R ${desaName}`, nilai: "" },
+                { uraian: "Periode Bulan", keterangan: bulanNama, nilai: "" },
+                { uraian: "Tanggal Dicetak", keterangan: new Date().toLocaleDateString("id-ID"), nilai: "" },
+                { uraian: "----------------------------------------", keterangan: "--------------------", nilai: "------------" },
+                { uraian: "1. Total Frekuensi Transaksi Pengepul", keterangan: `${pjRows.length} Transaksi`, nilai: pjRows.length },
+                { uraian: "2. Total Berat Sampah Terjual", keterangan: "Kilogram (kg)", nilai: Math.round(totalBeratPenjualan * 100) / 100 },
+                { uraian: "3. Total Omset / Pendapatan Penjualan", keterangan: "Pemasukan Kas Penjualan", nilai: totalPenjualan },
+                { uraian: "----------------------------------------", keterangan: "--------------------", nilai: "------------" },
+                { uraian: "4. Status Setoran: Sudah Disetor ke BUMDes", keterangan: "Telah Diserahkan", nilai: totalDisetor },
+                { uraian: "5. Status Setoran: Belum Disetor ke BUMDes", keterangan: "Menunggu Penyetoran", nilai: totalBelumDisetor },
+            ];
+
+            // Sheet 2: Rincian Transaksi Penjualan ke Pengepul
+            type PenjualanExportRow = {
+                no: number;
+                tanggal: string;
+                pembeli: string;
+                kontak: string;
+                kategori: string;
+                berat_kg: number;
+                harga_per_kg: number;
+                total: number;
+                status_setoran: string;
+                tanggal_setor: string;
+                catatan: string;
+            };
+            const pjExportRows: PenjualanExportRow[] = pjRows.map((r, i) => ({
+                no: i + 1,
+                tanggal: r.tanggal,
+                pembeli: r.pembeli,
+                kontak: r.kontak_pembeli || "-",
+                kategori: r.kategori,
+                berat_kg: Number(r.berat_kg || 0),
+                harga_per_kg: Number(r.harga_per_kg || 0),
+                total: Number(r.total_pendapatan || 0),
+                status_setoran: r.status_setoran === "sudah_disetor" ? "Sudah Disetor" : "Belum Disetor",
+                tanggal_setor: r.tanggal_setor || "-",
+                catatan: r.catatan || "-",
+            }));
+
+            // Sheet 3: Rekap Penjualan per Kategori Sampah
+            const kategoriList = ["Plastik", "Kardus", "Kaca", "Besi", "Medis", "Lainnya"];
+            type KategoriSummaryRow = {
+                no: number;
+                kategori: string;
+                transaksi: number;
+                total_berat_kg: number;
+                total_nilai: number;
+            };
+            const kategoriSummaryRows: KategoriSummaryRow[] = kategoriList.map((kat, idx) => {
+                const matched = pjRows.filter((r) => r.kategori.toLowerCase() === kat.toLowerCase());
+                const totalKg = matched.reduce((sum, r) => sum + Number(r.berat_kg || 0), 0);
+                const totalNilai = matched.reduce((sum, r) => sum + Number(r.total_pendapatan || 0), 0);
+                return {
+                    no: idx + 1,
+                    kategori: kat,
+                    transaksi: matched.length,
+                    total_berat_kg: Math.round(totalKg * 100) / 100,
+                    total_nilai: totalNilai,
+                };
+            }).filter((k) => k.transaksi > 0 || pjRows.length === 0);
+
+            await exportWorkbook(
+                [
+                    {
+                        sheetName: "Rekap Penjualan",
+                        rows: rekapPjRows,
+                        columns: [
+                            { header: "Uraian / Komponen", accessor: (r: RekapPjRow) => r.uraian },
+                            { header: "Keterangan", accessor: (r: RekapPjRow) => r.keterangan },
+                            { header: "Nilai / Jumlah", accessor: (r: RekapPjRow) => r.nilai },
+                        ],
+                    },
+                    {
+                        sheetName: "Rincian Transaksi Pengepul",
+                        rows: pjExportRows,
+                        columns: [
+                            { header: "No", accessor: (r: PenjualanExportRow) => r.no },
+                            { header: "Tanggal Penjualan", accessor: (r: PenjualanExportRow) => r.tanggal },
+                            { header: "Nama Pengepul (Pembeli)", accessor: (r: PenjualanExportRow) => r.pembeli },
+                            { header: "No. HP / Kontak", accessor: (r: PenjualanExportRow) => r.kontak },
+                            { header: "Kategori Sampah", accessor: (r: PenjualanExportRow) => r.kategori },
+                            { header: "Berat (kg)", accessor: (r: PenjualanExportRow) => r.berat_kg },
+                            { header: "Harga / kg (Rp)", accessor: (r: PenjualanExportRow) => r.harga_per_kg },
+                            { header: "Total Pendapatan (Rp)", accessor: (r: PenjualanExportRow) => r.total },
+                            { header: "Status Setoran BUMDes", accessor: (r: PenjualanExportRow) => r.status_setoran },
+                            { header: "Tanggal Setor", accessor: (r: PenjualanExportRow) => r.tanggal_setor },
+                            { header: "Catatan", accessor: (r: PenjualanExportRow) => r.catatan },
+                        ],
+                    },
+                    {
+                        sheetName: "Rekap Kategori Sampah",
+                        rows: kategoriSummaryRows,
+                        columns: [
+                            { header: "No", accessor: (r: KategoriSummaryRow) => r.no },
+                            { header: "Kategori Sampah", accessor: (r: KategoriSummaryRow) => r.kategori },
+                            { header: "Jumlah Transaksi", accessor: (r: KategoriSummaryRow) => r.transaksi },
+                            { header: "Total Berat Terjual (kg)", accessor: (r: KategoriSummaryRow) => r.total_berat_kg },
+                            { header: "Total Nilai Penjualan (Rp)", accessor: (r: KategoriSummaryRow) => r.total_nilai },
+                        ],
+                    },
+                ],
+                `Laporan_Penjualan_Anorganik_${desaName.replace(/\s+/g, "_")}_${bulan}.xlsx`,
+            );
+
+            toast.success("Laporan Penjualan Anorganik (.xlsx) berhasil diunduh!");
+        } catch (err) {
+            console.error("Gagal mengekspor Excel Penjualan Anorganik", err);
+            toast.error("Terjadi kesalahan saat membuat file Excel.");
+        } finally {
+            setDownloading(null);
+        }
+    }
+
+    const selectedDesaObj = desaList.find((d) => d.id === selectedDesaId);
+    const isDusunView = selectedDesaId !== "all" && Boolean(selectedDesaObj && !selectedDesaObj.nama.toLowerCase().includes("dukun"));
+
     return (
         <FormShell title="Cetak Laporan" activeLabel="Laporan">
-            <main className="content-wrap" style={{ maxWidth: "1000px", paddingBottom: "60px" }}>
+            <main className="content-wrap" style={{ maxWidth: "1050px", paddingBottom: "60px" }}>
                 <div className="page-heading" style={{ marginBottom: "28px" }}>
                     <div>
                         <p className="eyebrow"><span className="live-dot" /> PELAPORAN & KEUANGAN</p>
-                        <h1>Cetak Laporan & Rekapitulasi</h1>
+                        <h1>Cetak Laporan Keuangan</h1>
                         <p className="heading-copy">
-                            Unduh data operasional, rincian pembayaran member, pengeluaran operasional, serta rekapitulasi setoran bersih BUMDes dalam format Excel resmi (.xlsx).
+                            Unduh laporan terpisah untuk penerimaan iuran member & operasional, serta laporan transaksi penjualan sampah anorganik dalam format Excel resmi (.xlsx) multi-sheet siap serah terima ke BUMDes.
                         </p>
                     </div>
                 </div>
 
-                {/* Toolbar Periode & Desa */}
+                {/* Toolbar Periode & Filter Desa */}
                 <div style={{
                     background: "white",
                     padding: "20px 24px",
                     borderRadius: "16px",
                     border: "1px solid var(--line)",
-                    marginBottom: "24px",
+                    marginBottom: "28px",
                     display: "flex",
                     alignItems: "center",
                     gap: "20px",
@@ -341,13 +686,13 @@ export default function LaporanPage() {
                     )}
                 </div>
 
-                {/* ── CARD UTAMA: EXCEL REKAPITULASI BUMDES ── */}
+                {/* ── CARD 1: LAPORAN KEUANGAN MEMBER & OPERASIONAL ── */}
                 <div style={{
                     background: "linear-gradient(135deg, #ffffff 0%, #f0fdf9 100%)",
                     borderRadius: "20px",
                     border: "2px solid #a7f3d0",
                     padding: "28px",
-                    marginBottom: "32px",
+                    marginBottom: "28px",
                     boxShadow: "0 10px 30px rgba(11, 143, 130, 0.08)",
                     position: "relative",
                     overflow: "hidden"
@@ -364,29 +709,29 @@ export default function LaporanPage() {
                             </div>
                             <div>
                                 <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(11, 143, 130, 0.12)", color: "var(--teal)", padding: "4px 10px", borderRadius: "100px", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", marginBottom: "6px" }}>
-                                    <Landmark size={12} /> REKAP RESMI BUMDES
+                                    <Landmark size={12} /> IURAN & OPERASIONAL BUMDES
                                 </div>
                                 <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1a2522", margin: "0 0 6px 0" }}>
-                                    Laporan Keuangan Iuran Member & Setoran BUMDes
+                                    Laporan Keuangan {isDusunView ? "Iuran Dusun" : "Iuran Member"} & Operasional
                                 </h2>
                                 <p style={{ fontSize: "14px", color: "#556b63", margin: 0, maxWidth: "600px", lineHeight: 1.5 }}>
-                                    Menghasilkan file Excel (.xlsx) multi-sheet siap serah terima ke Bendahara BUMDes, berisi lembar Rekap Setoran Bersih, Rincian Pembayaran Member (Cash/TF), dan Rincian Biaya Operasional (BBM, Listrik, Dapur).
+                                    Menghasilkan file Excel (.xlsx) terpisah berisi rekap penerimaan iuran warga ({isDusunView ? "per dusun" : "per member"}), rincian pengeluaran operasional TPS3R (BBM, listrik, dapur), dan sisa setoran bersih ke BUMDes.
                                 </p>
                             </div>
                         </div>
 
                         <button
                             type="button"
-                            onClick={exportExcelBUMDes}
+                            onClick={exportExcelKeuanganMember}
                             disabled={downloading !== null}
                             className="hover-lift"
                             style={{
                                 background: "var(--teal)",
                                 color: "white",
                                 border: "none",
-                                padding: "14px 26px",
+                                padding: "13px 24px",
                                 borderRadius: "100px",
-                                fontSize: "14px",
+                                fontSize: "13.5px",
                                 fontWeight: 700,
                                 cursor: downloading !== null ? "not-allowed" : "pointer",
                                 display: "inline-flex",
@@ -397,11 +742,11 @@ export default function LaporanPage() {
                             }}
                         >
                             <Download size={16} />
-                            <span>{downloading === "bumdes_excel" ? "Menyiapkan File..." : "Unduh Excel BUMDes (.xlsx)"}</span>
+                            <span>{downloading === "member_excel" ? "Menyiapkan File..." : `Unduh Excel Keuangan ${isDusunView ? "Dusun" : "Member"} (.xlsx)`}</span>
                         </button>
                     </div>
 
-                    {/* Preview Ringkasan Angka Bulan Terpilih */}
+                    {/* Preview Ringkasan Angka Keuangan Member */}
                     <div style={{
                         display: "grid",
                         gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
@@ -413,25 +758,140 @@ export default function LaporanPage() {
                     }}>
                         <div>
                             <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Iuran Terkumpul</span>
-                            <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--teal)", marginTop: "2px" }}>
+                            <div style={{ fontSize: "19px", fontWeight: 800, color: "var(--teal)", marginTop: "2px" }}>
                                 Rp {summary.totalIuran.toLocaleString("id-ID")}
                             </div>
-                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>{summary.memberCount} member bayar</span>
+                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                                {summary.memberCount} {isDusunView ? "dusun terdata bayar" : "member terdata bayar"}
+                            </span>
                         </div>
                         <div>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Biaya Operasional</span>
-                            <div style={{ fontSize: "18px", fontWeight: 800, color: "#dc2626", marginTop: "2px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#dc2626", textTransform: "uppercase" }}>Biaya Operasional TPS3R</span>
+                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#dc2626", marginTop: "2px" }}>
                                 - Rp {summary.totalOperasional.toLocaleString("id-ID")}
                             </div>
-                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>BBM, listrik, dapur, dll</span>
+                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>BBM, listrik, dapur, perawatan</span>
                         </div>
                         <div style={{ borderLeft: "2px dashed #e2e8f0", paddingLeft: "14px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#0d9488", textTransform: "uppercase" }}>Setoran Bersih ke BUMDes</span>
-                            <div style={{ fontSize: "20px", fontWeight: 900, color: "#0f766e", marginTop: "2px" }}>
-                                = Rp {summary.netBUMDes.toLocaleString("id-ID")}
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#0d9488", textTransform: "uppercase" }}>Sisa Setoran Iuran ke BUMDes</span>
+                            <div style={{ fontSize: "21px", fontWeight: 900, color: summary.netIuranBUMDes >= 0 ? "#0f766e" : "#dc2626", marginTop: "2px" }}>
+                                = Rp {summary.netIuranBUMDes.toLocaleString("id-ID")}
                             </div>
-                            <span style={{ fontSize: "11px", color: summary.netBUMDes >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
-                                {summary.netBUMDes >= 0 ? "Surplus siap setor" : "Defisit operasional"}
+                            <span style={{ fontSize: "11px", color: summary.netIuranBUMDes >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
+                                {summary.netIuranBUMDes >= 0 ? "Surplus kas siap setor" : "Defisit biaya operasional"}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── CARD 2: LAPORAN KEUANGAN PENJUALAN SAMPAH ANORGANIK ── */}
+                <div style={{
+                    background: "linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)",
+                    borderRadius: "20px",
+                    border: "2px solid #bfdbfe",
+                    padding: "28px",
+                    marginBottom: "32px",
+                    boxShadow: "0 10px 30px rgba(37, 99, 235, 0.08)",
+                    position: "relative",
+                    overflow: "hidden"
+                }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
+                        <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+                            <div style={{
+                                width: "48px", height: "48px", borderRadius: "14px",
+                                background: "#2563eb", color: "white",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                flexShrink: 0
+                            }}>
+                                <Scale size={24} />
+                            </div>
+                            <div>
+                                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(37, 99, 235, 0.12)", color: "#2563eb", padding: "4px 10px", borderRadius: "100px", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", marginBottom: "6px" }}>
+                                    <TrendingUp size={12} /> PENJUALAN SAMPAH ANORGANIK
+                                </div>
+                                <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1e293b", margin: "0 0 6px 0" }}>
+                                    Laporan Keuangan Penjualan Sampah Anorganik
+                                </h2>
+                                <p style={{ fontSize: "14px", color: "#475569", margin: 0, maxWidth: "600px", lineHeight: 1.5 }}>
+                                    Menghasilkan file Excel (.xlsx) terpisah untuk rekap transaksi penjualan sampah anorganik (plastik, kardus, kaca, besi, dll) ke pengepul, volume berat tonase (kg), omset penerimaan, dan status setoran ke BUMDes.
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={exportExcelPenjualanAnorganik}
+                            disabled={downloading !== null}
+                            className="hover-lift"
+                            style={{
+                                background: "#2563eb",
+                                color: "white",
+                                border: "none",
+                                padding: "13px 24px",
+                                borderRadius: "100px",
+                                fontSize: "13.5px",
+                                fontWeight: 700,
+                                cursor: downloading !== null ? "not-allowed" : "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "10px",
+                                boxShadow: "0 6px 18px rgba(37, 99, 235, 0.3)",
+                                transition: "transform 0.2s, background 0.2s"
+                            }}
+                        >
+                            <Download size={16} />
+                            <span>{downloading === "anorganik_excel" ? "Menyiapkan File..." : "Unduh Excel Penjualan Anorganik (.xlsx)"}</span>
+                        </button>
+                    </div>
+
+                    {/* Preview Ringkasan Angka Penjualan Anorganik */}
+                    <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: "14px",
+                        background: "white",
+                        padding: "18px 20px",
+                        borderRadius: "14px",
+                        border: "1px solid #dbeafe"
+                    }}>
+                        <div>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Total Omset Penjualan</span>
+                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#2563eb", marginTop: "2px" }}>
+                                Rp {summary.totalPenjualan.toLocaleString("id-ID")}
+                            </div>
+                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                                {summary.penjualanCount} transaksi pengepul
+                            </span>
+                        </div>
+                        <div>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Volume Sampah Terjual</span>
+                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#0f172a", marginTop: "2px" }}>
+                                {summary.totalBeratPenjualan.toLocaleString("id-ID")} kg
+                            </div>
+                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                                Total material terpilah terjual
+                            </span>
+                        </div>
+                        <div>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#16a34a", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                <CheckCircle2 size={12} /> Sudah Disetor BUMDes
+                            </span>
+                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#16a34a", marginTop: "2px" }}>
+                                Rp {summary.totalPenjualanDisetor.toLocaleString("id-ID")}
+                            </div>
+                            <span style={{ fontSize: "11px", color: "#86efac" }}>
+                                Telah diserahkan ke kas BUMDes
+                            </span>
+                        </div>
+                        <div style={{ borderLeft: "2px dashed #e2e8f0", paddingLeft: "14px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#d97706", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                <Clock size={12} /> Belum Disetor BUMDes
+                            </span>
+                            <div style={{ fontSize: "19px", fontWeight: 800, color: "#d97706", marginTop: "2px" }}>
+                                Rp {summary.totalPenjualanBelumDisetor.toLocaleString("id-ID")}
+                            </div>
+                            <span style={{ fontSize: "11px", color: "#f59e0b" }}>
+                                Menunggu transfer / penyerahan
                             </span>
                         </div>
                     </div>

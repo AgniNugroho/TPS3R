@@ -15,6 +15,17 @@ import {
 import { showErrorToast, showSuccessToast } from "@/components/ui/Toast";
 import type { MemberItem } from "@/app/(dashboard)/bank-sampah/page";
 
+type WilayahItem = {
+    id: string;
+    kode: string;
+    dusun: string;
+    rt: string | null;
+    rw: string | null;
+    jumlah_kk?: number | null;
+    jumlah_jiwa?: number | null;
+    status?: string | null;
+};
+
 type PaymentRow = {
     id: string;
     desa_id: string;
@@ -43,12 +54,6 @@ type PaymentRow = {
         rt: string | null;
         rw: string | null;
     } | null;
-};
-
-type WilayahItem = {
-    id: string;
-    dusun: string;
-    status?: string | null;
 };
 
 type Props = {
@@ -114,11 +119,12 @@ export default function IuranMemberTab({
                 `/api/pembayaran-member?${params.toString()}`,
             );
             const data = await res.json();
-            if (data.ok && Array.isArray(data.rows)) {
-                setPayments(data.rows);
-            } else {
-                setPayments([]);
-            }
+            const list: PaymentRow[] = Array.isArray(data.rows)
+                ? data.rows
+                : Array.isArray(data.data)
+                  ? data.data
+                  : [];
+            setPayments(list);
         } catch (err) {
             showErrorToast(
                 err instanceof Error
@@ -234,13 +240,43 @@ export default function IuranMemberTab({
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
+        const nom = parseInt(form.nominal, 10);
+        if (isNaN(nom) || nom <= 0) {
+            showErrorToast(
+                "Nominal pembayaran harus berupa angka lebih dari 0.",
+            );
+            return;
+        }
+
+        if (isDesaDukun && !form.member_id) {
+            showErrorToast("Silakan pilih member terlebih dahulu.");
+            return;
+        }
+
+        if (!isDesaDukun && !form.wilayah_id) {
+            showErrorToast("Silakan pilih dusun terlebih dahulu.");
+            return;
+        }
+
         setIsSubmitting(true);
         try {
+            const payload = {
+                desa_id: selectedDesaId,
+                member_id: isDesaDukun ? form.member_id || null : null,
+                wilayah_id: !isDesaDukun ? form.wilayah_id || null : null,
+                periode_bulan: form.periode_bulan,
+                tanggal_bayar: form.tanggal_bayar,
+                nominal: nom,
+                metode_pembayaran: form.metode_pembayaran,
+                status: form.status,
+                catatan: form.catatan.trim(),
+            };
+
             if (modalMode === "create") {
                 const res = await fetch("/api/pembayaran-member", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(form),
+                    body: JSON.stringify(payload),
                 });
                 const data = await res.json();
                 if (!data.ok) throw new Error(data.error);
@@ -255,17 +291,22 @@ export default function IuranMemberTab({
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         id: editItem.id,
-                        nominal: form.nominal,
+                        nominal: nom,
                         metode_pembayaran: form.metode_pembayaran,
                         tanggal_bayar: form.tanggal_bayar,
                         status: form.status,
-                        catatan: form.catatan,
+                        catatan: form.catatan.trim(),
+                        member_id: isDesaDukun ? form.member_id || null : null,
+                        wilayah_id: !isDesaDukun
+                            ? form.wilayah_id || null
+                            : null,
                     }),
                 });
                 const data = await res.json();
                 if (!data.ok) throw new Error(data.error);
-                showSuccessToast("Data pembayaran berhasil diperbarui!");
+                showSuccessToast("Data pembayaran berhasil diperbarui.");
             }
+
             setModalMode(null);
             await loadPayments();
         } catch (err) {
