@@ -14,6 +14,7 @@ import {
     TrendingUp,
     CheckCircle2,
     Clock,
+    Truck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -22,6 +23,27 @@ type DesaItem = {
     kode: string;
     nama: string;
 };
+
+type SampahMasukRecord = {
+    id: string;
+    member_id: string | null;
+    tanggal: string;
+    nasabah_id: string | null;
+    nama_nasabah: string;
+    jenis_sampah: string | null;
+    berat_kg: number;
+    harga_per_kg: number;
+    nilai_transaksi: number;
+    petugas_id: string | null;
+};
+
+type WilayahDusunItem = { id: string; dusun: string; status?: string | null };
+type MemberBankSampahItem = {
+    id: string;
+    nama: string;
+    wilayah?: { dusun: string } | null;
+};
+type PetugasItem = { id: string; nama: string };
 
 type PaymentRow = {
     id: string;
@@ -283,6 +305,397 @@ function LaporanContent() {
         if (distinctDesa.size > 1) return "Semua Desa";
         if (fallbackDesaObj) return fallbackDesaObj.nama;
         return selectedDesaId === "all" ? "Semua Desa" : "Desa";
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 0. EXPORT EXCEL LAPORAN SAMPAH (MATRIKS HARIAN & RIWAYAT TRANSAKSI)
+    // ─────────────────────────────────────────────────────────────
+    async function exportExcelLaporanSampah() {
+        if (!selectedDesaId || selectedDesaId === "all") {
+            toast.error(
+                "Pilih desa terlebih dahulu di sidebar untuk mengekspor laporan sampah.",
+            );
+            return;
+        }
+
+        setDownloading("sampah_excel");
+        try {
+            const [yearStr, monthStr] = bulan.split("-");
+            const year = parseInt(yearStr, 10);
+            const month = parseInt(monthStr, 10);
+
+            const bankParams = new URLSearchParams({
+                bulan: String(month),
+                tahun: String(year),
+                desa_id: selectedDesaId,
+            });
+            const wilayahParams = new URLSearchParams({
+                desa_id: selectedDesaId,
+            });
+            const memberParams = new URLSearchParams({
+                desa_id: selectedDesaId,
+            });
+
+            const [resBank, resWilayah, resMember, resPetugas] =
+                await Promise.all([
+                    fetch(`/api/bank-sampah?${bankParams.toString()}`).then(
+                        (r) => r.json(),
+                    ),
+                    fetch(`/api/wilayah?${wilayahParams.toString()}`).then(
+                        (r) => r.json(),
+                    ),
+                    fetch(
+                        `/api/member-bank-sampah?${memberParams.toString()}`,
+                    ).then((r) => r.json()),
+                    fetch("/api/petugas").then((r) => r.json()),
+                ]);
+
+            const records: SampahMasukRecord[] =
+                resBank.ok && Array.isArray(resBank.rows) ? resBank.rows : [];
+            const wilayahRows: WilayahDusunItem[] = (
+                resWilayah.ok && Array.isArray(resWilayah.rows)
+                    ? resWilayah.rows
+                    : []
+            ).filter(
+                (w: WilayahDusunItem) =>
+                    !w.status || w.status.toLowerCase() === "aktif",
+            );
+            const memberRows: MemberBankSampahItem[] =
+                resMember.ok && Array.isArray(resMember.rows)
+                    ? resMember.rows
+                    : [];
+            const petugasRows: PetugasItem[] =
+                resPetugas.ok && Array.isArray(resPetugas.rows)
+                    ? resPetugas.rows
+                    : [];
+
+            if (records.length === 0) {
+                toast.error(
+                    `Belum ada data pengumpulan sampah pada periode ${getNamaBulanIndo(bulan)}.`,
+                );
+                setDownloading(null);
+                return;
+            }
+
+            const currentDesaObj = desaList.find(
+                (d) => d.id === selectedDesaId,
+            );
+            const isDesaDukun = Boolean(
+                currentDesaObj?.nama.toLowerCase().includes("dukun"),
+            );
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            const memberWilayahMap = new Map<string, string>();
+            memberRows.forEach((m) => {
+                const dusun = m.wilayah?.dusun || "";
+                if (m.nama)
+                    memberWilayahMap.set(m.nama.toLowerCase().trim(), dusun);
+                if (m.id) memberWilayahMap.set(m.id, dusun);
+            });
+
+            type MatrixRow = {
+                rowId: string | null;
+                nama: string;
+                dusun: string;
+                dailyMap: Map<number, { berat: number; nilai: number }>;
+                totalBerat: number;
+                freqSetor: number;
+            };
+
+            const matrixMap = new Map<string, MatrixRow>();
+
+            if (isDesaDukun) {
+                memberRows.forEach((m) => {
+                    matrixMap.set(m.nama.trim().toLowerCase(), {
+                        rowId: m.id,
+                        nama: m.nama,
+                        dusun: m.wilayah?.dusun || "-",
+                        dailyMap: new Map(),
+                        totalBerat: 0,
+                        freqSetor: 0,
+                    });
+                });
+
+                records.forEach((rec) => {
+                    const rawName = rec.nama_nasabah?.trim() || "Tanpa Nama";
+                    const key = rawName.toLowerCase();
+                    if (!matrixMap.has(key)) {
+                        matrixMap.set(key, {
+                            rowId: rec.member_id,
+                            nama: rawName,
+                            dusun: memberWilayahMap.get(key) || "-",
+                            dailyMap: new Map(),
+                            totalBerat: 0,
+                            freqSetor: 0,
+                        });
+                    }
+                    const row = matrixMap.get(key)!;
+                    const day = parseInt(rec.tanggal.split("-")[2], 10);
+                    if (!isNaN(day)) {
+                        const existing = row.dailyMap.get(day);
+                        if (existing) {
+                            existing.berat += Number(rec.berat_kg);
+                        } else {
+                            row.dailyMap.set(day, {
+                                berat: Number(rec.berat_kg),
+                                nilai: Number(rec.nilai_transaksi),
+                            });
+                        }
+                    }
+                });
+            } else {
+                wilayahRows.forEach((w) => {
+                    matrixMap.set(w.dusun.trim().toLowerCase(), {
+                        rowId: w.id,
+                        nama: w.dusun,
+                        dusun: w.dusun,
+                        dailyMap: new Map(),
+                        totalBerat: 0,
+                        freqSetor: 0,
+                    });
+                });
+
+                records.forEach((rec) => {
+                    const rawName = rec.nama_nasabah?.trim() || "";
+                    let key = rawName.toLowerCase();
+
+                    let targetDusun = wilayahRows.find(
+                        (w) =>
+                            w.id === rec.nasabah_id ||
+                            w.dusun.toLowerCase() === key,
+                    );
+                    if (!targetDusun && rawName) {
+                        targetDusun = wilayahRows.find((w) =>
+                            rawName
+                                .toLowerCase()
+                                .includes(w.dusun.toLowerCase()),
+                        );
+                    }
+
+                    if (targetDusun) {
+                        key = targetDusun.dusun.trim().toLowerCase();
+                    } else if (!matrixMap.has(key)) {
+                        matrixMap.set(key, {
+                            rowId: rec.nasabah_id,
+                            nama: rawName || "Dusun Lainnya",
+                            dusun: rawName || "Dusun Lainnya",
+                            dailyMap: new Map(),
+                            totalBerat: 0,
+                            freqSetor: 0,
+                        });
+                    }
+
+                    const row = matrixMap.get(key);
+                    if (row) {
+                        const day = parseInt(rec.tanggal.split("-")[2], 10);
+                        if (!isNaN(day)) {
+                            const existing = row.dailyMap.get(day);
+                            if (existing) {
+                                existing.berat += Number(rec.berat_kg);
+                            } else {
+                                row.dailyMap.set(day, {
+                                    berat: Number(rec.berat_kg),
+                                    nilai: Number(rec.nilai_transaksi),
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+
+            const matrixRows = Array.from(matrixMap.values())
+                .map((row) => {
+                    let sumBerat = 0;
+                    let count = 0;
+                    row.dailyMap.forEach((entry) => {
+                        sumBerat += entry.berat;
+                        count++;
+                    });
+                    return {
+                        ...row,
+                        totalBerat: Number(sumBerat.toFixed(2)),
+                        freqSetor: count,
+                    };
+                })
+                .sort((a, b) => {
+                    if (b.totalBerat !== a.totalBerat)
+                        return b.totalBerat - a.totalBerat;
+                    return a.nama.localeCompare(b.nama, "id", {
+                        sensitivity: "base",
+                    });
+                });
+
+            const dailyColumnTotals = new Array(daysInMonth).fill(0);
+            matrixRows.forEach((row) => {
+                row.dailyMap.forEach((entry, day) => {
+                    if (day >= 1 && day <= daysInMonth) {
+                        dailyColumnTotals[day - 1] += entry.berat;
+                    }
+                });
+            });
+            const dailyTotalsRounded = dailyColumnTotals.map((v) =>
+                Number(v.toFixed(2)),
+            );
+
+            const namaBulanArr = [
+                "",
+                "Januari",
+                "Februari",
+                "Maret",
+                "April",
+                "Mei",
+                "Juni",
+                "Juli",
+                "Agustus",
+                "September",
+                "Oktober",
+                "November",
+                "Desember",
+            ];
+            const namaBulanStr = namaBulanArr[month] || String(month);
+
+            const matrixHeaders = isDesaDukun
+                ? [
+                      "No",
+                      "Nama Member",
+                      "Dusun / Wilayah",
+                      ...Array.from(
+                          { length: daysInMonth },
+                          (_, i) => `Tgl ${i + 1}`,
+                      ),
+                      "Total (kg)",
+                      "Frekuensi (hari)",
+                  ]
+                : [
+                      "No",
+                      "Nama Dusun",
+                      ...Array.from(
+                          { length: daysInMonth },
+                          (_, i) => `Tgl ${i + 1}`,
+                      ),
+                      "Total (kg)",
+                      "Frekuensi (hari)",
+                  ];
+
+            const matrixData = matrixRows.map((r, idx) => {
+                const rowArr: (string | number)[] = isDesaDukun
+                    ? [idx + 1, r.nama, r.dusun]
+                    : [idx + 1, r.nama];
+                for (let d = 1; d <= daysInMonth; d++) {
+                    rowArr.push(r.dailyMap.get(d)?.berat || 0);
+                }
+                rowArr.push(r.totalBerat);
+                rowArr.push(r.freqSetor);
+                return rowArr;
+            });
+
+            const footerRow: (string | number)[] = isDesaDukun
+                ? ["", "TOTAL HARIAN (KG)", ""]
+                : ["", "TOTAL HARIAN (KG)"];
+            let grandTotal = 0;
+            dailyTotalsRounded.forEach((val) => {
+                footerRow.push(val);
+                grandTotal += val;
+            });
+            footerRow.push(Number(grandTotal.toFixed(2)));
+            footerRow.push("");
+            matrixData.push(footerRow);
+
+            const txHeaders = isDesaDukun
+                ? [
+                      "No",
+                      "Tanggal",
+                      "Nama Member",
+                      "Dusun / Wilayah",
+                      "Jenis Sampah",
+                      "Berat (kg)",
+                      "Harga / kg (Rp)",
+                      "Nilai Transaksi (Rp)",
+                      "Petugas",
+                  ]
+                : [
+                      "No",
+                      "Tanggal",
+                      "Nama Dusun",
+                      "Jenis Sampah",
+                      "Berat (kg)",
+                      "Harga / kg (Rp)",
+                      "Nilai Transaksi (Rp)",
+                      "Petugas",
+                  ];
+
+            const sortedTransactions = [...records].sort((a, b) =>
+                b.tanggal.localeCompare(a.tanggal),
+            );
+
+            const txData = sortedTransactions.map((rec, idx) => {
+                const petugasNama =
+                    petugasRows.find((p) => p.id === rec.petugas_id)?.nama ||
+                    "-";
+                if (isDesaDukun) {
+                    return [
+                        idx + 1,
+                        rec.tanggal,
+                        rec.nama_nasabah,
+                        (rec.member_id &&
+                            memberWilayahMap.get(rec.member_id)) ||
+                            memberWilayahMap.get(
+                                rec.nama_nasabah.toLowerCase().trim(),
+                            ) ||
+                            "-",
+                        rec.jenis_sampah || "Campur",
+                        rec.berat_kg,
+                        rec.harga_per_kg,
+                        rec.nilai_transaksi,
+                        petugasNama,
+                    ];
+                }
+                return [
+                    idx + 1,
+                    rec.tanggal,
+                    rec.nama_nasabah,
+                    rec.jenis_sampah || "Campur",
+                    rec.berat_kg,
+                    rec.harga_per_kg,
+                    rec.nilai_transaksi,
+                    petugasNama,
+                ];
+            });
+
+            const desaSlug = (currentDesaObj?.nama || "Desa").replace(
+                /\s+/g,
+                "_",
+            );
+
+            await exportWorkbook(
+                [
+                    {
+                        sheetName: `Matriks ${namaBulanStr} ${year}`,
+                        columns: matrixHeaders.map((h, i) => ({
+                            header: h,
+                            accessor: (row: (string | number)[]) => row[i],
+                        })),
+                        rows: matrixData,
+                    },
+                    {
+                        sheetName: "Riwayat Transaksi",
+                        columns: txHeaders.map((h, i) => ({
+                            header: h,
+                            accessor: (row: (string | number)[]) => row[i],
+                        })),
+                        rows: txData,
+                    },
+                ],
+                `Pengumpulan_Sampah_${desaSlug}_${namaBulanStr}_${year}.xlsx`,
+            );
+
+            toast.success("Laporan Sampah (.xlsx) berhasil diunduh!");
+        } catch (err) {
+            console.error("Gagal mengekspor Excel Laporan Sampah", err);
+            toast.error("Terjadi kesalahan saat membuat file Excel.");
+        } finally {
+            setDownloading(null);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -1116,6 +1529,132 @@ function LaporanContent() {
                                 }}
                             />
                         </div>
+                    </div>
+                </div>
+
+                {/* ── CARD 0: LAPORAN SAMPAH (PENGUMPULAN) ── */}
+                <div
+                    style={{
+                        background:
+                            "linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)",
+                        borderRadius: "20px",
+                        border: "2px solid #fed7aa",
+                        padding: "28px",
+                        marginBottom: "28px",
+                        boxShadow: "0 10px 30px rgba(234, 88, 12, 0.08)",
+                        position: "relative",
+                        overflow: "hidden",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: "20px",
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: "16px",
+                                alignItems: "flex-start",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: "48px",
+                                    height: "48px",
+                                    borderRadius: "14px",
+                                    background: "#ea580c",
+                                    color: "white",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                }}
+                            >
+                                <Truck size={24} />
+                            </div>
+                            <div>
+                                <div
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        background: "rgba(234, 88, 12, 0.12)",
+                                        color: "#ea580c",
+                                        padding: "4px 10px",
+                                        borderRadius: "100px",
+                                        fontSize: "11px",
+                                        fontWeight: 800,
+                                        textTransform: "uppercase",
+                                        marginBottom: "6px",
+                                    }}
+                                >
+                                    <Truck size={12} /> PENGUMPULAN SAMPAH
+                                </div>
+                                <h2
+                                    style={{
+                                        fontSize: "20px",
+                                        fontWeight: 800,
+                                        color: "#1a2522",
+                                        margin: "0 0 6px 0",
+                                    }}
+                                >
+                                    Laporan Sampah{" "}
+                                    {isDusunView ? "Dusun" : "Member"}
+                                </h2>
+                                <p
+                                    style={{
+                                        fontSize: "14px",
+                                        color: "#556b63",
+                                        margin: 0,
+                                        maxWidth: "600px",
+                                        lineHeight: 1.5,
+                                    }}
+                                >
+                                    Menghasilkan file Excel (.xlsx) berisi
+                                    matriks harian setoran sampah (
+                                    {isDusunView ? "per dusun" : "per member"})
+                                    dan riwayat rincian transaksi pengumpulan
+                                    sampah untuk periode terpilih.
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={exportExcelLaporanSampah}
+                            disabled={downloading !== null}
+                            className="hover-lift"
+                            style={{
+                                background: "#ea580c",
+                                color: "white",
+                                border: "none",
+                                padding: "13px 24px",
+                                borderRadius: "100px",
+                                fontSize: "13.5px",
+                                fontWeight: 700,
+                                cursor:
+                                    downloading !== null
+                                        ? "not-allowed"
+                                        : "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "10px",
+                                boxShadow: "0 6px 18px rgba(234, 88, 12, 0.3)",
+                                transition: "transform 0.2s, background 0.2s",
+                            }}
+                        >
+                            <Download size={16} />
+                            <span>
+                                {downloading === "sampah_excel"
+                                    ? "Menyiapkan File..."
+                                    : "Unduh Excel Laporan Sampah (.xlsx)"}
+                            </span>
+                        </button>
                     </div>
                 </div>
 

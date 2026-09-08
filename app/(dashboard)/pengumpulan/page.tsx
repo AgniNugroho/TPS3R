@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 import FormShell from "@/components/dashboard/FormShell";
 import { showErrorToast, showSuccessToast } from "@/components/ui/Toast";
-import { exportWorkbook } from "@/lib/utils/exportExcel";
 
 // Types
 export type BankSampahRecord = {
@@ -880,150 +879,6 @@ function PengumpulanContent() {
         }
     }
 
-    // Export to Excel (.xlsx)
-    function handleExportExcel() {
-        if (matrixRows.length === 0) {
-            showErrorToast("Tidak ada data untuk diekspor.");
-            return;
-        }
-
-        const namaBulanStr =
-            BULAN_LIST.find((b) => b.value === bulan)?.label || String(bulan);
-
-        const matrixHeaders = isDesaDukun
-            ? [
-                  "No",
-                  "Nama Member",
-                  "Dusun / Wilayah",
-                  ...Array.from(
-                      { length: daysInMonth },
-                      (_, i) => `Tgl ${i + 1}`,
-                  ),
-                  "Total (kg)",
-                  "Frekuensi (hari)",
-              ]
-            : [
-                  "No",
-                  "Nama Dusun",
-                  ...Array.from(
-                      { length: daysInMonth },
-                      (_, i) => `Tgl ${i + 1}`,
-                  ),
-                  "Total (kg)",
-                  "Frekuensi (hari)",
-              ];
-
-        const matrixData = filteredMatrixRows.map((r, idx) => {
-            const rowArr: (string | number)[] = isDesaDukun
-                ? [idx + 1, r.nama, r.dusun]
-                : [idx + 1, r.nama];
-
-            for (let d = 1; d <= daysInMonth; d++) {
-                rowArr.push(r.dailyMap.get(d)?.berat || 0);
-            }
-            rowArr.push(r.totalBerat);
-            rowArr.push(r.freqSetor);
-            return rowArr;
-        });
-
-        const footerRow: (string | number)[] = isDesaDukun
-            ? ["", "TOTAL HARIAN (KG)", ""]
-            : ["", "TOTAL HARIAN (KG)"];
-
-        let grandTotal = 0;
-        dailyColumnTotals.forEach((val) => {
-            footerRow.push(val);
-            grandTotal += val;
-        });
-        footerRow.push(Number(grandTotal.toFixed(2)));
-        footerRow.push("");
-        matrixData.push(footerRow);
-
-        const txHeaders = isDesaDukun
-            ? [
-                  "No",
-                  "Tanggal",
-                  "Nama Member",
-                  "Dusun / Wilayah",
-                  "Jenis Sampah",
-                  "Berat (kg)",
-                  "Harga / kg (Rp)",
-                  "Nilai Transaksi (Rp)",
-                  "Petugas",
-              ]
-            : [
-                  "No",
-                  "Tanggal",
-                  "Nama Dusun",
-                  "Jenis Sampah",
-                  "Berat (kg)",
-                  "Harga / kg (Rp)",
-                  "Nilai Transaksi (Rp)",
-                  "Petugas",
-              ];
-
-        const txData = filteredTransactions.map((rec, idx) => {
-            if (isDesaDukun) {
-                return [
-                    idx + 1,
-                    rec.tanggal,
-                    rec.nama_nasabah,
-                    (rec.member_id && memberWilayahMap.get(rec.member_id)) ||
-                        memberWilayahMap.get(
-                            rec.nama_nasabah.toLowerCase().trim(),
-                        ) ||
-                        "-",
-                    rec.jenis_sampah || "Campur",
-                    rec.berat_kg,
-                    rec.harga_per_kg,
-                    rec.nilai_transaksi,
-                    petugasList.find((p) => p.id === rec.petugas_id)?.nama ||
-                        "-",
-                ];
-            } else {
-                return [
-                    idx + 1,
-                    rec.tanggal,
-                    rec.nama_nasabah,
-                    rec.jenis_sampah || "Campur",
-                    rec.berat_kg,
-                    rec.harga_per_kg,
-                    rec.nilai_transaksi,
-                    petugasList.find((p) => p.id === rec.petugas_id)?.nama ||
-                        "-",
-                ];
-            }
-        });
-
-        const desaSlug = currentDesa?.nama
-            ? currentDesa.nama.replace(/\s+/g, "_")
-            : "Desa";
-
-        exportWorkbook(
-            [
-                {
-                    sheetName: `Matriks ${namaBulanStr} ${tahun}`,
-                    columns: matrixHeaders.map((h, i) => ({
-                        header: h,
-                        accessor: (row: (string | number)[]) => row[i],
-                    })),
-                    rows: matrixData,
-                },
-                {
-                    sheetName: "Riwayat Transaksi",
-                    columns: txHeaders.map((h, i) => ({
-                        header: h,
-                        accessor: (row: (string | number)[]) => row[i],
-                    })),
-                    rows: txData,
-                },
-            ],
-            `Pengumpulan_Sampah_${desaSlug}_${namaBulanStr}_${tahun}`,
-        );
-
-        showSuccessToast("Laporan Excel berhasil diunduh.");
-    }
-
     return (
         <FormShell title="Pengumpulan" activeLabel="Pengumpulan">
             <main
@@ -1052,16 +907,6 @@ function PengumpulanContent() {
                     </div>
 
                     <div className="header-actions-clean">
-                        <button
-                            type="button"
-                            className="btn-export-clean"
-                            onClick={handleExportExcel}
-                            title="Unduh Lembar Rekap Excel"
-                        >
-                            <FileSpreadsheet size={15} />
-                            <span>Export Excel</span>
-                        </button>
-
                         <button
                             type="button"
                             className="btn-primary-clean"
