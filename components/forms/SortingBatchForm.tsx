@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
     ArrowLeft,
     CheckCircle2,
@@ -148,6 +149,9 @@ function fmtDateShort(iso: string) {
 /* ------------------------------------------------------------------ */
 
 export default function SortingBatchForm() {
+    const searchParams = useSearchParams();
+    const desaId = searchParams.get("desa_id") ?? "";
+
     const [step, setStep] = useState<"select" | "form">("select");
     const [loading, setLoading] = useState(true);
 
@@ -162,9 +166,10 @@ export default function SortingBatchForm() {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
+            const params = desaId ? `?desa_id=${desaId}` : "";
             const [incomingRes, sortingRes] = await Promise.all([
-                fetch("/api/sampah-masuk").then((r) => r.json()),
-                fetch("/api/pemilahan").then((r) => r.json()),
+                fetch(`/api/sampah-masuk${params}`).then((r) => r.json()),
+                fetch(`/api/pemilahan${params}`).then((r) => r.json()),
             ]);
             if (!incomingRes.ok || !sortingRes.ok) {
                 showErrorToast(
@@ -186,7 +191,8 @@ export default function SortingBatchForm() {
                     anorganik_kg:
                         existing.anorganik_kg + Number(row.anorganik_kg || 0),
                     residu_kg: existing.residu_kg + Number(row.residu_kg || 0),
-                    plastik_kg: existing.plastik_kg + Number(row.plastik_kg || 0),
+                    plastik_kg:
+                        existing.plastik_kg + Number(row.plastik_kg || 0),
                     kardus_kg: existing.kardus_kg + Number(row.kardus_kg || 0),
                     kaca_kg: existing.kaca_kg + Number(row.kaca_kg || 0),
                     besi_kg: existing.besi_kg + Number(row.besi_kg || 0),
@@ -230,7 +236,7 @@ export default function SortingBatchForm() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [desaId]);
 
     useEffect(() => {
         void Promise.resolve().then(() => loadData());
@@ -262,10 +268,7 @@ export default function SortingBatchForm() {
     // Cumulative progress out of total incoming waste
     const cumulativeRatio =
         totalIncoming > 0 ? totalCumulative / totalIncoming : 0;
-    const progressPercent = Math.min(
-        Math.max(cumulativeRatio * 100, 0),
-        100,
-    );
+    const progressPercent = Math.min(Math.max(cumulativeRatio * 100, 0), 100);
 
     // Dynamic progress bar color
     const progressBarColor = overLimit
@@ -297,7 +300,9 @@ export default function SortingBatchForm() {
 
         if (!isValidSubmit) {
             if (inputTotal <= 0) {
-                showErrorToast("Harap masukkan berat pemilahan (minimal > 0 kg).");
+                showErrorToast(
+                    "Harap masukkan berat pemilahan (minimal > 0 kg).",
+                );
             } else if (overLimit) {
                 showErrorToast(
                     `Total pemilahan (${inputTotal.toFixed(2)} kg) melebihi sisa kuota ${target.toFixed(2)} kg.`,
@@ -401,7 +406,8 @@ export default function SortingBatchForm() {
                     <>
                         <div className="sorting-section-header">
                             <p className="sorting-select-hint">
-                                Pilih <strong>satu</strong> sampah masuk yang ingin dipilah:
+                                Pilih <strong>satu</strong> sampah masuk yang
+                                ingin dipilah:
                             </p>
                         </div>
                         <div className="sorting-select-list">
@@ -425,11 +431,15 @@ export default function SortingBatchForm() {
                                                         {row.asal_sampah}
                                                     </span>
                                                     <span className="sorting-select-item-date">
-                                                        {fmtDateShort(row.tanggal)}
+                                                        {fmtDateShort(
+                                                            row.tanggal,
+                                                        )}
                                                     </span>
                                                 </div>
                                                 <span className="sorting-select-item-badge">
-                                                    Kuota: {row.remaining.toFixed(1)} kg
+                                                    Kuota:{" "}
+                                                    {row.remaining.toFixed(1)}{" "}
+                                                    kg
                                                 </span>
                                             </div>
 
@@ -448,10 +458,17 @@ export default function SortingBatchForm() {
 
                                             <div className="sorting-select-item-meta">
                                                 <span>
-                                                    {row.totalSorted.toFixed(1)} / {row.total_berat_kg.toFixed(1)} kg terpilah
+                                                    {row.totalSorted.toFixed(1)}{" "}
+                                                    /{" "}
+                                                    {row.total_berat_kg.toFixed(
+                                                        1,
+                                                    )}{" "}
+                                                    kg terpilah
                                                 </span>
                                                 <span className="sorting-select-item-remaining">
-                                                    Sisa kuota: {row.remaining.toFixed(1)} kg
+                                                    Sisa kuota:{" "}
+                                                    {row.remaining.toFixed(1)}{" "}
+                                                    kg
                                                 </span>
                                             </div>
                                         </div>
@@ -500,7 +517,10 @@ export default function SortingBatchForm() {
                                         </div>
                                         <div className="sorting-select-item-meta">
                                             <span>
-                                                {row.total_berat_kg.toFixed(1)} / {row.total_berat_kg.toFixed(1)} kg terpilah
+                                                {row.total_berat_kg.toFixed(1)}{" "}
+                                                /{" "}
+                                                {row.total_berat_kg.toFixed(1)}{" "}
+                                                kg terpilah
                                             </span>
                                             <span className="sorting-badge-complete">
                                                 Selesai
@@ -587,11 +607,13 @@ export default function SortingBatchForm() {
                         </span>
                         <div className="sorting-hero-subinfo">
                             <span>
-                                Sebelumnya: <strong>{prevSorted.toFixed(2)} kg</strong>
+                                Sebelumnya:{" "}
+                                <strong>{prevSorted.toFixed(2)} kg</strong>
                             </span>
                             <span className="dot">•</span>
                             <span>
-                                Sesi ini: <strong>+{inputTotal.toFixed(2)} kg</strong>
+                                Sesi ini:{" "}
+                                <strong>+{inputTotal.toFixed(2)} kg</strong>
                             </span>
                         </div>
                     </div>
@@ -620,8 +642,11 @@ export default function SortingBatchForm() {
                         <div className="sorting-hero-status-msg warning">
                             <AlertTriangle size={15} />
                             <span>
-                                <strong>Melebihi sisa kuota!</strong>{" "}
-                                Total input kelebihan {(inputTotal - target).toFixed(2)} kg dari sisa yang tersedia ({target.toFixed(2)} kg). Harap kurangi nilai input.
+                                <strong>Melebihi sisa kuota!</strong> Total
+                                input kelebihan{" "}
+                                {(inputTotal - target).toFixed(2)} kg dari sisa
+                                yang tersedia ({target.toFixed(2)} kg). Harap
+                                kurangi nilai input.
                             </span>
                         </div>
                     )}
@@ -629,8 +654,12 @@ export default function SortingBatchForm() {
                         <div className="sorting-hero-status-msg ready">
                             <CheckCircle2 size={15} />
                             <span>
-                                <strong>Sisa kuota {target.toFixed(2)} kg terpenuhi penuh!</strong>{" "}
-                                Seluruh sampah masuk ({totalIncoming.toFixed(2)} kg) telah selesai dipilah.
+                                <strong>
+                                    Sisa kuota {target.toFixed(2)} kg terpenuhi
+                                    penuh!
+                                </strong>{" "}
+                                Seluruh sampah masuk ({totalIncoming.toFixed(2)}{" "}
+                                kg) telah selesai dipilah.
                             </span>
                         </div>
                     )}
@@ -640,11 +669,20 @@ export default function SortingBatchForm() {
                             <span>
                                 {prevSorted > 0 ? (
                                     <>
-                                        Sebelumnya sudah dipilah <strong>{prevSorted.toFixed(2)} kg</strong>. Sisa kuota yang belum dipilah: <strong>{target.toFixed(2)} kg</strong>. Masukkan berat sampah yang baru dipilah.
+                                        Sebelumnya sudah dipilah{" "}
+                                        <strong>
+                                            {prevSorted.toFixed(2)} kg
+                                        </strong>
+                                        . Sisa kuota yang belum dipilah:{" "}
+                                        <strong>{target.toFixed(2)} kg</strong>.
+                                        Masukkan berat sampah yang baru dipilah.
                                     </>
                                 ) : (
                                     <>
-                                        Total target pemilahan: <strong>{target.toFixed(2)} kg</strong>. Masukkan berat sampah pada kolom di bawah.
+                                        Total target pemilahan:{" "}
+                                        <strong>{target.toFixed(2)} kg</strong>.
+                                        Masukkan berat sampah pada kolom di
+                                        bawah.
                                     </>
                                 )}
                             </span>
@@ -654,22 +692,35 @@ export default function SortingBatchForm() {
                         <div className="sorting-hero-status-msg remaining">
                             <AlertCircle size={15} />
                             <span>
-                                Input sesi ini: <strong>+{inputTotal.toFixed(2)} kg</strong>. Total terpilah menjadi <strong>{totalCumulative.toFixed(2)} kg</strong> dari <strong>{totalIncoming.toFixed(2)} kg</strong> (Sisa: <strong>{(target - inputTotal).toFixed(2)} kg</strong>).
+                                Input sesi ini:{" "}
+                                <strong>+{inputTotal.toFixed(2)} kg</strong>.
+                                Total terpilah menjadi{" "}
+                                <strong>{totalCumulative.toFixed(2)} kg</strong>{" "}
+                                dari{" "}
+                                <strong>{totalIncoming.toFixed(2)} kg</strong>{" "}
+                                (Sisa:{" "}
+                                <strong>
+                                    {(target - inputTotal).toFixed(2)} kg
+                                </strong>
+                                ).
                             </span>
                         </div>
                     )}
                 </div>
-
             </div>
 
             {/* ---- REALTIME TOTAL BREAKDOWN CARD ---- */}
             <div className="sorting-prev-history-card">
                 <div className="sorting-prev-history-header">
                     <span className="sorting-prev-history-title">
-                        Total Hasil Pemilahan Sampah ({totalCumulative.toFixed(2)} kg)
+                        Total Hasil Pemilahan Sampah (
+                        {totalCumulative.toFixed(2)} kg)
                     </span>
                     <span className="sorting-prev-history-sisa">
-                        Sisa kuota: <strong>{Math.max(0, target - inputTotal).toFixed(2)} kg</strong>
+                        Sisa kuota:{" "}
+                        <strong>
+                            {Math.max(0, target - inputTotal).toFixed(2)} kg
+                        </strong>
                     </span>
                 </div>
                 <div className="sorting-prev-history-grid">
@@ -678,7 +729,9 @@ export default function SortingBatchForm() {
                             num(weights.organik_kg) > 0 ? "has-input" : ""
                         }`}
                     >
-                        <span className="sorting-prev-history-label">Organik</span>
+                        <span className="sorting-prev-history-label">
+                            Organik
+                        </span>
                         <span
                             className={`sorting-prev-history-val ${
                                 num(weights.organik_kg) > 0 ? "highlight" : ""
@@ -692,7 +745,9 @@ export default function SortingBatchForm() {
                             num(weights.residu_kg) > 0 ? "has-input" : ""
                         }`}
                     >
-                        <span className="sorting-prev-history-label">Residu</span>
+                        <span className="sorting-prev-history-label">
+                            Residu
+                        </span>
                         <span
                             className={`sorting-prev-history-val ${
                                 num(weights.residu_kg) > 0 ? "highlight" : ""
@@ -706,7 +761,9 @@ export default function SortingBatchForm() {
                             num(weights.plastik_kg) > 0 ? "has-input" : ""
                         }`}
                     >
-                        <span className="sorting-prev-history-label">Plastik</span>
+                        <span className="sorting-prev-history-label">
+                            Plastik
+                        </span>
                         <span
                             className={`sorting-prev-history-val ${
                                 num(weights.plastik_kg) > 0 ? "highlight" : ""
@@ -720,7 +777,9 @@ export default function SortingBatchForm() {
                             num(weights.kardus_kg) > 0 ? "has-input" : ""
                         }`}
                     >
-                        <span className="sorting-prev-history-label">Kardus</span>
+                        <span className="sorting-prev-history-label">
+                            Kardus
+                        </span>
                         <span
                             className={`sorting-prev-history-val ${
                                 num(weights.kardus_kg) > 0 ? "highlight" : ""
@@ -762,7 +821,9 @@ export default function SortingBatchForm() {
                             num(weights.medis_kg) > 0 ? "has-input" : ""
                         }`}
                     >
-                        <span className="sorting-prev-history-label">Medis</span>
+                        <span className="sorting-prev-history-label">
+                            Medis
+                        </span>
                         <span
                             className={`sorting-prev-history-val ${
                                 num(weights.medis_kg) > 0 ? "highlight" : ""
@@ -776,17 +837,33 @@ export default function SortingBatchForm() {
 
             {/* ---- INPUT FIELDS CARD ---- */}
             <div className={`sorting-card ${overLimit ? "over-limit" : ""}`}>
-                <div className="sorting-card-body" style={{ borderTop: "none" }}>
+                <div
+                    className="sorting-card-body"
+                    style={{ borderTop: "none" }}
+                >
                     <div className="sorting-inputs">
                         <label>
                             <div className="sorting-input-header">
                                 <span>Organik (kg)</span>
                                 {activeRow.previouslySorted.organik_kg > 0 && (
                                     <span className="sorting-prev-badge">
-                                        Sudah: <strong>{activeRow.previouslySorted.organik_kg.toFixed(2)} kg</strong>
+                                        Sudah:{" "}
+                                        <strong>
+                                            {activeRow.previouslySorted.organik_kg.toFixed(
+                                                2,
+                                            )}{" "}
+                                            kg
+                                        </strong>
                                         {num(weights.organik_kg) > 0 && (
                                             <span className="sorting-total-badge">
-                                                {" "}➔ Total: {(activeRow.previouslySorted.organik_kg + num(weights.organik_kg)).toFixed(2)} kg
+                                                {" "}
+                                                ➔ Total:{" "}
+                                                {(
+                                                    activeRow.previouslySorted
+                                                        .organik_kg +
+                                                    num(weights.organik_kg)
+                                                ).toFixed(2)}{" "}
+                                                kg
                                             </span>
                                         )}
                                     </span>
@@ -809,10 +886,23 @@ export default function SortingBatchForm() {
                                 <span>Residu (kg)</span>
                                 {activeRow.previouslySorted.residu_kg > 0 && (
                                     <span className="sorting-prev-badge">
-                                        Sudah: <strong>{activeRow.previouslySorted.residu_kg.toFixed(2)} kg</strong>
+                                        Sudah:{" "}
+                                        <strong>
+                                            {activeRow.previouslySorted.residu_kg.toFixed(
+                                                2,
+                                            )}{" "}
+                                            kg
+                                        </strong>
                                         {num(weights.residu_kg) > 0 && (
                                             <span className="sorting-total-badge">
-                                                {" "}➔ Total: {(activeRow.previouslySorted.residu_kg + num(weights.residu_kg)).toFixed(2)} kg
+                                                {" "}
+                                                ➔ Total:{" "}
+                                                {(
+                                                    activeRow.previouslySorted
+                                                        .residu_kg +
+                                                    num(weights.residu_kg)
+                                                ).toFixed(2)}{" "}
+                                                kg
                                             </span>
                                         )}
                                     </span>
@@ -833,17 +923,34 @@ export default function SortingBatchForm() {
                     </div>
 
                     <div className="sorting-anorganik-group">
-                        <span className="sorting-group-label">Kategori Anorganik</span>
+                        <span className="sorting-group-label">
+                            Kategori Anorganik
+                        </span>
                         <div className="sorting-inputs">
                             <label>
                                 <div className="sorting-input-header">
                                     <span>Plastik (kg)</span>
-                                    {activeRow.previouslySorted.plastik_kg > 0 && (
+                                    {activeRow.previouslySorted.plastik_kg >
+                                        0 && (
                                         <span className="sorting-prev-badge">
-                                            Sudah: <strong>{activeRow.previouslySorted.plastik_kg.toFixed(2)} kg</strong>
+                                            Sudah:{" "}
+                                            <strong>
+                                                {activeRow.previouslySorted.plastik_kg.toFixed(
+                                                    2,
+                                                )}{" "}
+                                                kg
+                                            </strong>
                                             {num(weights.plastik_kg) > 0 && (
                                                 <span className="sorting-total-badge">
-                                                    {" "}➔ Total: {(activeRow.previouslySorted.plastik_kg + num(weights.plastik_kg)).toFixed(2)} kg
+                                                    {" "}
+                                                    ➔ Total:{" "}
+                                                    {(
+                                                        activeRow
+                                                            .previouslySorted
+                                                            .plastik_kg +
+                                                        num(weights.plastik_kg)
+                                                    ).toFixed(2)}{" "}
+                                                    kg
                                                 </span>
                                             )}
                                         </span>
@@ -867,12 +974,27 @@ export default function SortingBatchForm() {
                             <label>
                                 <div className="sorting-input-header">
                                     <span>Kardus (kg)</span>
-                                    {activeRow.previouslySorted.kardus_kg > 0 && (
+                                    {activeRow.previouslySorted.kardus_kg >
+                                        0 && (
                                         <span className="sorting-prev-badge">
-                                            Sudah: <strong>{activeRow.previouslySorted.kardus_kg.toFixed(2)} kg</strong>
+                                            Sudah:{" "}
+                                            <strong>
+                                                {activeRow.previouslySorted.kardus_kg.toFixed(
+                                                    2,
+                                                )}{" "}
+                                                kg
+                                            </strong>
                                             {num(weights.kardus_kg) > 0 && (
                                                 <span className="sorting-total-badge">
-                                                    {" "}➔ Total: {(activeRow.previouslySorted.kardus_kg + num(weights.kardus_kg)).toFixed(2)} kg
+                                                    {" "}
+                                                    ➔ Total:{" "}
+                                                    {(
+                                                        activeRow
+                                                            .previouslySorted
+                                                            .kardus_kg +
+                                                        num(weights.kardus_kg)
+                                                    ).toFixed(2)}{" "}
+                                                    kg
                                                 </span>
                                             )}
                                         </span>
@@ -898,10 +1020,24 @@ export default function SortingBatchForm() {
                                     <span>Kaca (kg)</span>
                                     {activeRow.previouslySorted.kaca_kg > 0 && (
                                         <span className="sorting-prev-badge">
-                                            Sudah: <strong>{activeRow.previouslySorted.kaca_kg.toFixed(2)} kg</strong>
+                                            Sudah:{" "}
+                                            <strong>
+                                                {activeRow.previouslySorted.kaca_kg.toFixed(
+                                                    2,
+                                                )}{" "}
+                                                kg
+                                            </strong>
                                             {num(weights.kaca_kg) > 0 && (
                                                 <span className="sorting-total-badge">
-                                                    {" "}➔ Total: {(activeRow.previouslySorted.kaca_kg + num(weights.kaca_kg)).toFixed(2)} kg
+                                                    {" "}
+                                                    ➔ Total:{" "}
+                                                    {(
+                                                        activeRow
+                                                            .previouslySorted
+                                                            .kaca_kg +
+                                                        num(weights.kaca_kg)
+                                                    ).toFixed(2)}{" "}
+                                                    kg
                                                 </span>
                                             )}
                                         </span>
@@ -924,10 +1060,24 @@ export default function SortingBatchForm() {
                                     <span>Besi (kg)</span>
                                     {activeRow.previouslySorted.besi_kg > 0 && (
                                         <span className="sorting-prev-badge">
-                                            Sudah: <strong>{activeRow.previouslySorted.besi_kg.toFixed(2)} kg</strong>
+                                            Sudah:{" "}
+                                            <strong>
+                                                {activeRow.previouslySorted.besi_kg.toFixed(
+                                                    2,
+                                                )}{" "}
+                                                kg
+                                            </strong>
                                             {num(weights.besi_kg) > 0 && (
                                                 <span className="sorting-total-badge">
-                                                    {" "}➔ Total: {(activeRow.previouslySorted.besi_kg + num(weights.besi_kg)).toFixed(2)} kg
+                                                    {" "}
+                                                    ➔ Total:{" "}
+                                                    {(
+                                                        activeRow
+                                                            .previouslySorted
+                                                            .besi_kg +
+                                                        num(weights.besi_kg)
+                                                    ).toFixed(2)}{" "}
+                                                    kg
                                                 </span>
                                             )}
                                         </span>
@@ -948,12 +1098,27 @@ export default function SortingBatchForm() {
                             <label>
                                 <div className="sorting-input-header">
                                     <span>Medis (kg)</span>
-                                    {activeRow.previouslySorted.medis_kg > 0 && (
+                                    {activeRow.previouslySorted.medis_kg >
+                                        0 && (
                                         <span className="sorting-prev-badge">
-                                            Sudah: <strong>{activeRow.previouslySorted.medis_kg.toFixed(2)} kg</strong>
+                                            Sudah:{" "}
+                                            <strong>
+                                                {activeRow.previouslySorted.medis_kg.toFixed(
+                                                    2,
+                                                )}{" "}
+                                                kg
+                                            </strong>
                                             {num(weights.medis_kg) > 0 && (
                                                 <span className="sorting-total-badge">
-                                                    {" "}➔ Total: {(activeRow.previouslySorted.medis_kg + num(weights.medis_kg)).toFixed(2)} kg
+                                                    {" "}
+                                                    ➔ Total:{" "}
+                                                    {(
+                                                        activeRow
+                                                            .previouslySorted
+                                                            .medis_kg +
+                                                        num(weights.medis_kg)
+                                                    ).toFixed(2)}{" "}
+                                                    kg
                                                 </span>
                                             )}
                                         </span>
@@ -967,10 +1132,7 @@ export default function SortingBatchForm() {
                                     placeholder="0.00"
                                     value={weights.medis_kg}
                                     onChange={(e) =>
-                                        updateWeight(
-                                            "medis_kg",
-                                            e.target.value,
-                                        )
+                                        updateWeight("medis_kg", e.target.value)
                                     }
                                 />
                             </label>
@@ -997,19 +1159,30 @@ export default function SortingBatchForm() {
                 <div className="sorting-submit-hint">
                     {inputTotal === 0 ? (
                         <span>
-                            * Masukkan berat sampah yang telah dipilah pada kolom di atas (maksimal sisa <strong>{target.toFixed(2)} kg</strong>).
+                            * Masukkan berat sampah yang telah dipilah pada
+                            kolom di atas (maksimal sisa{" "}
+                            <strong>{target.toFixed(2)} kg</strong>).
                         </span>
                     ) : !overLimit && !isExact ? (
                         <span>
-                            * Pemilahan parsial: Menyimpan <strong>+{inputTotal.toFixed(2)} kg</strong>. Sisa sampah setelah disimpan: <strong>{(target - inputTotal).toFixed(2)} kg</strong>.
+                            * Pemilahan parsial: Menyimpan{" "}
+                            <strong>+{inputTotal.toFixed(2)} kg</strong>. Sisa
+                            sampah setelah disimpan:{" "}
+                            <strong>
+                                {(target - inputTotal).toFixed(2)} kg
+                            </strong>
+                            .
                         </span>
                     ) : isExact ? (
                         <span>
-                            * Kuota penuh <strong>{totalIncoming.toFixed(2)} kg</strong> akan terpenuhi lengkap setelah disimpan.
+                            * Kuota penuh{" "}
+                            <strong>{totalIncoming.toFixed(2)} kg</strong> akan
+                            terpenuhi lengkap setelah disimpan.
                         </span>
                     ) : (
                         <span style={{ color: "#ef4444" }}>
-                            * Input melebihi sisa kuota yang tersedia ({target.toFixed(2)} kg).
+                            * Input melebihi sisa kuota yang tersedia (
+                            {target.toFixed(2)} kg).
                         </span>
                     )}
                 </div>
@@ -1027,12 +1200,17 @@ export default function SortingBatchForm() {
                     ) : isExact ? (
                         <>
                             <CheckCircle2 size={20} />
-                            <span>Simpan Pemilahan ({target.toFixed(2)} kg - Selesai Penuh)</span>
+                            <span>
+                                Simpan Pemilahan ({target.toFixed(2)} kg -
+                                Selesai Penuh)
+                            </span>
                         </>
                     ) : isValidSubmit ? (
                         <>
                             <CheckCircle2 size={20} />
-                            <span>Simpan Pemilahan (+{inputTotal.toFixed(2)} kg)</span>
+                            <span>
+                                Simpan Pemilahan (+{inputTotal.toFixed(2)} kg)
+                            </span>
                         </>
                     ) : overLimit ? (
                         `Melebihi Sisa Kuota (+${(inputTotal - target).toFixed(2)} kg)`
